@@ -7,26 +7,44 @@
 #include <xs>
 #include <vector>
 
+new gKeysMainMenu;
+
+enum
+{
+	N1, N2, N3, N4, N5, N6, N7, N8, N9, N0
+};
+
+enum
+{
+	B1 = 1 << N1, B2 = 1 << N2, B3 = 1 << N3, B4 = 1 << N4, B5 = 1 << N5,
+	B6 = 1 << N6, B7 = 1 << N7, B8 = 1 << N8, B9 = 1 << N9, B0 = 1 << N0,
+};
+
+new gszMainMenu[200];
 
 new bool:g_stealth[33];
 new bool:headshot[33];
 new bool:dmg_reflection[33];
 
-new poop, wave;
+new poop;
+new wave;
 
-const KEYSMENU = MENU_KEY_1|MENU_KEY_2|MENU_KEY_3|MENU_KEY_4|MENU_KEY_5|MENU_KEY_6|MENU_KEY_7|MENU_KEY_8|MENU_KEY_9|MENU_KEY_0
+//const KEYSMENU = MENU_KEY_1|MENU_KEY_2|MENU_KEY_3|MENU_KEY_4|MENU_KEY_5|MENU_KEY_6|MENU_KEY_7|MENU_KEY_8|MENU_KEY_9|MENU_KEY_0
 
 public plugin_init()
 {
-	register_plugin("dafuq", "1.0", "Ako");
+	register_plugin("hax", "1.0", "Ako");
 
-	register_clcmd("bored", "forfun");
+	register_clcmd("hax", "showMenu");
 
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
 
-	register_menu("FUNMENU", KEYSMENU, "Funn_menu");
+	createMenu();
+
+	register_menucmd(register_menuid("haxMainMenu"), gKeysMainMenu, "handleMainMenu");
+	//register_menu("FUNMENU", KEYSMENU, "Funn_menu");
 }
 
 public plugin_precache()
@@ -35,7 +53,69 @@ public plugin_precache()
 	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
 }
 
-public forfun(id)
+createMenu()
+{
+	new size = sizeof(gszMainMenu);
+	add(gszMainMenu, size, "\w大便雞雞尿尿 ^n^n");
+	add(gszMainMenu, size, "\r1. \waimbot: %s ^n");
+	add(gszMainMenu, size, "\r2. \w反射傷害: %s ^n");
+	add(gszMainMenu, size, "\r3. \w隱身: %s ^n^n^n");
+	add(gszMainMenu, size, "\r0. \wClose");
+	gKeysMainMenu = B1 | B2 | B3 | B0
+
+}
+
+public showMenu(id){
+	new menu[200];
+	new Aimbot[6];
+	new Dmgreflection[6];
+	new Stealth[6];
+	Aimbot = (headshot[id] ? "\yOn" : "\rOff");
+	Dmgreflection = (dmg_reflection[id] ? "\yOn" : "\rOff");
+	Stealth = (g_stealth[id] ? "\yOn" : "\rOff");
+
+	format(menu, 200, gszMainMenu, Aimbot, Dmgreflection, Stealth);
+
+	show_menu(id, gKeysMainMenu, menu, -1, "haxMainMenu");
+
+	return PLUGIN_HANDLED;
+}
+
+public handleMainMenu(id, num){
+	switch(num){
+		case N1: { toggleAimbot(id); }
+		case N2: { toggleDmgreflection(id); }
+		case N3: { toggleStealth(id); }
+		case N0: { return; }
+	}
+
+	if(num != N4 && num != N5 && num != N6 && num != N7 && num != N8 && num != N9){
+		showMenu(id);
+	}
+}
+
+toggleAimbot(id){
+	if(headshot[id]) headshot[id] = false;
+	else headshot[id] = true;
+}
+
+toggleDmgreflection(id){
+	if(dmg_reflection[id]) dmg_reflection[id] = false;
+	else dmg_reflection[id] = true;
+}
+
+toggleStealth(id){
+	if(g_stealth[id] && is_user_alive(id)){
+		g_stealth[id] = false;
+		Stealth_On(id);
+	}
+	else{
+		g_stealth[id] = true;
+		Stealth_Off(id);
+	}
+}
+
+/*public forfun(id)
 {
 	new menu[200], len
 	len = 0
@@ -99,7 +179,7 @@ public Funn_menu(id, key)
 			}
 		}
 	}
-}
+}*/
 
 public Stealth_On(id)
 	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
