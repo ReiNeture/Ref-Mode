@@ -132,7 +132,8 @@ summonHaachamaAiming(id){
 	summonHaachama(vOrigin);
 }
 
-summonHaachama(Float:vOrigin[3]){
+summonHaachama(Float:vOrigin[3])
+{
 	new ent = create_entity(gInfoTarget);
 
 	entity_set_string(ent, EV_SZ_classname, gClassname);
@@ -140,6 +141,13 @@ summonHaachama(Float:vOrigin[3]){
 	entity_set_int(ent, EV_INT_solid, SOLID_BBOX);
 	entity_set_size(ent, Float:{-16.0, -16.0, -36.0}, Float:{16.0, 16.0, 36.0});
 	entity_set_origin(ent, vOrigin);
+
+	entity_set_float(ent,EV_FL_takedamage, 1.0);
+	entity_set_float(ent,EV_FL_health, 100.0);
+
+	entity_set_float(ent,EV_FL_animtime, 2.0);
+	entity_set_float(ent,EV_FL_framerate, 1.0);
+	entity_set_int(ent,EV_INT_sequence, 3);
 }
 
 Stealth_On(id)

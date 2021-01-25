@@ -221,7 +221,7 @@ public parabola(id, const entity_name[], const entity_model[])  // 410mm & torpe
 	entity_set_vector( sprite_ent, EV_VEC_angles, fAngles) //設定瞄準角度
 
 	new Float:fVel[3]
-	velocity_by_aim(id, ifire_range[mode_switch[id]], fVel)	
+	velocity_by_aim(id, ifire_range[mode_switch[id]], fVel)	// ifire_range[mode_switch[id]] = 2000
 	entity_set_vector( sprite_ent, EV_VEC_velocity, fVel) //設定向量(才有移動的動作)
 	emit_sound(sprite_ent, CHAN_VOICE, "weapons/star.wav", 1.0, ATTN_NORM, 0, PITCH_NORM)
 
