@@ -9,6 +9,8 @@
 
 new gKeysMainMenu;
 
+new const gClassname[] = "func_haachama"
+
 enum
 {
 	N1, N2, N3, N4, N5, N6, N7, N8, N9, N0
@@ -20,7 +22,10 @@ enum
 	B6 = 1 << N6, B7 = 1 << N7, B8 = 1 << N8, B9 = 1 << N9, B0 = 1 << N0,
 };
 
+new const gInfoTarget[] = "info_target"
 new gszMainMenu[200];
+
+new const gHaachamaModel[] = "models/haachama/haachama.mdl"
 
 new bool:g_stealth[33];
 new bool:headshot[33];
@@ -47,6 +52,7 @@ public plugin_init()
 
 public plugin_precache()
 {
+	precache_model(gHaachamaModel);
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
 	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
 }
@@ -57,9 +63,10 @@ createMenu()
 	add(gszMainMenu, size, "\w大便雞雞尿尿 ^n^n");
 	add(gszMainMenu, size, "\r1. \waimbot: %s ^n");
 	add(gszMainMenu, size, "\r2. \w反射傷害: %s ^n");
-	add(gszMainMenu, size, "\r3. \w隱身: %s ^n^n^n");
+	add(gszMainMenu, size, "\r3. \w隱身: %s ^n^n");
+	add(gszMainMenu, size, "\r4. \w召喚哈洽馬 ^n^n^n");
 	add(gszMainMenu, size, "\r0. \wClose");
-	gKeysMainMenu = B1 | B2 | B3 | B0
+	gKeysMainMenu = B1 | B2 | B3 | B4 | B0
 
 }
 
@@ -84,10 +91,11 @@ public handleMainMenu(id, num){
 		case N1: { toggleAimbot(id); }
 		case N2: { toggleDmgreflection(id); }
 		case N3: { toggleStealth(id); }
+		case N4: { summonHaachamaAiming(id); }
 		case N0: { return; }
 	}
 
-	if(num != N4 && num != N5 && num != N6 && num != N7 && num != N8 && num != N9){
+	if(num != N5 && num != N6 && num != N7 && num != N8 && num != N9){
 		showMenu(id);
 	}
 }
@@ -113,12 +121,31 @@ toggleStealth(id){
 	}
 }
 
+summonHaachamaAiming(id){
+	new Origin[3];
+	new Float:vOrigin[3];
 
+	get_user_origin(id, Origin, 3);
+	IVecFVec(Origin, vOrigin);
+	vOrigin[2] += 36.0;
 
-public Stealth_On(id)
+	summonHaachama(vOrigin);
+}
+
+summonHaachama(Float:vOrigin[3]){
+	new ent = create_entity(gInfoTarget);
+
+	entity_set_string(ent, EV_SZ_classname, gClassname);
+	entity_set_model(ent, gHaachamaModel);
+	entity_set_int(ent, EV_INT_solid, SOLID_BBOX);
+	entity_set_size(ent, Float:{-16.0, -16.0, -36.0}, Float:{16.0, 16.0, 36.0});
+	entity_set_origin(ent, vOrigin);
+}
+
+Stealth_On(id)
 	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
 
-public Stealth_Off(id)
+Stealth_Off(id)
 	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 0);
 
 
