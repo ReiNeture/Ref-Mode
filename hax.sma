@@ -29,7 +29,6 @@ new bool:dmg_reflection[33];
 new poop;
 new wave;
 
-//const KEYSMENU = MENU_KEY_1|MENU_KEY_2|MENU_KEY_3|MENU_KEY_4|MENU_KEY_5|MENU_KEY_6|MENU_KEY_7|MENU_KEY_8|MENU_KEY_9|MENU_KEY_0
 
 public plugin_init()
 {
@@ -44,7 +43,6 @@ public plugin_init()
 	createMenu();
 
 	register_menucmd(register_menuid("haxMainMenu"), gKeysMainMenu, "handleMainMenu");
-	//register_menu("FUNMENU", KEYSMENU, "Funn_menu");
 }
 
 public plugin_precache()
@@ -115,71 +113,7 @@ toggleStealth(id){
 	}
 }
 
-/*public forfun(id)
-{
-	new menu[200], len
-	len = 0
-	len += formatex(menu[len], charsmax(menu) - len, "\w大便雞雞尿尿 ^n^n");
-	if(!headshot[id])
-		len += formatex(menu[len], charsmax(menu) - len, "\w1.aimbot ^n");
-	else if(headshot[id])
-		len += formatex(menu[len], charsmax(menu) - len, "\r1.aimbot ^n");
-	if(!dmg_reflection[id])
-		len += formatex(menu[len], charsmax(menu) - len, "\w2.反射傷害 ^n");
-	else if(dmg_reflection[id])
-		len += formatex(menu[len], charsmax(menu) - len, "\r2.反射傷害 ^n");
-	if(!g_stealth[id])
-		len += formatex(menu[len], charsmax(menu) - len, "\w3.隱身 ^n");
-	else if(g_stealth[id])
-		len += formatex(menu[len], charsmax(menu) - len, "\r3.隱身 ^n");
 
-	show_menu(id, KEYSMENU, menu, -1, "FUNMENU");
-	return PLUGIN_HANDLED;
-}
-
-public Funn_menu(id, key)
-{
-	switch(key)
-	{
-		case 0:
-		{
-			if(!headshot[id])
-			{
-				headshot[id] = true;
-				forfun(id);
-			}
-			else if(headshot[id])
-			{
-				headshot[id] = false;
-				forfun(id);
-			}
-		}
-		case 1:
-		{
-			if(!dmg_reflection[id]){
-				dmg_reflection[id] = true;
-				forfun(id);
-			}
-			else if(dmg_reflection[id]){
-				dmg_reflection[id] = false;
-				forfun(id);
-			}
-		}
-		case 2:
-		{
-			if(!g_stealth[id] && is_user_alive(id)){
-				g_stealth[id] = true;
-				Stealth_Off(id);
-				forfun(id);
-			}
-			else if(g_stealth[id] && is_user_alive(id)){
-				g_stealth[id] = false;
-				Stealth_On(id);
-				forfun(id);
-			}
-		}
-	}
-}*/
 
 public Stealth_On(id)
 	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
