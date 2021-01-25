@@ -9,8 +9,6 @@
 
 new gKeysMainMenu;
 
-new const gClassname[] = "func_haachama"
-
 enum
 {
 	N1, N2, N3, N4, N5, N6, N7, N8, N9, N0
@@ -22,14 +20,17 @@ enum
 	B6 = 1 << N6, B7 = 1 << N7, B8 = 1 << N8, B9 = 1 << N9, B0 = 1 << N0,
 };
 
-new const gInfoTarget[] = "info_target"
+new const gClassname[] = "func_haachama";
+new const gInfoTarget[] = "env_sprite";
 new gszMainMenu[200];
 
 new const gHaachamaModel[] = "models/haachama/haachama.mdl"
+new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
 
 new bool:g_stealth[33];
 new bool:headshot[33];
 new bool:dmg_reflection[33];
+new Float:hachamaTimer[512];
 
 new poop;
 new wave;
@@ -45,6 +46,9 @@ public plugin_init()
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
 
+	register_touch(gClassname, "player", "TouchHachama");
+	register_think(gClassname, "hachamaThink");
+
 	createMenu();
 
 	register_menucmd(register_menuid("haxMainMenu"), gKeysMainMenu, "handleMainMenu");
@@ -53,6 +57,7 @@ public plugin_init()
 public plugin_precache()
 {
 	precache_model(gHaachamaModel);
+	precache_sound(gszAquaSound);
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
 	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
 }
@@ -138,16 +143,66 @@ summonHaachama(Float:vOrigin[3])
 
 	entity_set_string(ent, EV_SZ_classname, gClassname);
 	entity_set_model(ent, gHaachamaModel);
-	entity_set_int(ent, EV_INT_solid, SOLID_BBOX);
-	entity_set_size(ent, Float:{-16.0, -16.0, -36.0}, Float:{16.0, 16.0, 36.0});
+	entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
+	entity_set_size(ent, Float:{-16.0, -16.0, -25.0}, Float:{16.0, 16.0, 25.0});
 	entity_set_origin(ent, vOrigin);
 
 	entity_set_float(ent,EV_FL_takedamage, 1.0);
 	entity_set_float(ent,EV_FL_health, 100.0);
 
-	entity_set_float(ent,EV_FL_animtime, 2.0);
-	entity_set_float(ent,EV_FL_framerate, 1.0);
-	entity_set_int(ent,EV_INT_sequence, 3);
+	entity_set_float(ent,EV_FL_animtime, 0.5);
+	entity_set_float(ent,EV_FL_framerate, 0.5);
+	entity_set_int(ent,EV_INT_sequence, 4);
+}
+
+public TouchHachama(Ptd, Ptr)
+{
+	if (!is_valid_ent(Ptd))
+		return;
+
+	// new Float:origin[3];
+	// entity_get_vector(Ptr, EV_VEC_origin, origin);
+	// entity_set_vector(Ptd, EV_VEC_origin, origin);
+
+	if( !entity_get_edict(Ptd, EV_ENT_owner) ) {
+		hachamaTimer[Ptd] = halflife_time()+70.0;
+		entity_set_edict(Ptd, EV_ENT_owner, Ptr);
+		entity_set_float(Ptd, EV_FL_nextthink, halflife_time() + 0.1);
+		emit_sound(Ptd, CHAN_STATIC, gszAquaSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
+	}
+}
+public hachamaThink(ent)
+{
+	if (!is_valid_ent(ent))
+		return;
+
+	new id = entity_get_edict(ent, EV_ENT_owner);
+	if(!is_user_connected(id) || !is_user_alive(id))
+	{
+		drop_to_floor(ent);
+		entity_set_edict(ent, EV_ENT_owner, 0);
+		return;
+	}
+
+	
+	if( halflife_time()-1.5 >= hachamaTimer[ent])
+		entity_set_int(ent, EV_INT_sequence, 109);
+
+	if( halflife_time() > hachamaTimer[ent])
+	{
+		remove_entity(ent);
+		return;
+	}
+
+	new Float:origin[3];
+	entity_get_vector(id, EV_VEC_origin, origin);
+	origin[2] += 10.0;
+	entity_set_vector(ent, EV_VEC_origin, origin);
+	drop_to_floor(ent);
+	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.1);
+	
+	
+
 }
 
 Stealth_On(id)

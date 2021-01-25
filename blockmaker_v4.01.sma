@@ -227,7 +227,7 @@ new bool:gbAdminNoclip[33];
 
 // global floats
 new Float:gfNextAquaTime[512];
-new Float:gfNextKanataTime[33];
+// new Float:gfNextKanataTime[33];
 new Float:gfSnappingGap[33];
 new Float:gfOldMaxSpeed[33];
 new Float:gfGrablength[33];
@@ -1284,7 +1284,7 @@ public client_PreThink(id)
 						case BM_BOOTSOFSPEED: actionBootsOfSpeed(id, false);
 						case BM_AUTO_BHOP: actionAutoBhop(id, false);
 						case BM_AQUA: actionAqua(ent);
-						case BM_KANATA: actionKanata(id, ent);
+						case BM_KANATA: actionKanata(ent);
 					}
 				}
 			}
@@ -1618,14 +1618,14 @@ actionAqua(ent)
 	}
 }
 
-actionKanata(id, ent)
+actionKanata(ent)
 {
 
-	if (halflife_time() >= gfNextKanataTime[id])
+	if (halflife_time() >= gfNextAquaTime[ent])
 	{
 
 		emit_sound(ent, CHAN_STATIC, gszKanataSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
-		gfNextKanataTime[id] = halflife_time() + 5.0;
+		gfNextAquaTime[ent] = halflife_time() + 5.0;
 	}
 }
 
