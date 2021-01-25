@@ -226,7 +226,7 @@ new bool:gbAdminGodmode[33];
 new bool:gbAdminNoclip[33];
 
 // global floats
-new Float:gfNextAquaTime[33];
+new Float:gfNextAquaTime[512];
 new Float:gfNextKanataTime[33];
 new Float:gfSnappingGap[33];
 new Float:gfOldMaxSpeed[33];
@@ -1283,7 +1283,7 @@ public client_PreThink(id)
 						case BM_HONEY: actionHoney(id);
 						case BM_BOOTSOFSPEED: actionBootsOfSpeed(id, false);
 						case BM_AUTO_BHOP: actionAutoBhop(id, false);
-						case BM_AQUA: actionAqua(id, ent);
+						case BM_AQUA: actionAqua(ent);
 						case BM_KANATA: actionKanata(id, ent);
 					}
 				}
@@ -1608,14 +1608,13 @@ public eventCurWeapon(id)
 }
 
 /***** BLOCK ACTIONS *****/
-actionAqua(id, ent)
+actionAqua(ent)
 {
 
-	if (halflife_time() >= gfNextAquaTime[id])
+	if (halflife_time() >= gfNextAquaTime[ent])
 	{
-
 		emit_sound(ent, CHAN_STATIC, gszAquaSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
-		gfNextAquaTime[id] = halflife_time() + 3.0;
+		gfNextAquaTime[ent] = halflife_time() + 3.0;
 	}
 }
 
