@@ -20,8 +20,9 @@ enum
 	B6 = 1 << N6, B7 = 1 << N7, B8 = 1 << N8, B9 = 1 << N9, B0 = 1 << N0,
 };
 
-new const gClassname[] = "func_haachama";
-new const gInfoTarget[] = "env_sprite";
+new const gInfoTarget[] = "env_sprite"; // info_target
+new const gClassname[] = "func_breakable"; //func_haachama
+
 new gszMainMenu[200];
 
 new const gHaachamaModel[] = "models/haachama/haachama.mdl"
@@ -143,7 +144,7 @@ summonHaachama(Float:vOrigin[3])
 
 	entity_set_string(ent, EV_SZ_classname, gClassname);
 	entity_set_model(ent, gHaachamaModel);
-	entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
+	entity_set_int(ent, EV_INT_solid, SOLID_BBOX); //TRIGGER
 	entity_set_size(ent, Float:{-16.0, -16.0, -25.0}, Float:{16.0, 16.0, 25.0});
 	entity_set_origin(ent, vOrigin);
 
@@ -165,9 +166,12 @@ public TouchHachama(Ptd, Ptr)
 	// entity_set_vector(Ptd, EV_VEC_origin, origin);
 
 	if( !entity_get_edict(Ptd, EV_ENT_owner) ) {
+		
 		hachamaTimer[Ptd] = halflife_time()+70.0;
+
 		entity_set_edict(Ptd, EV_ENT_owner, Ptr);
 		entity_set_float(Ptd, EV_FL_nextthink, halflife_time() + 0.1);
+
 		emit_sound(Ptd, CHAN_STATIC, gszAquaSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
 	}
 }
@@ -176,33 +180,28 @@ public hachamaThink(ent)
 	if (!is_valid_ent(ent))
 		return;
 
-	new id = entity_get_edict(ent, EV_ENT_owner);
-	if(!is_user_connected(id) || !is_user_alive(id))
-	{
-		drop_to_floor(ent);
-		entity_set_edict(ent, EV_ENT_owner, 0);
-		return;
-	}
-
-	
-	if( halflife_time()-1.5 >= hachamaTimer[ent])
-		entity_set_int(ent, EV_INT_sequence, 109);
-
 	if( halflife_time() > hachamaTimer[ent])
 	{
 		remove_entity(ent);
 		return;
 	}
 
-	new Float:origin[3];
-	entity_get_vector(id, EV_VEC_origin, origin);
-	origin[2] += 10.0;
-	entity_set_vector(ent, EV_VEC_origin, origin);
-	drop_to_floor(ent);
-	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.1);
-	
-	
+	new id = entity_get_edict(ent, EV_ENT_owner);
+	if( (!is_user_connected(id) || !is_user_alive(id)) && id)
+	{
+		drop_to_floor(ent);
+		entity_set_edict(ent, EV_ENT_owner, 0);
+	}
 
+	if( id ) {
+		new Float:origin[3];
+		entity_get_vector(id, EV_VEC_origin, origin);
+		// origin[2] += 10.0;
+		entity_set_vector(ent, EV_VEC_origin, origin);
+		drop_to_floor(ent);
+	}
+
+	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.1);
 }
 
 Stealth_On(id)
