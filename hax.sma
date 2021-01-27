@@ -196,8 +196,6 @@ createBall(id){
     velocity_by_aim(id, BallSpeed, vVelocity);
 
     entity_set_vector(ent, EV_VEC_velocity, vVelocity);
-    vector_to_angle(vVelocity, vAngles);
-    entity_set_vector(ent, EV_VEC_angles, vAngles);
 }
 
 public TouchHachama(Ptd, Ptr)
