@@ -20,13 +20,23 @@ enum
 	B6 = 1 << N6, B7 = 1 << N7, B8 = 1 << N8, B9 = 1 << N9, B0 = 1 << N0,
 };
 
+const BallSpeed = 2000	
+const Float:BallDamage = 250.0
+const Float:BallRadiusExplode =	130.0
+
 new const gInfoTarget[] = "env_sprite"; // info_target
 new const gClassname[] = "func_breakable"; //func_haachama
+new const gBallClassname[] = "Entball";
 
 new gszMainMenu[200];
 
 new const gHaachamaModel[] = "models/haachama/haachama.mdl"
 new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
+new const BallSprites[2][] =
+{
+	"sprites/gBall/gball.spr",		
+	"sprites/gBall/gbomb.spr"		
+}
 
 new bool:g_stealth[33];
 new bool:headshot[33];
@@ -35,6 +45,7 @@ new Float:hachamaTimer[512];
 
 new poop;
 new wave;
+//new ball;
 
 
 public plugin_init()
@@ -61,6 +72,10 @@ public plugin_precache()
 	precache_sound(gszAquaSound);
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
 	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
+
+	for(new i = 0; i < sizeof BallSprites; i++)
+		precache_model(BallSprites[i]);
+	//ball = precache_model(BallSprites[1]);
 }
 
 createMenu()
@@ -70,9 +85,10 @@ createMenu()
 	add(gszMainMenu, size, "\r1. \waimbot: %s ^n");
 	add(gszMainMenu, size, "\r2. \w反射傷害: %s ^n");
 	add(gszMainMenu, size, "\r3. \w隱身: %s ^n^n");
-	add(gszMainMenu, size, "\r4. \w召喚哈洽馬 ^n^n^n");
+	add(gszMainMenu, size, "\r4. \w召喚哈洽馬 ^n");
+	add(gszMainMenu, size, "\r5. \w色情球球 ^n^n^n");
 	add(gszMainMenu, size, "\r0. \wClose");
-	gKeysMainMenu = B1 | B2 | B3 | B4 | B0
+	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B0
 
 }
 
@@ -98,10 +114,11 @@ public handleMainMenu(id, num){
 		case N2: { toggleDmgreflection(id); }
 		case N3: { toggleStealth(id); }
 		case N4: { summonHaachamaAiming(id); }
+		case N5: { createBall(id); }
 		case N0: { return; }
 	}
 
-	if(num != N5 && num != N6 && num != N7 && num != N8 && num != N9){
+	if(num != N6 && num != N7 && num != N8 && num != N9){
 		showMenu(id);
 	}
 }
@@ -154,6 +171,33 @@ summonHaachama(Float:vOrigin[3])
 	entity_set_float(ent,EV_FL_animtime, 0.5);
 	entity_set_float(ent,EV_FL_framerate, 0.5);
 	entity_set_int(ent,EV_INT_sequence, 4);
+}
+
+createBall(id){
+    new Float:vOrigin[3], Float:vVelocity[3], Float:vAngles[3];
+    new ent = create_entity(gInfoTarget);
+
+    get_weapon_position(id, vOrigin, 40.0, 12.0, -5.0)
+
+    entity_set_string(ent, EV_SZ_classname, gBallClassname);
+    entity_set_int(ent, EV_INT_solid,   SOLID_SLIDEBOX);
+    entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
+
+    entity_set_model(ent, BallSprites[0]);
+    entity_set_origin(ent, vOrigin);
+    entity_set_size(ent, Float:{0.0, 0.0, 0.0}, Float:{0.0, 0.0, 0.0});
+
+    entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
+    entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
+    entity_set_float(ent, EV_FL_renderamt, 255.0);
+    entity_set_float(ent, EV_FL_scale, random_float(0.1, 0.4));
+    entity_set_int(ent, EV_INT_iuser1, id);
+
+    velocity_by_aim(id, BallSpeed, vVelocity);
+
+    entity_set_vector(ent, EV_VEC_velocity, vVelocity);
+    vector_to_angle(vVelocity, vAngles);
+    entity_set_vector(ent, EV_VEC_angles, vAngles);
 }
 
 public TouchHachama(Ptd, Ptr)
@@ -296,4 +340,33 @@ stock fm_set_rendering(id, fx = kRenderFxNone, r = 255, g = 255, b = 255, render
 	set_pev(id, pev_rendercolor, color);
 	set_pev(id, pev_rendermode, render);
 	set_pev(id, pev_renderamt, float(amount));
+}
+
+stock get_weapon_position(id, Float:fOrigin[], Float:add_forward = 0.0, Float:add_right = 0.0, Float:add_up = 0.0)
+{
+	static Float:Angles[3],Float:ViewOfs[3], Float:vAngles[3]
+	static Float:Forward[3], Float:Right[3], Float:Up[3]
+	
+	pev(id, pev_v_angle, vAngles)
+	pev(id, pev_origin, fOrigin)
+	pev(id, pev_view_ofs, ViewOfs)
+	xs_vec_add(fOrigin, ViewOfs, fOrigin)
+	
+	pev(id, pev_angles, Angles)
+	
+	Angles[0] = vAngles[0]
+	
+	engfunc(EngFunc_MakeVectors, Angles)
+	
+	global_get(glb_v_forward, Forward)
+	global_get(glb_v_right, Right)
+	global_get(glb_v_up, Up)
+	
+	xs_vec_mul_scalar(Forward, add_forward, Forward)
+	xs_vec_mul_scalar(Right, add_right, Right)
+	xs_vec_mul_scalar(Up, add_up, Up)
+	
+	fOrigin[0] = fOrigin[0] + Forward[0] + Right[0] + Up[0]
+	fOrigin[1] = fOrigin[1] + Forward[1] + Right[1] + Up[1]
+	fOrigin[2] = fOrigin[2] + Forward[2] + Right[2] + Up[2]
 }
