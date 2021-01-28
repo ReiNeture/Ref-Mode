@@ -33,6 +33,11 @@ new gszMainMenu[200];
 
 new const gHaachamaModel[] = "models/haachama/haachama.mdl"
 new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
+new const BallSounds[2][] = 
+{
+	"ref/ballshoot.wav",		
+	"ref/ballexp.wav"		
+}
 new const BallSprites[2][] =
 {
 	"sprites/gBall/gball.spr",		
@@ -58,7 +63,7 @@ public plugin_init()
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
-	RegisterHam(Ham_Touch, gBallEnt, "ballTouch", 1);
+	RegisterHam(Ham_Touch, gBallEnt, "ballTouch");
 
 	register_touch(gClassname, "player", "TouchHachama");
 	register_think(gClassname, "hachamaThink");
@@ -77,6 +82,10 @@ public plugin_precache()
 
 	for(new i = 0; i < sizeof BallSprites; i++)
 		precache_model(BallSprites[i]);
+
+	for(new i = 0; i < sizeof BallSounds; i++)
+		precache_sound(BallSounds[i]);
+
 	ball = precache_model(BallSprites[1]);
 }
 
@@ -183,28 +192,29 @@ summonHaachama(Float:vOrigin[3])
 
 createBall(id)
 {
-    new Float:vOrigin[3], Float:vVelocity[3];
-    new ent = create_entity(gBallEnt);
+	new Float:vOrigin[3], Float:vVelocity[3];
+	new ent = create_entity(gBallEnt);
 
-    get_weapon_position(id, vOrigin, 40.0, 12.0, -5.0)
+	get_weapon_position(id, vOrigin, 40.0, 12.0, -5.0)
 
-    entity_set_string(ent, EV_SZ_classname, gBallClassname);
-    entity_set_int(ent, EV_INT_solid,   SOLID_SLIDEBOX);
-    entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
+	entity_set_string(ent, EV_SZ_classname, gBallClassname);
+	entity_set_int(ent, EV_INT_solid,   SOLID_SLIDEBOX);
+	entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
 
-    entity_set_model(ent, BallSprites[0]);
-    entity_set_origin(ent, vOrigin);
-    entity_set_size(ent, Float:{0.0, 0.0, 0.0}, Float:{0.0, 0.0, 0.0});
+	entity_set_model(ent, BallSprites[0]);
+	entity_set_origin(ent, vOrigin);
+	entity_set_size(ent, Float:{0.0, 0.0, 0.0}, Float:{0.0, 0.0, 0.0});
 
-    entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
-    entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
-    entity_set_float(ent, EV_FL_renderamt, 255.0);
-    entity_set_float(ent, EV_FL_scale, random_float(0.1, 0.4));
-    entity_set_int(ent, EV_INT_iuser1, id);
+	entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
+	entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
+	entity_set_float(ent, EV_FL_renderamt, 255.0);
+	entity_set_float(ent, EV_FL_scale, random_float(0.1, 0.4));
+	entity_set_int(ent, EV_INT_iuser1, id);
 
-    velocity_by_aim(id, BallSpeed, vVelocity);
+	velocity_by_aim(id, BallSpeed, vVelocity);
 
-    entity_set_vector(ent, EV_VEC_velocity, vVelocity);
+	entity_set_vector(ent, EV_VEC_velocity, vVelocity);
+	emit_sound(id, CHAN_WEAPON, BallSounds[0], VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 }
 
 public TouchHachama(Ptd, Ptr)
@@ -260,20 +270,37 @@ public ballTouch(ent)
 	if (!is_valid_ent(ent))
 		return;
 
-	new Float:fOrigin[3];
-	pev(ent, pev_origin, fOrigin);
+	new bClassName[32];
+	pev(ent, pev_classname, bClassName, charsmax(bClassName))
 
-	engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
-	write_byte(TE_EXPLOSION);
-	engfunc(EngFunc_WriteCoord, fOrigin[0]);
-	engfunc(EngFunc_WriteCoord, fOrigin[1]);
-	engfunc(EngFunc_WriteCoord, fOrigin[2]);
-	write_short(ball);
-	write_byte(5);
-	write_byte(15);
-	write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
-	message_end();
+	if(equal(bClassName, gBallClassname)) {
+		new Float:fOrigin[3];
+		pev(ent, pev_origin, fOrigin);
 
+		engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
+		write_byte(TE_EXPLOSION);
+		engfunc(EngFunc_WriteCoord, fOrigin[0]);
+		engfunc(EngFunc_WriteCoord, fOrigin[1]);
+		engfunc(EngFunc_WriteCoord, fOrigin[2]);
+		write_short(ball);
+		write_byte(5);
+		write_byte(15);
+		write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
+		message_end();
+
+		emit_sound(ent, CHAN_WEAPON, BallSounds[1], VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
+
+		new victim  = FM_NULLENT;
+		new attacker = pev(ent, pev_iuser1);
+
+		while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, BallRadiusExplode)) != 0) {
+			if(!is_user_alive(victim))
+				continue;
+
+			ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, BallDamage, DMG_SONIC);
+		}
+		engfunc(EngFunc_RemoveEntity, ent);
+	}
 }
 
 Stealth_On(id)
