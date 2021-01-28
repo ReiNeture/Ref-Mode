@@ -8,6 +8,7 @@
 #include <vector>
 
 new gKeysMainMenu;
+new gKeysBallMenu;
 
 enum
 {
@@ -21,7 +22,7 @@ enum
 };
 
 const BallSpeed = 2000	
-const Float:BallDamage = 250.0
+const Float:BallDamage = 150.0
 const Float:BallRadiusExplode =	130.0
 
 new const gInfoTarget[] = "env_sprite"; // info_target
@@ -29,7 +30,8 @@ new const gClassname[] = "func_breakable"; //func_haachama
 new const gBallEnt[] = "env_sprite";
 new const gBallClassname[] = "Entball";
 
-new gszMainMenu[200];
+new akoMainMenu[200];
+new akoBallMenu[200];
 
 new const gHaachamaModel[] = "models/haachama/haachama.mdl"
 new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
@@ -71,6 +73,7 @@ public plugin_init()
 	createMenu();
 
 	register_menucmd(register_menuid("haxMainMenu"), gKeysMainMenu, "handleMainMenu");
+	register_menucmd(register_menuid("haxBallMenu"), gKeysBallMenu, "handleBallMenu");
 }
 
 public plugin_precache()
@@ -91,15 +94,21 @@ public plugin_precache()
 
 createMenu()
 {
-	new size = sizeof(gszMainMenu);
-	add(gszMainMenu, size, "\w大便雞雞尿尿 ^n^n");
-	add(gszMainMenu, size, "\r1. \waimbot: %s ^n");
-	add(gszMainMenu, size, "\r2. \w反射傷害: %s ^n");
-	add(gszMainMenu, size, "\r3. \w隱身: %s ^n^n");
-	add(gszMainMenu, size, "\r4. \w召喚哈洽馬 ^n");
-	add(gszMainMenu, size, "\r5. \w色情球球 ^n^n^n");
-	add(gszMainMenu, size, "\r0. \wClose");
+	new size = sizeof(akoMainMenu);
+	add(akoMainMenu, size, "\w大便雞雞尿尿 ^n^n");
+	add(akoMainMenu, size, "\r1. \waimbot: %s ^n");
+	add(akoMainMenu, size, "\r2. \w反射傷害: %s ^n");
+	add(akoMainMenu, size, "\r3. \w隱身: %s ^n^n");
+	add(akoMainMenu, size, "\r4. \w色情球球 ^n");
+	add(akoMainMenu, size, "\r5. \w召喚哈洽馬 ^n^n^n");
+	add(akoMainMenu, size, "\r0. \w關閉");
 	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B0
+
+	size = sizeof(akoBallMenu);
+	add(akoBallMenu, size, "\w球球選單>< ^n^n");
+	add(akoBallMenu, size, "\r1. \w爆炸球球>< ^n^n");
+	add(akoBallMenu, size, "\r0, \w返回");
+	gKeysBallMenu = B1 | B0
 
 }
 
@@ -113,27 +122,48 @@ public showMenu(id)
 	Dmgreflection = (dmg_reflection[id] ? "\yOn" : "\rOff");
 	Stealth = (g_stealth[id] ? "\yOn" : "\rOff");
 
-	format(menu, 200, gszMainMenu, Aimbot, Dmgreflection, Stealth);
+	format(menu, 200, akoMainMenu, Aimbot, Dmgreflection, Stealth);
 
 	show_menu(id, gKeysMainMenu, menu, -1, "haxMainMenu");
 
 	return PLUGIN_HANDLED;
 }
 
+showBallMenu(id)
+{
+	new menu[200];
+
+	format(menu, 200, akoBallMenu);
+
+	show_menu(id, gKeysBallMenu, menu, -1, "haxBallMenu");
+
+	return PLUGIN_HANDLED;
+}
+
 public handleMainMenu(id, num)
 {
-	switch(num){
+	switch(num) {
 		case N1: { toggleAimbot(id); }
 		case N2: { toggleDmgreflection(id); }
 		case N3: { toggleStealth(id); }
-		case N4: { summonHaachamaAiming(id); }
-		case N5: { createBall(id); }
+		case N4: { showBallMenu(id); }
+		case N5: { summonHaachamaAiming(id); }
 		case N0: { return; }
 	}
 
-	if(num != N6 && num != N7 && num != N8 && num != N9){
+	if(num != N4 && num != N6 && num != N7 && num != N8 && num != N9) {
 		showMenu(id);
 	}
+}
+
+public handleBallMenu(id, num)
+{
+	switch(num) {
+		case N1: { createBall(id); }
+		case N0: { showMenu(id); }
+	}
+
+	showBallMenu(id);
 }
 
 toggleAimbot(id)
