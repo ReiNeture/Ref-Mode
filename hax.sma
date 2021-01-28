@@ -26,6 +26,7 @@ const Float:BallRadiusExplode =	130.0
 
 new const gInfoTarget[] = "env_sprite"; // info_target
 new const gClassname[] = "func_breakable"; //func_haachama
+new const gBallEnt[] = "env_sprite";
 new const gBallClassname[] = "Entball";
 
 new gszMainMenu[200];
@@ -45,7 +46,7 @@ new Float:hachamaTimer[512];
 
 new poop;
 new wave;
-//new ball;
+new ball;
 
 
 public plugin_init()
@@ -57,6 +58,7 @@ public plugin_init()
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
+	RegisterHam(Ham_Touch, gBallEnt, "ballTouch", 1);
 
 	register_touch(gClassname, "player", "TouchHachama");
 	register_think(gClassname, "hachamaThink");
@@ -75,7 +77,7 @@ public plugin_precache()
 
 	for(new i = 0; i < sizeof BallSprites; i++)
 		precache_model(BallSprites[i]);
-	//ball = precache_model(BallSprites[1]);
+	ball = precache_model(BallSprites[1]);
 }
 
 createMenu()
@@ -92,7 +94,8 @@ createMenu()
 
 }
 
-public showMenu(id){
+public showMenu(id)
+{
 	new menu[200];
 	new Aimbot[6];
 	new Dmgreflection[6];
@@ -108,7 +111,8 @@ public showMenu(id){
 	return PLUGIN_HANDLED;
 }
 
-public handleMainMenu(id, num){
+public handleMainMenu(id, num)
+{
 	switch(num){
 		case N1: { toggleAimbot(id); }
 		case N2: { toggleDmgreflection(id); }
@@ -123,17 +127,20 @@ public handleMainMenu(id, num){
 	}
 }
 
-toggleAimbot(id){
+toggleAimbot(id)
+{
 	if(headshot[id]) headshot[id] = false;
 	else headshot[id] = true;
 }
 
-toggleDmgreflection(id){
+toggleDmgreflection(id)
+{
 	if(dmg_reflection[id]) dmg_reflection[id] = false;
 	else dmg_reflection[id] = true;
 }
 
-toggleStealth(id){
+toggleStealth(id)
+{
 	if(g_stealth[id] && is_user_alive(id)){
 		g_stealth[id] = false;
 		Stealth_On(id);
@@ -144,7 +151,8 @@ toggleStealth(id){
 	}
 }
 
-summonHaachamaAiming(id){
+summonHaachamaAiming(id)
+{
 	new Origin[3];
 	new Float:vOrigin[3];
 
@@ -173,9 +181,10 @@ summonHaachama(Float:vOrigin[3])
 	entity_set_int(ent,EV_INT_sequence, 4);
 }
 
-createBall(id){
-    new Float:vOrigin[3], Float:vVelocity[3], Float:vAngles[3];
-    new ent = create_entity(gInfoTarget);
+createBall(id)
+{
+    new Float:vOrigin[3], Float:vVelocity[3];
+    new ent = create_entity(gBallEnt);
 
     get_weapon_position(id, vOrigin, 40.0, 12.0, -5.0)
 
@@ -246,6 +255,27 @@ public hachamaThink(ent)
 	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.1);
 }
 
+public ballTouch(ent)
+{
+	if (!is_valid_ent(ent))
+		return;
+
+	new Float:fOrigin[3];
+	pev(ent, pev_origin, fOrigin);
+
+	engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
+	write_byte(TE_EXPLOSION);
+	engfunc(EngFunc_WriteCoord, fOrigin[0]);
+	engfunc(EngFunc_WriteCoord, fOrigin[1]);
+	engfunc(EngFunc_WriteCoord, fOrigin[2]);
+	write_short(ball);
+	write_byte(5);
+	write_byte(15);
+	write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
+	message_end();
+
+}
+
 Stealth_On(id)
 	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
 
@@ -274,7 +304,8 @@ public fw_PlayerSpawn_Post(id)
 	return PLUGIN_HANDLED;
 }
 
-public fw_TakeDamage(victim, inflictor, attacker, damage, damagebits){
+public fw_TakeDamage(victim, inflictor, attacker, damage, damagebits)
+{
 	if(attacker == victim || !is_user_connected(attacker))
 		return HAM_IGNORED;
 
