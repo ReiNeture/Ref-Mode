@@ -34,9 +34,8 @@ new const gBallClassname[] = "Entball";
 
 new akoMainMenu[256];
 new akoBallMenu[256];
+new akoBallSelectionMenu[256];
 
-new BallMenuPages[20];
-new BallMenuPagesMax
 new SelectedBallType[BallMax];
 
 new const gHaachamaModel[] = "models/haachama/haachama.mdl"
@@ -115,24 +114,28 @@ public plugin_precache()
 
 createMenu()
 {
-	BallMenuPagesMax = floatround((float(BallMax) / 8.0), floatround_ceil);
-
 	new size = sizeof(akoMainMenu);
 	add(akoMainMenu, size, "\w大便雞雞尿尿 ^n^n");
 	add(akoMainMenu, size, "\r1. \waimbot: %s ^n");
 	add(akoMainMenu, size, "\r2. \w反射傷害: %s ^n");
 	add(akoMainMenu, size, "\r3. \w隱身: %s ^n^n");
-	add(akoMainMenu, size, "\r4. \w色情球球 ^n");
+	add(akoMainMenu, size, "\r4. \w色情睪丸 ^n");
 	add(akoMainMenu, size, "\r5. \w召喚哈洽馬 ^n^n^n");
 	add(akoMainMenu, size, "\r0. \w關閉");
 	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B0
 
 	size = sizeof(akoBallMenu);
-	add(akoBallMenu, size, "\w球球選單>< ^n^n");
+	add(akoBallMenu, size, "\w睪丸選單 ^n^n");
 	add(akoBallMenu, size, "\r1. \w睪丸類型: \y%s ^n");
 	add(akoBallMenu, size, "\r2. \w發射球球 ^n^n");
 	add(akoBallMenu, size, "\r0, \w返回");
 	gKeysBallMenu = B1 | B2 | B0
+
+	size = sizeof(akoBallSelectionMenu);
+	add(akoBallSelectionMenu, size, "\w睪丸選擇^n^n");
+	add(akoBallSelectionMenu, size, "\r1. \w爆炸球^n");
+	add(akoBallSelectionMenu, size, "\r2. \w傳送球^n^n");
+	add(akoBallSelectionMenu, size, "\r0. \w返回");
 	gKeysBallSelectionMenu = B1 | B2 | B0
 
 }
@@ -167,39 +170,11 @@ showBallMenu(id)
 
 showBallSelectionMenu(id)
 {
-	new BallMenu[200];
-	new title[32];
-	new entry[32];
-	new num;
-	new starBall;
+	new menu[200];
 
-	format(title, sizeof(title), "\y睪丸選擇 %d^n^n", BallMenuPages[id]);
+	format(menu, 200, akoBallSelectionMenu);
 
-	add(BallMenu, sizeof(BallMenu), title);
-
-	starBall = (BallMenuPages[id] - 1) * 8;
-
-	for(new i = starBall; i < starBall; ++i) {
-		if(i < BallMax) {
-			num = (i - starBall) + 1;
-			format(entry, sizeof(entry), "\r%d. \w%s^n", num, akoBallNames[i]);
-		}
-		else
-		{
-			format(entry, sizeof(entry), "^n");
-		}
-
-		add(BallMenu, sizeof(BallMenu), entry);
-	}
-
-	if(BallMenuPages[id] < BallMenuPagesMax)
-		add(BallMenu, sizeof(BallMenu), "^n\r9. \wMore");
-	else
-		add(BallMenu, sizeof(BallMenu), "^n");
-
-	add(BallMenu, sizeof(BallMenu), "^n\r0. \w返回");
-
-	show_menu(id, gKeysBallSelectionMenu, BallMenu, -1, "haxBallSelectionMenu");
+	show_menu(id, gKeysBallSelectionMenu, menu, -1, "haxBallSelectionMenu");
 }
 
 public handleMainMenu(id, num)
@@ -232,43 +207,19 @@ public handleBallMenu(id, num)
 public handleBallSelectionMenu(id, num)
 {
 	switch(num) {
-		case N9:
+		case N1:
 		{
-			++BallMenuPages[id];
-
-			if(BallMenuPages[id] > BallMenuPagesMax)
-				BallMenuPages[id] = BallMenuPagesMax;
-
-			showBallSelectionMenu(id);
+			SelectedBallType[id] = num;
+			showBallMenu(id);
 		}
 
-		case N0:
+		case N2:
 		{
-			--BallMenuPages[id];
-
-			if(BallMenuPages[id] < 1) {
-				showBallMenu(id);
-				BallMenuPages[id] = 1;
-			}
-			else
-			{
-				showBallSelectionMenu(id);
-			}
+			SelectedBallType[id] = num;
+			showBallMenu(id);
 		}
 
-		default:
-		{
-			num += (BallMenuPages[id] - 1) * 8;
-
-			if(num < BallMax) {
-				SelectedBallType[id] = num;
-				showBallMenu(id);
-			}
-			else
-			{
-				showBallSelectionMenu(id);
-			}
-		}
+		case N0: { showBallMenu(id); }
 	}
 }
 
