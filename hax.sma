@@ -27,11 +27,13 @@ const Float:BallRadiusExplode =	130.0
 new const gInfoTarget[] = "env_sprite"; // info_target
 new const gClassname[] = "func_breakable"; //func_haachama
 new const gBallEnt[] = "env_sprite";
+new const gDickClassName[] = "my_dick";
 new const gBallClassname[] = "Entball";
 
 new gszMainMenu[200];
 
-new const gHaachamaModel[] = "models/haachama/haachama.mdl"
+new const gHaachamaModel[] = "models/haachama/haachama.mdl";
+new const gDickModel[] = "models/ref/dick.mdl";
 new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
 new const BallSprites[2][] =
 {
@@ -70,6 +72,7 @@ public plugin_init()
 
 public plugin_precache()
 {
+	precache_model(gDickModel);
 	precache_model(gHaachamaModel);
 	precache_sound(gszAquaSound);
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
@@ -88,9 +91,10 @@ createMenu()
 	add(gszMainMenu, size, "\r2. \w反射傷害: %s ^n");
 	add(gszMainMenu, size, "\r3. \w隱身: %s ^n^n");
 	add(gszMainMenu, size, "\r4. \w召喚哈洽馬 ^n");
-	add(gszMainMenu, size, "\r5. \w色情球球 ^n^n^n");
+	add(gszMainMenu, size, "\r5. \w色情球球 ^n");
+	add(gszMainMenu, size, "\r6. \wDick ^n");
 	add(gszMainMenu, size, "\r0. \wClose");
-	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B0
+	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B6 | B0;
 
 }
 
@@ -119,12 +123,12 @@ public handleMainMenu(id, num)
 		case N3: { toggleStealth(id); }
 		case N4: { summonHaachamaAiming(id); }
 		case N5: { createBall(id); }
+		case N6: { createDick(id); }
 		case N0: { return; }
 	}
 
-	if(num != N6 && num != N7 && num != N8 && num != N9){
+	if(num != N7 && num != N8 && num != N9)
 		showMenu(id);
-	}
 }
 
 toggleAimbot(id)
@@ -181,10 +185,40 @@ summonHaachama(Float:vOrigin[3])
 	entity_set_int(ent,EV_INT_sequence, 4);
 }
 
+createDick(id)
+{
+	new Float:vOrigin[3], Float:fAim[3];
+	new ent = create_entity(gInfoTarget);
+	entity_set_string(ent, EV_SZ_classname, gDickClassName);
+	entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
+	entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
+	entity_set_model(ent, gDickModel);
+	entity_set_size(ent, Float:{-0.4, -0.4, -0.4}, Float:{0.4, 0.4, 0.4});
+
+	velocity_by_aim(id, 100, fAim);
+	entity_get_vector(id, EV_VEC_origin, vOrigin);
+	vOrigin[0] += fAim[0];
+	vOrigin[1] += fAim[1];
+	vOrigin[2] += fAim[2];
+
+	entity_set_origin(ent, vOrigin);
+	entity_set_float(ent, EV_FL_scale, 10.0);
+
+	new Float:fAngles[3];
+	// entity_get_vector(ent, EV_VEC_angles, fAngles);
+	vector_to_angle(fAim, fAngles);
+	fAngles[0] -= 90.0;
+	entity_set_vector(ent, EV_VEC_angles, fAngles);
+
+	// new Float:fDickAim[3];
+	// velocity_by_aim(ent, 300, fDickAim);
+	entity_set_vector(ent, EV_VEC_velocity, fAim);
+}
+
 createBall(id)
 {
 	for( new i=1; i<=3; ++i) {
-		new iOrigin[3], Float:vOrigin[3], Float:vVelocity[3];
+		new Float:vOrigin[3];
 		new ent = create_entity(gBallEnt);
 
 		// get_weapon_position(id, vOrigin, 40.0, 12.0, -5.0);
@@ -213,7 +247,6 @@ createBall(id)
 		entity_set_float(ent, EV_FL_scale, random_float(0.1, 0.4));
 		entity_set_int(ent, EV_INT_iuser1, id);
 		
-		const Float:speeds = 300.0;
 		new Float:fVelocity[3];
 
 		if(i==1)
@@ -257,17 +290,6 @@ public hachamaThink(ent)
 		return;
 	}
 
-	if( entity_get_float(ent, EV_FL_health) <= 100.0 )
-	{
-		new Float:vOrigin[3];
-		vOrigin[0] = 9999.9;
-		vOrigin[1] = 9999.9;
-		vOrigin[2] = 9999.9;
-		entity_set_vector(ent, EV_VEC_origin, vOrigin);
-		remove_entity(ent);
-		return;
-	}
-
 	new id = entity_get_edict(ent, EV_ENT_owner);
 	if( (!is_user_connected(id) || !is_user_alive(id)) && id)
 	{
@@ -287,7 +309,7 @@ public hachamaThink(ent)
 
 		vOrigin[0] += fAim[0];
 		vOrigin[1] += fAim[1];
-		vOrigin[2] += fAim[2];
+		// vOrigin[2] += fAim[2];
 
 		entity_set_origin(ent, vOrigin);
 	}
