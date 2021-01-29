@@ -9,6 +9,7 @@
 
 new gKeysMainMenu;
 new gKeysBallMenu;
+new gKeysBallSelectionMenu;
 
 enum
 {
@@ -21,17 +22,22 @@ enum
 	B6 = 1 << N6, B7 = 1 << N7, B8 = 1 << N8, B9 = 1 << N9, B0 = 1 << N0,
 };
 
-const BallSpeed = 2000	
-const Float:BallDamage = 150.0
-const Float:BallRadiusExplode =	130.0
+const BallMax = 2;
+const BallSpeed = 2000;
+const Float:BallDamage = 150.0;
+const Float:BallRadiusExplode =	130.0;
 
 new const gInfoTarget[] = "env_sprite"; // info_target
 new const gClassname[] = "func_breakable"; //func_haachama
 new const gBallEnt[] = "env_sprite";
 new const gBallClassname[] = "Entball";
 
-new akoMainMenu[200];
-new akoBallMenu[200];
+new akoMainMenu[256];
+new akoBallMenu[256];
+
+new BallMenuPages[20];
+new BallMenuPagesMax
+new SelectedBallType[BallMax];
 
 new const gHaachamaModel[] = "models/haachama/haachama.mdl"
 new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
@@ -40,11 +46,23 @@ new const BallSounds[2][] =
 	"ref/ballshoot.wav",		
 	"ref/ballexp.wav"		
 }
-new const BallSprites[2][] =
+new const akoBallSpritesBBall[] = "sprites/ref/gball.spr";
+new const akoBallSpritesTpBall[] = "sprites/ref/tpball.spr";
+new const akoBallBoomSprites[] = "sprites/ref/gbomb.spr";
+
+enum
 {
-	"sprites/gBall/gball.spr",		
-	"sprites/gBall/gbomb.spr"		
+	BBAL,
+	TPBALL
 }
+
+new const akoBallNames[BallMax][20] =
+{
+	"爆炸球",
+	"傳送球"
+}
+
+new akoBallSprites[BallMax][256];
 
 new bool:g_stealth[33];
 new bool:headshot[33];
@@ -53,7 +71,7 @@ new Float:hachamaTimer[512];
 
 new poop;
 new wave;
-new ball;
+new boom;
 
 
 public plugin_init()
@@ -74,26 +92,31 @@ public plugin_init()
 
 	register_menucmd(register_menuid("haxMainMenu"), gKeysMainMenu, "handleMainMenu");
 	register_menucmd(register_menuid("haxBallMenu"), gKeysBallMenu, "handleBallMenu");
+	register_menucmd(register_menuid("haxBallSelectionMenu"), gKeysBallSelectionMenu, "handleBallSelectionMenu");
 }
 
 public plugin_precache()
 {
+	akoBallSprites[BBAL] = akoBallSpritesBBall;
+	akoBallSprites[TPBALL] = akoBallSpritesTpBall;
 	precache_model(gHaachamaModel);
 	precache_sound(gszAquaSound);
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
 	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
 
-	for(new i = 0; i < sizeof BallSprites; i++)
-		precache_model(BallSprites[i]);
+	for(new i = 0; i < BallMax; i++)
+		precache_model(akoBallSprites[i]);
 
 	for(new i = 0; i < sizeof BallSounds; i++)
 		precache_sound(BallSounds[i]);
 
-	ball = precache_model(BallSprites[1]);
+	boom = precache_model(akoBallBoomSprites);
 }
 
 createMenu()
 {
+	BallMenuPagesMax = floatround((float(BallMax) / 8.0), floatround_ceil);
+
 	new size = sizeof(akoMainMenu);
 	add(akoMainMenu, size, "\w大便雞雞尿尿 ^n^n");
 	add(akoMainMenu, size, "\r1. \waimbot: %s ^n");
@@ -106,9 +129,11 @@ createMenu()
 
 	size = sizeof(akoBallMenu);
 	add(akoBallMenu, size, "\w球球選單>< ^n^n");
-	add(akoBallMenu, size, "\r1. \w爆炸球球>< ^n^n");
+	add(akoBallMenu, size, "\r1. \w睪丸類型: \y%s ^n");
+	add(akoBallMenu, size, "\r2. \w發射球球 ^n^n");
 	add(akoBallMenu, size, "\r0, \w返回");
-	gKeysBallMenu = B1 | B0
+	gKeysBallMenu = B1 | B2 | B0
+	gKeysBallSelectionMenu = B1 | B2 | B0
 
 }
 
@@ -133,11 +158,48 @@ showBallMenu(id)
 {
 	new menu[200];
 
-	format(menu, 200, akoBallMenu);
+	format(menu, 200, akoBallMenu, akoBallNames[SelectedBallType[id]]);
 
 	show_menu(id, gKeysBallMenu, menu, -1, "haxBallMenu");
 
 	return PLUGIN_HANDLED;
+}
+
+showBallSelectionMenu(id)
+{
+	new BallMenu[200];
+	new title[32];
+	new entry[32];
+	new num;
+	new starBall;
+
+	format(title, sizeof(title), "\y睪丸選擇 %d^n^n", BallMenuPages[id]);
+
+	add(BallMenu, sizeof(BallMenu), title);
+
+	starBall = (BallMenuPages[id] - 1) * 8;
+
+	for(new i = starBall; i < starBall; ++i) {
+		if(i < BallMax) {
+			num = (i - starBall) + 1;
+			format(entry, sizeof(entry), "\r%d. \w%s^n", num, akoBallNames[i]);
+		}
+		else
+		{
+			format(entry, sizeof(entry), "^n");
+		}
+
+		add(BallMenu, sizeof(BallMenu), entry);
+	}
+
+	if(BallMenuPages[id] < BallMenuPagesMax)
+		add(BallMenu, sizeof(BallMenu), "^n\r9. \wMore");
+	else
+		add(BallMenu, sizeof(BallMenu), "^n");
+
+	add(BallMenu, sizeof(BallMenu), "^n\r0. \w返回");
+
+	show_menu(id, gKeysBallSelectionMenu, BallMenu, -1, "haxBallSelectionMenu");
 }
 
 public handleMainMenu(id, num)
@@ -151,19 +213,63 @@ public handleMainMenu(id, num)
 		case N0: { return; }
 	}
 
-	if(num != N4 && num != N6 && num != N7 && num != N8 && num != N9) {
+	if(num != N4)
 		showMenu(id);
-	}
 }
 
 public handleBallMenu(id, num)
 {
 	switch(num) {
-		case N1: { createBall(id); }
+		case N1: { showBallSelectionMenu(id); }
+		case N2: { createBall(id, SelectedBallType[id]); }
 		case N0: { showMenu(id); }
 	}
 
-	showBallMenu(id);
+	if(num != N0 && num != N1)
+		showBallMenu(id);
+}
+
+public handleBallSelectionMenu(id, num)
+{
+	switch(num) {
+		case N9:
+		{
+			++BallMenuPages[id];
+
+			if(BallMenuPages[id] > BallMenuPagesMax)
+				BallMenuPages[id] = BallMenuPagesMax;
+
+			showBallSelectionMenu(id);
+		}
+
+		case N0:
+		{
+			--BallMenuPages[id];
+
+			if(BallMenuPages[id] < 1) {
+				showBallMenu(id);
+				BallMenuPages[id] = 1;
+			}
+			else
+			{
+				showBallSelectionMenu(id);
+			}
+		}
+
+		default:
+		{
+			num += (BallMenuPages[id] - 1) * 8;
+
+			if(num < BallMax) {
+				SelectedBallType[id] = num;
+				showBallMenu(id);
+			}
+			else
+			{
+				showBallSelectionMenu(id);
+			}
+		}
+	}
 }
 
 toggleAimbot(id)
@@ -220,10 +326,11 @@ summonHaachama(Float:vOrigin[3])
 	entity_set_int(ent,EV_INT_sequence, 4);
 }
 
-createBall(id)
+createBall(id, const blockType)
 {
 	new Float:vOrigin[3], Float:vVelocity[3];
 	new ent = create_entity(gBallEnt);
+	new BallSpr[256];
 
 	get_weapon_position(id, vOrigin, 40.0, 12.0, -5.0)
 
@@ -231,7 +338,11 @@ createBall(id)
 	entity_set_int(ent, EV_INT_solid,   SOLID_SLIDEBOX);
 	entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
 
-	entity_set_model(ent, BallSprites[0]);
+	BallSpr = akoBallSprites[blockType];
+
+	if(blockType >= 0 && blockType < BallMax) {
+		entity_set_model(ent, BallSpr);
+	}
 	entity_set_origin(ent, vOrigin);
 	entity_set_size(ent, Float:{0.0, 0.0, 0.0}, Float:{0.0, 0.0, 0.0});
 
@@ -312,7 +423,7 @@ public ballTouch(ent)
 		engfunc(EngFunc_WriteCoord, fOrigin[0]);
 		engfunc(EngFunc_WriteCoord, fOrigin[1]);
 		engfunc(EngFunc_WriteCoord, fOrigin[2]);
-		write_short(ball);
+		write_short(boom);
 		write_byte(5);
 		write_byte(15);
 		write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
