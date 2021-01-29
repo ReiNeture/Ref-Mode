@@ -58,7 +58,7 @@ public plugin_init()
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
-	RegisterHam(Ham_Touch, gBallEnt, "ballTouch", 1);
+	// RegisterHam(Ham_Touch, gBallEnt, "ballTouch", 1);
 
 	register_touch(gClassname, "player", "TouchHachama");
 	register_think(gClassname, "hachamaThink");
@@ -174,7 +174,7 @@ summonHaachama(Float:vOrigin[3])
 	entity_set_origin(ent, vOrigin);
 
 	entity_set_float(ent,EV_FL_takedamage, 1.0);
-	entity_set_float(ent,EV_FL_health, 100.0);
+	entity_set_float(ent,EV_FL_health, 300.0);
 
 	entity_set_float(ent,EV_FL_animtime, 0.5);
 	entity_set_float(ent,EV_FL_framerate, 0.5);
@@ -183,28 +183,48 @@ summonHaachama(Float:vOrigin[3])
 
 createBall(id)
 {
-    new Float:vOrigin[3], Float:vVelocity[3];
-    new ent = create_entity(gBallEnt);
+	for( new i=1; i<=3; ++i) {
+		new iOrigin[3], Float:vOrigin[3], Float:vVelocity[3];
+		new ent = create_entity(gBallEnt);
 
-    get_weapon_position(id, vOrigin, 40.0, 12.0, -5.0)
+		// get_weapon_position(id, vOrigin, 40.0, 12.0, -5.0);
+		// entity_get_vector(id, EV_VEC_origin, vOrigin);
+		new Float:fAim[3], Float:fAnglesTemp[3];
+		velocity_by_aim(id, 500, fAim);
+		vector_to_angle(fAim, fAnglesTemp);
+		entity_get_vector(id, EV_VEC_origin, vOrigin);
 
-    entity_set_string(ent, EV_SZ_classname, gBallClassname);
-    entity_set_int(ent, EV_INT_solid,   SOLID_SLIDEBOX);
-    entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
+		vOrigin[0] += fAim[0];
+		vOrigin[1] += fAim[1];
+		vOrigin[2] += fAim[2];
 
-    entity_set_model(ent, BallSprites[0]);
-    entity_set_origin(ent, vOrigin);
-    entity_set_size(ent, Float:{0.0, 0.0, 0.0}, Float:{0.0, 0.0, 0.0});
+		entity_set_origin(ent, vOrigin);
 
-    entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
-    entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
-    entity_set_float(ent, EV_FL_renderamt, 255.0);
-    entity_set_float(ent, EV_FL_scale, random_float(0.1, 0.4));
-    entity_set_int(ent, EV_INT_iuser1, id);
+		entity_set_string(ent, EV_SZ_classname, gBallClassname);
+		entity_set_int(ent, EV_INT_solid,   SOLID_TRIGGER);
+		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
 
-    velocity_by_aim(id, BallSpeed, vVelocity);
+		entity_set_model(ent, BallSprites[0]);
+		entity_set_size(ent, Float:{0.0, 0.0, 0.0}, Float:{0.0, 0.0, 0.0});
 
-    entity_set_vector(ent, EV_VEC_velocity, vVelocity);
+		entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
+		entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
+		entity_set_float(ent, EV_FL_renderamt, 255.0);
+		entity_set_float(ent, EV_FL_scale, random_float(0.1, 0.4));
+		entity_set_int(ent, EV_INT_iuser1, id);
+		
+		const Float:speeds = 300.0;
+		new Float:fVelocity[3];
+
+		if(i==1)
+			fAnglesTemp[1] += 30.0;
+		else if(i==3)
+			fAnglesTemp[1] -= 30.0;
+
+		angle_vector(fAnglesTemp, ANGLEVECTOR_FORWARD, fVelocity);
+
+		entity_set_vector(ent, EV_VEC_velocity, fVelocity);
+	}
 }
 
 public TouchHachama(Ptd, Ptr)
@@ -237,6 +257,17 @@ public hachamaThink(ent)
 		return;
 	}
 
+	if( entity_get_float(ent, EV_FL_health) <= 100.0 )
+	{
+		new Float:vOrigin[3];
+		vOrigin[0] = 9999.9;
+		vOrigin[1] = 9999.9;
+		vOrigin[2] = 9999.9;
+		entity_set_vector(ent, EV_VEC_origin, vOrigin);
+		remove_entity(ent);
+		return;
+	}
+
 	new id = entity_get_edict(ent, EV_ENT_owner);
 	if( (!is_user_connected(id) || !is_user_alive(id)) && id)
 	{
@@ -245,11 +276,20 @@ public hachamaThink(ent)
 	}
 
 	if( id ) {
-		new Float:origin[3];
-		entity_get_vector(id, EV_VEC_origin, origin);
-		// origin[2] += 10.0;
-		entity_set_vector(ent, EV_VEC_origin, origin);
-		drop_to_floor(ent);
+		// new Float:origin[3];
+		// entity_get_vector(id, EV_VEC_origin, origin);
+		// // origin[2] += 10.0;
+		// entity_set_vector(ent, EV_VEC_origin, origin);
+		// drop_to_floor(ent);
+		new Float:fAim[3], Float:vOrigin[3];
+		velocity_by_aim(id, -50, fAim);
+		entity_get_vector(id, EV_VEC_origin, vOrigin);
+
+		vOrigin[0] += fAim[0];
+		vOrigin[1] += fAim[1];
+		vOrigin[2] += fAim[2];
+
+		entity_set_origin(ent, vOrigin);
 	}
 
 	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.1);
