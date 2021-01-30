@@ -3,6 +3,7 @@
 #include <hamsandwich>
 #include <fakemeta>
 #include <engine>
+#include <messages>
 #include <fun>
 #include <xs>
 #include <vector>
@@ -26,7 +27,6 @@ const Float:BallRadiusExplode =	130.0
 
 new const gInfoTarget[] = "env_sprite"; // info_target
 new const gClassname[] = "func_haachama"; //func_haachama
-new const gBallEnt[] = "env_sprite";
 new const gDickClassName[] = "my_dick";
 new const gBallClassname[] = "Entball";
 
@@ -46,11 +46,12 @@ new bool:headshot[33];
 new bool:dmg_reflection[33];
 new Float:hachamaTimer[512];
 new Float:fTreasureCd[33];
+new gHaveDick[33];
 
 new poop;
 new wave;
 new ball;
-
+new smoke, exp;
 
 public plugin_init()
 {
@@ -61,10 +62,12 @@ public plugin_init()
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
-	// RegisterHam(Ham_Touch, gBallEnt, "ballTouch", 1);
+	RegisterHam(Ham_Touch, gInfoTarget, "TouchDick");
 
 	register_forward(FM_CmdStart, "fw_cmdstart");
+
 	register_touch(gClassname, "player", "TouchHachama");
+
 	register_think(gClassname, "hachamaThink");
 	register_think(gDickClassName, "dickThink");
 
@@ -78,6 +81,8 @@ public plugin_precache()
 	precache_model(gDickModel);
 	precache_model(gHaachamaModel);
 	precache_sound(gszAquaSound);
+	smoke = precache_model("sprites/steam1.spr");
+	exp = precache_model("sprites/ref/whiteexp.spr");
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
 	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
 
@@ -94,12 +99,13 @@ public fw_cmdstart(id, uc_handle, seed)
 	static button;
 	button = get_uc(uc_handle, UC_Buttons);
 
-	if (button & IN_RELOAD && (pev(id, pev_oldbuttons) & IN_RELOAD))
+	if (button & IN_USE && !(pev(id, pev_oldbuttons) & IN_USE))
 	{
 		createDick(id);
 		return FMRES_HANDLED;
 
-	} else if ( !(button & IN_RELOAD) && (pev(id, pev_oldbuttons) & IN_RELOAD)) {
+	} else if ( !(button & IN_USE) && (pev(id, pev_oldbuttons) & IN_USE)) {
+		doDick(id);
 		return FMRES_HANDLED;
 	}
 	return FMRES_IGNORED;
@@ -215,15 +221,16 @@ createDick(id)
 
 		entity_set_string(ent, EV_SZ_classname, gDickClassName);
 		entity_set_model(ent, gDickModel);
-		entity_set_size(ent, Float:{-0.4, -0.4, -0.4}, Float:{0.4, 0.4, 0.4});
-		entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
+		entity_set_size(ent, Float:{-1.0, -1.0, -1.0}, Float:{1.0, 1.0, 1.0});
+		entity_set_int(ent, EV_INT_solid, SOLID_BBOX);
 		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
-
 		entity_set_edict(ent, EV_ENT_owner, id);
-		entity_set_float(ent, EV_FL_fuser1, random_float(60.0, 120.0));
-		entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.05);
 
+		dickThink(ent);
+		
 		fTreasureCd[id] = halflife_time() + 0.3;
+		gHaveDick[id] = ent;
+		emit_sound(id, CHAN_WEAPON, "ref/miss2.wav", VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 	}
 }
 public dickThink(ent)
@@ -232,33 +239,51 @@ public dickThink(ent)
 		return;
 
 	new id = entity_get_edict(ent, EV_ENT_owner);
-	new Float:vOrigin[3], Float:fAim[3], Float:fAngles[3], Float:upVelocity[3];
-	new Float:vOffset = entity_get_float(ent, EV_FL_fuser1);
+	new Float:vOrigin[3], Float:fAim[3], Float:fAngles[3], Float:entVelocity[3];
 
-	velocity_by_aim(id, 32, fAim);
+	velocity_by_aim(id, 50, fAim);
 	vector_to_angle(fAim, fAngles);
 	fAngles[0] = 0.0;
+	angle_vector(fAngles, ANGLEVECTOR_FORWARD, entVelocity);
+	entity_set_vector(ent, EV_VEC_vuser1, entVelocity);
 	fAngles[1] += 90.0;
 	fAngles[2] += 90.0;
 	entity_set_vector(ent, EV_VEC_angles, fAngles);
 
-	angle_vector(fAngles, ANGLEVECTOR_FORWARD, upVelocity);
-
 	entity_get_vector(id, EV_VEC_origin, vOrigin);
-	vOrigin[0] = vOrigin[0] + fAim[0]// + upVelocity[0];
-	vOrigin[1] = vOrigin[1] + fAim[1]// + upVelocity[1];
-	vOrigin[2] = vOrigin[2] + fAim[2]// + upVelocity[2];
+	vOrigin[0] = vOrigin[0] + fAim[0]; // + upVelocity[0];
+	vOrigin[1] = vOrigin[1] + fAim[1]; // + upVelocity[1];
+	vOrigin[2] = vOrigin[2] + fAim[2]; // + upVelocity[2];
 
 	entity_set_origin(ent, vOrigin);
 
-	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.05);
+	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.01);
+}
+
+doDick(id)
+{
+	if( gHaveDick[id] ) {
+
+		new ent = gHaveDick[id];
+		if (!is_valid_ent(ent)) return;
+
+		gHaveDick[id] = 0;
+		entity_set_float(ent, EV_FL_nextthink, halflife_time() + 9999.9);
+		attachBeamFollow(ent);
+
+		new Float:fAim[3];
+		entity_get_vector(ent, EV_VEC_vuser1, fAim);
+		xs_vec_mul_scalar(fAim, 1200.0, fAim);
+		// velocity_by_aim(id, 1200, fAim);
+		entity_set_vector(ent, EV_VEC_velocity, fAim);
+	}
 }
 
 createBall(id)
 {
 	for( new i=1; i<=3; ++i) {
 		new Float:vOrigin[3];
-		new ent = create_entity(gBallEnt);
+		new ent = create_entity(gInfoTarget);
 
 		// get_weapon_position(id, vOrigin, 40.0, 12.0, -5.0);
 		// entity_get_vector(id, EV_VEC_origin, vOrigin);
@@ -298,6 +323,26 @@ createBall(id)
 		xs_vec_mul_scalar(fVelocity, 120.0, fVelocity);
 
 		entity_set_vector(ent, EV_VEC_velocity, fVelocity);
+	}
+}
+public TouchDick(ent, ptr)
+{
+	if (!is_valid_ent(ent)) return;
+
+	new szClassName[32];
+	entity_get_string(ent, EV_SZ_classname, szClassName, charsmax(szClassName));
+
+	if(equal(szClassName, gDickClassName) ) {
+
+		new Float:fOrigin[3];
+		new id = entity_get_edict(ent, EV_ENT_owner);
+		if( gHaveDick[id] != ent ) {
+			entity_get_vector(ent, EV_VEC_origin, fOrigin);
+			creat_exp_spr(fOrigin);
+			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 1000.0, DMG_TIMEBASED);
+			remove_entity(ent);
+
+		}
 	}
 }
 
@@ -460,6 +505,35 @@ public fw_TakeDamage(victim, inflictor, attacker, damage, damagebits)
 
 	}
 	return HAM_IGNORED;
+}
+
+stock creat_exp_spr(const Float:fOrigin[3])  //位置整數陣列X,Y,Z
+{
+		engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
+		write_byte(TE_EXPLOSION);
+		engfunc(EngFunc_WriteCoord, fOrigin[0]);
+		engfunc(EngFunc_WriteCoord, fOrigin[1]);
+		engfunc(EngFunc_WriteCoord, fOrigin[2]);
+		write_short(exp);
+		write_byte(5);
+		write_byte(15);
+		write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
+		message_end();
+}
+stock attachBeamFollow(ent)
+{
+	message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
+	// engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+	write_byte(TE_BEAMFOLLOW); // 車尾燈
+	write_short(ent);
+	write_short(smoke);
+	write_byte(10); // life
+	write_byte(1); // width
+	write_byte(255); // r
+	write_byte(255); // g
+	write_byte(255); // b
+	write_byte(127); // brightness
+	message_end();
 }
 
 stock fm_set_rendering(id, fx = kRenderFxNone, r = 255, g = 255, b = 255, render = kRenderNormal, amount = 16)

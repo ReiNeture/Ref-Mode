@@ -13,7 +13,7 @@
 
 #define strong_weapon "weapon_ak47"
 #define strong_weapon_id CSW_AK47
-#define strong_speed 1.1
+#define strong_speed 0.9
 
 new keep_file; // for nvault
 
@@ -21,6 +21,8 @@ new color[33][3];
 new status[33][3];
 new type[33] = {0};
 new color_switch[33] = {1};
+new attackCount[33] = {0};
+
 new const SoundFiles[7][] =
 {
 	"ref/hit1.wav",
@@ -68,7 +70,7 @@ public plugin_init()
 	RegisterHam(Ham_TakeDamage, "player", "fw_PlayerTakeDamage");
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn", 1);
 	RegisterHam(Ham_Item_Deploy, "weapon_knife", "fw_Item_Deploy_Post", 1);
-	RegisterHam(Ham_Weapon_PrimaryAttack, "weapon_knife", "fw_Weapon_PrimaryAttack_knife");
+	RegisterHam(Ham_Weapon_PrimaryAttack, "weapon_knife", "fw_Weapon_PrimaryAttack_knife", 1);
 	RegisterHam(Ham_Weapon_PrimaryAttack, strong_weapon, "fw_Weapon_PrimaryAttack");
 	RegisterHam(Ham_Weapon_PrimaryAttack, strong_weapon, "fw_Weapon_PrimaryAttack_Post", 1);
 	RegisterHam(Ham_Item_PostFrame, "weapon_ak47", "fw_Item_PostFrame");
@@ -408,6 +410,18 @@ public fw_Ak_Deploy_Post(ent) {
 public fw_Weapon_PrimaryAttack_knife(ent) // knife
 { 
 	if(!pev_valid(ent)) return;
+
+	static id; id = get_pdata_cbase(ent, 41, 4);
+	new Float:oldRate = get_pdata_float(ent, 46, 4);
+
+	attackCount[id]++;
+
+	if( attackCount[id] >= 10 ) {
+		set_pdata_float(ent, 46, oldRate, 4);
+		attackCount[id] = 0;
+	} else if( attackCount[id] >= 4 )
+		set_pdata_float(ent, 46, oldRate*0.25, 4);
+	
 	emit_sound(ent, CHAN_WEAPON, "ref/knife_slash1.wav", VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 }
 // public vgim_message(msgid, dest, id) {
