@@ -25,7 +25,7 @@ const Float:BallDamage = 250.0
 const Float:BallRadiusExplode =	130.0
 
 new const gInfoTarget[] = "env_sprite"; // info_target
-new const gClassname[] = "func_breakable"; //func_haachama
+new const gClassname[] = "func_haachama"; //func_haachama
 new const gBallEnt[] = "env_sprite";
 new const gDickClassName[] = "my_dick";
 new const gBallClassname[] = "Entball";
@@ -45,6 +45,7 @@ new bool:g_stealth[33];
 new bool:headshot[33];
 new bool:dmg_reflection[33];
 new Float:hachamaTimer[512];
+new Float:fTreasureCd[33];
 
 new poop;
 new wave;
@@ -62,8 +63,10 @@ public plugin_init()
 	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
 	// RegisterHam(Ham_Touch, gBallEnt, "ballTouch", 1);
 
+	register_forward(FM_CmdStart, "fw_cmdstart");
 	register_touch(gClassname, "player", "TouchHachama");
 	register_think(gClassname, "hachamaThink");
+	register_think(gDickClassName, "dickThink");
 
 	createMenu();
 
@@ -81,6 +84,25 @@ public plugin_precache()
 	for(new i = 0; i < sizeof BallSprites; i++)
 		precache_model(BallSprites[i]);
 	ball = precache_model(BallSprites[1]);
+}
+
+public fw_cmdstart(id, uc_handle, seed)
+{
+	if (!is_user_alive(id))
+		return FMRES_IGNORED;
+
+	static button;
+	button = get_uc(uc_handle, UC_Buttons);
+
+	if (button & IN_RELOAD && (pev(id, pev_oldbuttons) & IN_RELOAD))
+	{
+		createDick(id);
+		return FMRES_HANDLED;
+
+	} else if ( !(button & IN_RELOAD) && (pev(id, pev_oldbuttons) & IN_RELOAD)) {
+		return FMRES_HANDLED;
+	}
+	return FMRES_IGNORED;
 }
 
 createMenu()
@@ -187,32 +209,49 @@ summonHaachama(Float:vOrigin[3])
 
 createDick(id)
 {
-	new Float:vOrigin[3], Float:fAim[3];
-	new ent = create_entity(gInfoTarget);
-	entity_set_string(ent, EV_SZ_classname, gDickClassName);
-	entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
-	entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
-	entity_set_model(ent, gDickModel);
-	entity_set_size(ent, Float:{-0.4, -0.4, -0.4}, Float:{0.4, 0.4, 0.4});
+	if( halflife_time() >= fTreasureCd[id] ) {
 
-	velocity_by_aim(id, 100, fAim);
-	entity_get_vector(id, EV_VEC_origin, vOrigin);
-	vOrigin[0] += fAim[0];
-	vOrigin[1] += fAim[1];
-	vOrigin[2] += fAim[2];
+		new ent = create_entity(gInfoTarget);
 
-	entity_set_origin(ent, vOrigin);
-	entity_set_float(ent, EV_FL_scale, 10.0);
+		entity_set_string(ent, EV_SZ_classname, gDickClassName);
+		entity_set_model(ent, gDickModel);
+		entity_set_size(ent, Float:{-0.4, -0.4, -0.4}, Float:{0.4, 0.4, 0.4});
+		entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
+		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
 
-	new Float:fAngles[3];
-	// entity_get_vector(ent, EV_VEC_angles, fAngles);
+		entity_set_edict(ent, EV_ENT_owner, id);
+		entity_set_float(ent, EV_FL_fuser1, random_float(60.0, 120.0));
+		entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.05);
+
+		fTreasureCd[id] = halflife_time() + 0.3;
+	}
+}
+public dickThink(ent)
+{
+	if (!is_valid_ent(ent))
+		return;
+
+	new id = entity_get_edict(ent, EV_ENT_owner);
+	new Float:vOrigin[3], Float:fAim[3], Float:fAngles[3], Float:upVelocity[3];
+	new Float:vOffset = entity_get_float(ent, EV_FL_fuser1);
+
+	velocity_by_aim(id, 32, fAim);
 	vector_to_angle(fAim, fAngles);
-	fAngles[0] -= 90.0;
+	fAngles[0] = 0.0;
+	fAngles[1] += 90.0;
+	fAngles[2] += 90.0;
 	entity_set_vector(ent, EV_VEC_angles, fAngles);
 
-	// new Float:fDickAim[3];
-	// velocity_by_aim(ent, 300, fDickAim);
-	entity_set_vector(ent, EV_VEC_velocity, fAim);
+	angle_vector(fAngles, ANGLEVECTOR_FORWARD, upVelocity);
+
+	entity_get_vector(id, EV_VEC_origin, vOrigin);
+	vOrigin[0] = vOrigin[0] + fAim[0]// + upVelocity[0];
+	vOrigin[1] = vOrigin[1] + fAim[1]// + upVelocity[1];
+	vOrigin[2] = vOrigin[2] + fAim[2]// + upVelocity[2];
+
+	entity_set_origin(ent, vOrigin);
+
+	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.05);
 }
 
 createBall(id)
@@ -224,7 +263,7 @@ createBall(id)
 		// get_weapon_position(id, vOrigin, 40.0, 12.0, -5.0);
 		// entity_get_vector(id, EV_VEC_origin, vOrigin);
 		new Float:fAim[3], Float:fAnglesTemp[3];
-		velocity_by_aim(id, 500, fAim);
+		velocity_by_aim(id, 50, fAim);
 		vector_to_angle(fAim, fAnglesTemp);
 		entity_get_vector(id, EV_VEC_origin, vOrigin);
 
@@ -256,6 +295,8 @@ createBall(id)
 
 		angle_vector(fAnglesTemp, ANGLEVECTOR_FORWARD, fVelocity);
 
+		xs_vec_mul_scalar(fVelocity, 120.0, fVelocity);
+
 		entity_set_vector(ent, EV_VEC_velocity, fVelocity);
 	}
 }
@@ -279,6 +320,7 @@ public TouchHachama(Ptd, Ptr)
 		emit_sound(Ptd, CHAN_STATIC, gszAquaSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
 	}
 }
+
 public hachamaThink(ent)
 {
 	if (!is_valid_ent(ent))
