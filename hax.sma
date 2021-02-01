@@ -35,18 +35,23 @@ new gszMainMenu[200];
 new const gHaachamaModel[] = "models/haachama/haachama.mdl";
 new const gDickModel[] = "models/ref/dick.mdl";
 new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
+new const gszAquaMahuo[] = "sprites/ref/aqua.spr";
 new const BallSprites[2][] =
 {
 	"sprites/gBall/gball.spr",		
 	"sprites/gBall/gbomb.spr"		
 }
 
+const MAXDICK = 10;
+
 new bool:g_stealth[33];
 new bool:headshot[33];
 new bool:dmg_reflection[33];
 new Float:hachamaTimer[512];
 new Float:fTreasureCd[33];
-new gHaveDick[33];
+
+new gHaveDick[33][MAXDICK];
+new gCurrentDick[33];
 
 new poop;
 new wave;
@@ -81,14 +86,15 @@ public plugin_precache()
 	precache_model(gDickModel);
 	precache_model(gHaachamaModel);
 	precache_sound(gszAquaSound);
+	precache_model(gszAquaMahuo);
 	smoke = precache_model("sprites/steam1.spr");
 	exp = precache_model("sprites/ref/whiteexp.spr");
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
 	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
+	ball = precache_model(BallSprites[1]);
 
 	for(new i = 0; i < sizeof BallSprites; i++)
 		precache_model(BallSprites[i]);
-	ball = precache_model(BallSprites[1]);
 }
 
 public fw_cmdstart(id, uc_handle, seed)
@@ -99,13 +105,14 @@ public fw_cmdstart(id, uc_handle, seed)
 	static button;
 	button = get_uc(uc_handle, UC_Buttons);
 
-	if (button & IN_USE && !(pev(id, pev_oldbuttons) & IN_USE))
+	if (button & IN_USE && (pev(id, pev_oldbuttons) & IN_USE))
 	{
 		createDick(id);
 		return FMRES_HANDLED;
 
 	} else if ( !(button & IN_USE) && (pev(id, pev_oldbuttons) & IN_USE)) {
 		doDick(id);
+		client_print(id, print_chat, "Relase");
 		return FMRES_HANDLED;
 	}
 	return FMRES_IGNORED;
@@ -215,67 +222,95 @@ summonHaachama(Float:vOrigin[3])
 
 createDick(id)
 {
-	if( halflife_time() >= fTreasureCd[id] ) {
+	if( halflife_time() >= fTreasureCd[id] && gCurrentDick[id] < MAXDICK) {
 
 		new ent = create_entity(gInfoTarget);
 
 		entity_set_string(ent, EV_SZ_classname, gDickClassName);
 		entity_set_model(ent, gDickModel);
 		entity_set_size(ent, Float:{-1.0, -1.0, -1.0}, Float:{1.0, 1.0, 1.0});
-		entity_set_int(ent, EV_INT_solid, SOLID_BBOX);
+		entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
 		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
 		entity_set_edict(ent, EV_ENT_owner, id);
-
+		entity_set_float(ent, EV_FL_fuser1, random_float(10.0, 100.0));
 		dickThink(ent);
 		
-		fTreasureCd[id] = halflife_time() + 0.3;
-		gHaveDick[id] = ent;
+		fTreasureCd[id] = halflife_time() + 0.2;
+		new count = gCurrentDick[id];
+		gHaveDick[id][count] = ent;
+		gCurrentDick[id]++;
+
 		emit_sound(id, CHAN_WEAPON, "ref/miss2.wav", VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 	}
 }
 public dickThink(ent)
 {
-	if (!is_valid_ent(ent))
-		return;
+	if (!is_valid_ent(ent)) return;
 
+	// 資料初始化
 	new id = entity_get_edict(ent, EV_ENT_owner);
-	new Float:vOrigin[3], Float:fAim[3], Float:fAngles[3], Float:entVelocity[3];
-
+	new Float:vOrigin[3], Float:fAim[3], Float:fAngles[3];
 	velocity_by_aim(id, 50, fAim);
+
+	// 物件角度設定
 	vector_to_angle(fAim, fAngles);
-	fAngles[0] = 0.0;
-	angle_vector(fAngles, ANGLEVECTOR_FORWARD, entVelocity);
-	entity_set_vector(ent, EV_VEC_vuser1, entVelocity);
+	fAngles[0] =   0.0;                  // 用於紀錄上下向量
 	fAngles[1] += 90.0;
 	fAngles[2] += 90.0;
 	entity_set_vector(ent, EV_VEC_angles, fAngles);
 
+	// 物件座標設定
 	entity_get_vector(id, EV_VEC_origin, vOrigin);
-	vOrigin[0] = vOrigin[0] + fAim[0]; // + upVelocity[0];
-	vOrigin[1] = vOrigin[1] + fAim[1]; // + upVelocity[1];
-	vOrigin[2] = vOrigin[2] + fAim[2]; // + upVelocity[2];
-
+	vOrigin[0] = vOrigin[0] + fAim[0];
+	vOrigin[1] = vOrigin[1] + fAim[1];
+	vOrigin[2] = vOrigin[2] + entity_get_float(ent, EV_FL_fuser1);
 	entity_set_origin(ent, vOrigin);
 
+	// 物件思考設定
 	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.01);
 }
 
 doDick(id)
 {
-	if( gHaveDick[id] ) {
+	if( gCurrentDick[id] > 0 ) {
+		for (new i = 0; i < MAXDICK; ++i)
+		{
+			new ent = gHaveDick[id][i];
+			if ( !is_valid_ent(ent) || ent == 0 ) continue;
 
-		new ent = gHaveDick[id];
-		if (!is_valid_ent(ent)) return;
+			gHaveDick[id][i] = 0;
+			entity_set_float(ent, EV_FL_nextthink, halflife_time() + 99999.9);
+			entity_set_int(ent, EV_INT_iuser1, 1);
 
-		gHaveDick[id] = 0;
-		entity_set_float(ent, EV_FL_nextthink, halflife_time() + 9999.9);
-		attachBeamFollow(ent);
+			new Float:fAim[3];
+			velocity_by_aim(id, 1200, fAim);
 
-		new Float:fAim[3];
-		entity_get_vector(ent, EV_VEC_vuser1, fAim);
-		xs_vec_mul_scalar(fAim, 1200.0, fAim);
-		// velocity_by_aim(id, 1200, fAim);
-		entity_set_vector(ent, EV_VEC_velocity, fAim);
+			fAim[2] -= entity_get_float(ent, EV_FL_fuser1);
+			entity_set_vector(ent, EV_VEC_velocity, fAim);
+			attachBeamFollow(ent, 30);
+		}
+		gCurrentDick[id] = 0;
+	}
+}
+
+public TouchDick(ent, ptr)
+{
+	if (!is_valid_ent(ent)) return;
+
+	new szClassName[32], ptrClassName[32];
+	entity_get_string(ent, EV_SZ_classname, szClassName, charsmax(szClassName));
+	entity_get_string(ptr, EV_SZ_classname, ptrClassName, charsmax(ptrClassName));
+
+	if(equal(szClassName, gDickClassName) && !equal(ptrClassName, gDickClassName)) {
+		new Float:fOrigin[3];
+		new id = entity_get_edict(ent, EV_ENT_owner);
+		
+		if( entity_get_int(ent, EV_INT_iuser1) == 1 ) {
+			entity_get_vector(ent, EV_VEC_origin, fOrigin);
+			creat_exp_spr(fOrigin);
+			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 1000.0, DMG_TIMEBASED);
+			remove_entity(ent);
+		}
 	}
 }
 
@@ -302,13 +337,13 @@ createBall(id)
 		entity_set_int(ent, EV_INT_solid,   SOLID_TRIGGER);
 		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
 
-		entity_set_model(ent, BallSprites[0]);
+		entity_set_model(ent, gszAquaMahuo);
 		entity_set_size(ent, Float:{0.0, 0.0, 0.0}, Float:{0.0, 0.0, 0.0});
 
-		entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
-		entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
-		entity_set_float(ent, EV_FL_renderamt, 255.0);
-		entity_set_float(ent, EV_FL_scale, random_float(0.1, 0.4));
+		// entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
+		// entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
+		// entity_set_float(ent, EV_FL_renderamt, 255.0);
+		entity_set_float(ent, EV_FL_scale, random_float(0.1, 5.0));
 		entity_set_int(ent, EV_INT_iuser1, id);
 		
 		new Float:fVelocity[3];
@@ -323,26 +358,6 @@ createBall(id)
 		xs_vec_mul_scalar(fVelocity, 120.0, fVelocity);
 
 		entity_set_vector(ent, EV_VEC_velocity, fVelocity);
-	}
-}
-public TouchDick(ent, ptr)
-{
-	if (!is_valid_ent(ent)) return;
-
-	new szClassName[32];
-	entity_get_string(ent, EV_SZ_classname, szClassName, charsmax(szClassName));
-
-	if(equal(szClassName, gDickClassName) ) {
-
-		new Float:fOrigin[3];
-		new id = entity_get_edict(ent, EV_ENT_owner);
-		if( gHaveDick[id] != ent ) {
-			entity_get_vector(ent, EV_VEC_origin, fOrigin);
-			creat_exp_spr(fOrigin);
-			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 1000.0, DMG_TIMEBASED);
-			remove_entity(ent);
-
-		}
 	}
 }
 
@@ -520,14 +535,14 @@ stock creat_exp_spr(const Float:fOrigin[3])  //位置整數陣列X,Y,Z
 		write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
 		message_end();
 }
-stock attachBeamFollow(ent)
+stock attachBeamFollow(ent, life)
 {
 	message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
 	// engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
 	write_byte(TE_BEAMFOLLOW); // 車尾燈
 	write_short(ent);
 	write_short(smoke);
-	write_byte(10); // life
+	write_byte(life); // life
 	write_byte(1); // width
 	write_byte(255); // r
 	write_byte(255); // g
