@@ -36,7 +36,7 @@ new akoMainMenu[256];
 new akoBallMenu[256];
 new akoBallSelectionMenu[256];
 
-new SelectedBallType[BallMax];
+new SelectedBallType[33];
 
 new const gHaachamaModel[] = "models/haachama/haachama.mdl"
 new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
@@ -46,19 +46,20 @@ new const BallSounds[2][] =
 	"ref/ballexp.wav"		
 }
 new const akoBallSpritesBBall[] = "sprites/ref/gball.spr";
-new const akoBallSpritesTpBall[] = "sprites/ref/tpball.spr";
+new const akoBallSpritesSLBall[] = "sprites/ref/slball.spr";
 new const akoBallBoomSprites[] = "sprites/ref/gbomb.spr";
+new const akoBallAquaSprites[] = "sprites/ref/aqua.spr";
 
 enum
 {
-	BBAL,
-	TPBALL
+	BBALL,
+	SLBALL
 }
 
 new const akoBallNames[BallMax][20] =
 {
 	"爆炸球",
-	"傳送球"
+	"擊飛球"
 }
 
 new akoBallSprites[BallMax][256];
@@ -71,6 +72,7 @@ new Float:hachamaTimer[512];
 new poop;
 new wave;
 new boom;
+new aqua;
 
 
 public plugin_init()
@@ -96,8 +98,8 @@ public plugin_init()
 
 public plugin_precache()
 {
-	akoBallSprites[BBAL] = akoBallSpritesBBall;
-	akoBallSprites[TPBALL] = akoBallSpritesTpBall;
+	akoBallSprites[BBALL] = akoBallSpritesBBall;
+	akoBallSprites[SLBALL] = akoBallSpritesSLBall;
 	precache_model(gHaachamaModel);
 	precache_sound(gszAquaSound);
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
@@ -110,6 +112,7 @@ public plugin_precache()
 		precache_sound(BallSounds[i]);
 
 	boom = precache_model(akoBallBoomSprites);
+	aqua = precache_model(akoBallAquaSprites);
 }
 
 createMenu()
@@ -134,7 +137,7 @@ createMenu()
 	size = sizeof(akoBallSelectionMenu);
 	add(akoBallSelectionMenu, size, "\w睪丸選擇^n^n");
 	add(akoBallSelectionMenu, size, "\r1. \w爆炸球^n");
-	add(akoBallSelectionMenu, size, "\r2. \w傳送球^n^n");
+	add(akoBallSelectionMenu, size, "\r2. \w擊飛球^n^n");
 	add(akoBallSelectionMenu, size, "\r0. \w返回");
 	gKeysBallSelectionMenu = B1 | B2 | B0
 
@@ -247,6 +250,12 @@ toggleStealth(id)
 	}
 }
 
+Stealth_On(id)
+	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
+
+Stealth_Off(id)
+	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 0);
+
 summonHaachamaAiming(id)
 {
 	new Origin[3];
@@ -277,7 +286,7 @@ summonHaachama(Float:vOrigin[3])
 	entity_set_int(ent,EV_INT_sequence, 4);
 }
 
-createBall(id, const blockType)
+createBall(id, const ballType)
 {
 	new Float:vOrigin[3], Float:vVelocity[3];
 	new ent = create_entity(gBallEnt);
@@ -289,15 +298,15 @@ createBall(id, const blockType)
 	entity_set_int(ent, EV_INT_solid,   SOLID_SLIDEBOX);
 	entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
 
-	BallSpr = akoBallSprites[blockType];
+	BallSpr = akoBallSprites[ballType];
 
-	if(blockType >= 0 && blockType < BallMax) {
+	if(ballType >= 0 && ballType < BallMax) {
 		entity_set_model(ent, BallSpr);
 	}
 	entity_set_origin(ent, vOrigin);
 	entity_set_size(ent, Float:{0.0, 0.0, 0.0}, Float:{0.0, 0.0, 0.0});
+	entity_set_int(ent, EV_INT_iuser2, ballType);
 
-	entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
 	entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
 	entity_set_float(ent, EV_FL_renderamt, 255.0);
 	entity_set_float(ent, EV_FL_scale, random_float(0.1, 0.4));
@@ -363,44 +372,69 @@ public ballTouch(ent)
 		return;
 
 	new bClassName[32];
+	new victim  = FM_NULLENT;
+	new attacker = pev(ent, pev_iuser1);
+	new ballType = entity_get_int(ent, EV_INT_iuser2);
 	pev(ent, pev_classname, bClassName, charsmax(bClassName))
 
 	if(equal(bClassName, gBallClassname)) {
-		new Float:fOrigin[3];
-		pev(ent, pev_origin, fOrigin);
+		if(ballType == BBALL) {
+			new Float:fOrigin[3];
+			pev(ent, pev_origin, fOrigin);
 
-		engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
-		write_byte(TE_EXPLOSION);
-		engfunc(EngFunc_WriteCoord, fOrigin[0]);
-		engfunc(EngFunc_WriteCoord, fOrigin[1]);
-		engfunc(EngFunc_WriteCoord, fOrigin[2]);
-		write_short(boom);
-		write_byte(5);
-		write_byte(15);
-		write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
-		message_end();
+			engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
+			write_byte(TE_EXPLOSION);
+			engfunc(EngFunc_WriteCoord, fOrigin[0]);
+			engfunc(EngFunc_WriteCoord, fOrigin[1]);
+			engfunc(EngFunc_WriteCoord, fOrigin[2]);
+			write_short(boom);
+			write_byte(5);
+			write_byte(15);
+			write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
+			message_end();
 
-		emit_sound(ent, CHAN_WEAPON, BallSounds[1], VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
+			emit_sound(ent, CHAN_WEAPON, BallSounds[1], VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 
-		new victim  = FM_NULLENT;
-		new attacker = pev(ent, pev_iuser1);
+			while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, BallRadiusExplode)) != 0) {
+				if(!is_user_alive(victim))
+					continue;
 
-		while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, BallRadiusExplode)) != 0) {
-			if(!is_user_alive(victim))
-				continue;
-
-			ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, BallDamage, DMG_SONIC);
+				ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, BallDamage, DMG_SONIC);
+			}
+			engfunc(EngFunc_RemoveEntity, ent);
 		}
-		engfunc(EngFunc_RemoveEntity, ent);
+
+		if(ballType == SLBALL) {
+			new Float:fOrigin[3];
+			pev(ent, pev_origin, fOrigin);
+
+			engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
+			write_byte(TE_EXPLOSION);
+			engfunc(EngFunc_WriteCoord, fOrigin[0]);
+			engfunc(EngFunc_WriteCoord, fOrigin[1]);
+			engfunc(EngFunc_WriteCoord, fOrigin[2]);
+			write_short(aqua);
+			write_byte(5);
+			write_byte(1);
+			write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
+			message_end();
+
+			emit_sound(ent, CHAN_WEAPON, BallSounds[1], VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
+
+			while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, BallRadiusExplode)) != 0) {
+				if(!is_user_alive(victim))
+					continue;
+
+				user_slap(victim, 0);
+				user_slap(victim, 0);
+				user_slap(victim, 0);
+			}
+
+			engfunc(EngFunc_RemoveEntity, ent);
+		}
+		
 	}
 }
-
-Stealth_On(id)
-	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
-
-Stealth_Off(id)
-	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 0);
-
 
 public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], tracehandle, damage_type)
 {
