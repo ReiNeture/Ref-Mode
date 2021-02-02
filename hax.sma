@@ -25,7 +25,7 @@ enum
 const BallMax = 2;
 const BallSpeed = 2000;
 const Float:BallDamage = 150.0;
-const Float:BallRadiusExplode =	130.0;
+const Float:BallRadiusExplode =	150.0;
 
 new const gInfoTarget[] = "env_sprite"; // info_target
 new const gClassname[] = "func_breakable"; //func_haachama
@@ -131,7 +131,7 @@ createMenu()
 	add(akoBallMenu, size, "\w睪丸選單 ^n^n");
 	add(akoBallMenu, size, "\r1. \w睪丸類型: \y%s ^n");
 	add(akoBallMenu, size, "\r2. \w發射球球 ^n^n");
-	add(akoBallMenu, size, "\r0, \w返回");
+	add(akoBallMenu, size, "\r0. \w返回");
 	gKeysBallMenu = B1 | B2 | B0
 
 	size = sizeof(akoBallSelectionMenu);
@@ -399,13 +399,13 @@ public ballTouch(ent)
 				if(!is_user_alive(victim))
 					continue;
 
-				ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, BallDamage, DMG_SONIC);
+				ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, BallDamage, DMG_TIMEBASED);
 			}
 			engfunc(EngFunc_RemoveEntity, ent);
 		}
 
 		if(ballType == SLBALL) {
-			new Float:fOrigin[3];
+			new Float:fOrigin[3], Float:fOrigin2[3];
 			pev(ent, pev_origin, fOrigin);
 
 			engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
@@ -425,10 +425,22 @@ public ballTouch(ent)
 				if(!is_user_alive(victim))
 					continue;
 
-				user_slap(victim, 0);
-				user_slap(victim, 0);
-				user_slap(victim, 0);
+				pev(victim, pev_origin, fOrigin2);
+				new Float:velocity[3];
+				get_speed_vector_to_entity(ent, victim, 700.0, velocity);
+				velocity[2] += 400.0
+				set_pev(victim, pev_velocity, velocity);
 			}
+			new Float:vTele[3];
+			pev(ent, pev_origin, vTele);
+			set_pev(attacker, pev_origin, vTele);
+
+			new Float:vVelocity[3];
+			pev(attacker, pev_velocity, vVelocity);
+
+			for(new i = 0; i < 3; i++)
+				vVelocity[i] = floatabs(vVelocity[i]) * 10.0;
+			set_pev(attacker, pev_velocity, vVelocity);
 
 			engfunc(EngFunc_RemoveEntity, ent);
 		}
@@ -551,4 +563,28 @@ stock get_weapon_position(id, Float:fOrigin[], Float:add_forward = 0.0, Float:ad
 	fOrigin[0] = fOrigin[0] + Forward[0] + Right[0] + Up[0]
 	fOrigin[1] = fOrigin[1] + Forward[1] + Right[1] + Up[1]
 	fOrigin[2] = fOrigin[2] + Forward[2] + Right[2] + Up[2]
+}
+
+stock get_speed_vector_to_entity(ent1, ent2, Float:speed, Float:new_velocity[3])
+{
+	if(!pev_valid(ent1) || !pev_valid(ent2))
+		return 0;
+	
+	static Float:origin1[3]
+	pev(ent1,pev_origin,origin1)
+	static Float:origin2[3]
+	pev(ent2,pev_origin,origin2)
+	
+	new_velocity[0] = origin2[0] - origin1[0];
+	new_velocity[1] = origin2[1] - origin1[1];
+	new_velocity[2] = origin2[2] - origin1[2];
+	
+	static Float:num
+	num = speed / vector_length(new_velocity);
+				
+	new_velocity[0] *= num;
+	new_velocity[1] *= num;
+	new_velocity[2] *= num;
+	
+	return 1;
 }
