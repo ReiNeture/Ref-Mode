@@ -36,13 +36,14 @@ new const gHaachamaModel[] = "models/haachama/haachama.mdl";
 new const gDickModel[] = "models/ref/dick.mdl";
 new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
 new const gszAquaMahuo[] = "sprites/ref/aqua.spr";
+new const gzHomura[] = "ref/homura.wav";
 new const BallSprites[2][] =
 {
 	"sprites/gBall/gball.spr",		
 	"sprites/gBall/gbomb.spr"		
 }
 
-const MAXDICK = 10;
+const MAXDICK = 30;
 
 new bool:g_stealth[33];
 new bool:headshot[33];
@@ -85,8 +86,9 @@ public plugin_precache()
 {
 	precache_model(gDickModel);
 	precache_model(gHaachamaModel);
-	precache_sound(gszAquaSound);
 	precache_model(gszAquaMahuo);
+	precache_sound(gszAquaSound);
+	precache_sound(gzHomura);
 	smoke = precache_model("sprites/steam1.spr");
 	exp = precache_model("sprites/ref/whiteexp.spr");
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
@@ -227,20 +229,23 @@ createDick(id)
 		new ent = create_entity(gInfoTarget);
 
 		entity_set_string(ent, EV_SZ_classname, gDickClassName);
-		entity_set_model(ent, gDickModel);
-		entity_set_size(ent, Float:{-1.0, -1.0, -1.0}, Float:{1.0, 1.0, 1.0});
+		// entity_set_model(ent, gDickModel);
+		entity_set_model(ent, "models/w_ak47.mdl");
+		entity_set_size(ent, Float:{-4.0, -4.0, -4.0}, Float:{4.0, 4.0, 4.0});
 		entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
 		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
 		entity_set_edict(ent, EV_ENT_owner, id);
-		entity_set_float(ent, EV_FL_fuser1, random_float(10.0, 100.0));
+		entity_set_float(ent, EV_FL_fuser1, random_float(20.0, 100.0)); // 紀錄垂直軸隨機座標
+		entity_set_float(ent, EV_FL_fuser2, random_float(-70.0, 70.0)); // 紀錄水平軸隨機座標
+
 		dickThink(ent);
 		
-		fTreasureCd[id] = halflife_time() + 0.2;
+		fTreasureCd[id] = halflife_time() + 0.05;
 		new count = gCurrentDick[id];
 		gHaveDick[id][count] = ent;
 		gCurrentDick[id]++;
 
-		emit_sound(id, CHAN_WEAPON, "ref/miss2.wav", VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
+		emit_sound(id, CHAN_WEAPON, "ref/miss2.wav", 0.3, ATTN_NORM, 0, PITCH_NORM);
 	}
 }
 public dickThink(ent)
@@ -250,19 +255,27 @@ public dickThink(ent)
 	// 資料初始化
 	new id = entity_get_edict(ent, EV_ENT_owner);
 	new Float:vOrigin[3], Float:fAim[3], Float:fAngles[3];
-	velocity_by_aim(id, 50, fAim);
+
+	velocity_by_aim(id, 64, fAim);
+	vector_to_angle(fAim, fAngles);
+
+	new Float:xOffsets[3];
+	xs_vec_copy(fAngles, xOffsets);
+	xOffsets[1] += 90.0;
+	angle_vector(xOffsets, ANGLEVECTOR_FORWARD, xOffsets);
+	xs_vec_mul_scalar(xOffsets, entity_get_float(ent, EV_FL_fuser2), xOffsets);
 
 	// 物件角度設定
-	vector_to_angle(fAim, fAngles);
-	fAngles[0] =   0.0;                  // 用於紀錄上下向量
+	// new Float:temp = entity_get_float(ent, EV_FL_fuser1);
+	fAngles[0] = 0.0;                  // 用於設定物件上下角度向量
 	fAngles[1] += 90.0;
-	fAngles[2] += 90.0;
+	fAngles[2] -= 90.0;
 	entity_set_vector(ent, EV_VEC_angles, fAngles);
 
 	// 物件座標設定
 	entity_get_vector(id, EV_VEC_origin, vOrigin);
-	vOrigin[0] = vOrigin[0] + fAim[0];
-	vOrigin[1] = vOrigin[1] + fAim[1];
+	vOrigin[0] = vOrigin[0] + fAim[0] + xOffsets[0];
+	vOrigin[1] = vOrigin[1] + fAim[1] + xOffsets[1];
 	vOrigin[2] = vOrigin[2] + entity_get_float(ent, EV_FL_fuser1);
 	entity_set_origin(ent, vOrigin);
 
@@ -283,11 +296,16 @@ doDick(id)
 			entity_set_int(ent, EV_INT_iuser1, 1);
 
 			new Float:fAim[3];
-			velocity_by_aim(id, 1200, fAim);
+			velocity_by_aim(id, 1500, fAim);
 
+			// 減去偏移值使中心點瞄準
+			fAim[0] += entity_get_float(ent, EV_FL_fuser2);
+			fAim[1] += entity_get_float(ent, EV_FL_fuser2); 
 			fAim[2] -= entity_get_float(ent, EV_FL_fuser1);
 			entity_set_vector(ent, EV_VEC_velocity, fAim);
-			attachBeamFollow(ent, 30);
+
+			attachBeamFollow(ent, 10);
+			emit_sound(ent, CHAN_WEAPON, "ref/homura.wav", VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 		}
 		gCurrentDick[id] = 0;
 	}
@@ -301,14 +319,14 @@ public TouchDick(ent, ptr)
 	entity_get_string(ent, EV_SZ_classname, szClassName, charsmax(szClassName));
 	entity_get_string(ptr, EV_SZ_classname, ptrClassName, charsmax(ptrClassName));
 
-	if(equal(szClassName, gDickClassName) && !equal(ptrClassName, gDickClassName)) {
-		new Float:fOrigin[3];
-		new id = entity_get_edict(ent, EV_ENT_owner);
-		
+	new Float:fOrigin[3];
+	new id = entity_get_edict(ent, EV_ENT_owner);
+
+	if(equal(szClassName, gDickClassName) && !equal(ptrClassName, gDickClassName) && id != ptr ) {
 		if( entity_get_int(ent, EV_INT_iuser1) == 1 ) {
 			entity_get_vector(ent, EV_VEC_origin, fOrigin);
 			creat_exp_spr(fOrigin);
-			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 1000.0, DMG_TIMEBASED);
+			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 1000.0, DMG_ENERGYBEAM);
 			remove_entity(ent);
 		}
 	}
