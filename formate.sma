@@ -127,7 +127,7 @@ public fw_PlayerPreThink(id) {
 	// static Float:num; num = vector_length(fAim);
 
 	static Float:last_time;
-	if ( get_gametime() - last_time >= 0.1) {
+	if ( get_gametime() - last_time >= 0.5) {
 		client_print(id, print_center, "%f # %f # 拿AK按右鍵 # 拿刀有防護罩", fAim[0],fAim[1]);
 		last_time = get_gametime();
 	}

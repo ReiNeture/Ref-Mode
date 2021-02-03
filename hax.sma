@@ -235,8 +235,8 @@ createDick(id)
 		entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
 		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
 		entity_set_edict(ent, EV_ENT_owner, id);
-		entity_set_float(ent, EV_FL_fuser1, random_float(20.0, 100.0)); // 紀錄垂直軸隨機座標
-		entity_set_float(ent, EV_FL_fuser2, random_float(-70.0, 70.0)); // 紀錄水平軸隨機座標
+		entity_set_float(ent, EV_FL_fuser1, random_float(20.0, 100.0)); // 紀錄垂直軸隨機偏移量
+		entity_set_float(ent, EV_FL_fuser2, random_float(-70.0, 70.0)); // 紀錄水平軸隨機偏移量
 
 		dickThink(ent);
 		
@@ -259,6 +259,7 @@ public dickThink(ent)
 	velocity_by_aim(id, 64, fAim);
 	vector_to_angle(fAim, fAngles);
 
+	// X軸線偏移設定
 	new Float:xOffsets[3];
 	xs_vec_copy(fAngles, xOffsets);
 	xOffsets[1] += 90.0;
@@ -266,7 +267,6 @@ public dickThink(ent)
 	xs_vec_mul_scalar(xOffsets, entity_get_float(ent, EV_FL_fuser2), xOffsets);
 
 	// 物件角度設定
-	// new Float:temp = entity_get_float(ent, EV_FL_fuser1);
 	fAngles[0] = 0.0;                  // 用於設定物件上下角度向量
 	fAngles[1] += 90.0;
 	fAngles[2] -= 90.0;
@@ -390,7 +390,7 @@ public TouchHachama(Ptd, Ptr)
 
 	if( !entity_get_edict(Ptd, EV_ENT_owner) ) {
 		
-		hachamaTimer[Ptd] = halflife_time()+70.0;
+		hachamaTimer[Ptd] = halflife_time() + 70.0;
 
 		entity_set_edict(Ptd, EV_ENT_owner, Ptr);
 		entity_set_float(Ptd, EV_FL_nextthink, halflife_time() + 0.1);
