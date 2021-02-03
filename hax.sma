@@ -442,29 +442,21 @@ public ballTouch(ent)
 				velocity[2] += 400.0
 				set_pev(victim, pev_velocity, velocity);
 			}
-			new Float:entOrigin[3], atkOrigin[3];
-			pev(ent, pev_origin, entOrigin);
-			pev(attacker, pev_origin, atkOrigin);
-
-			new Float:vVelocity[3];
-			vVelocity[0] = atkOrigin[0] - entOrigin[0];
-			vVelocity[1] = atkOrigin[1] - entOrigin[1];
-			vVelocity[2] = atkOrigin[2] - entOrigin[2];
-
-			new Float:num;
-			num = 250 / vector_length(vVelocity);
-
-			vVelocity[0] *= num;
-			vVelocity[1] *= num;
-			vVelocity[2] *= num;
-
-			set_pev(attacker, pev_velocity, vVelocity);
-
 			engfunc(EngFunc_RemoveEntity, ent);
 		}
 
 		if(ballType == TPBALL) {
-
+			new id = pev(ent, pev_iuser1);
+			new Float:entAngle[3];
+			pev(ent, pev_angles, entAngle);
+			angle_vector(entAngle, ANGLEVECTOR_FORWARD, entAngle);
+			xs_vec_mul_scalar(entAngle, -64.0, entAngle);
+			new Float:vOrigin[3];
+			vOrigin[0] += entAngle[0];
+			vOrigin[1] += entAngle[1];
+			vOrigin[2] += entAngle[2];
+			set_pev(id, pev_origin, vOrigin);
+			engfunc(EngFunc_RemoveEntity, ent);
 		}
 		
 	}
