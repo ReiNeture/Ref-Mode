@@ -22,7 +22,7 @@ enum
 	B6 = 1 << N6, B7 = 1 << N7, B8 = 1 << N8, B9 = 1 << N9, B0 = 1 << N0,
 };
 
-const BallMax = 2;
+const BallMax = 3;
 const BallSpeed = 2000;
 const Float:BallDamage = 150.0;
 const Float:BallRadiusExplode =	150.0;
@@ -47,19 +47,22 @@ new const BallSounds[2][] =
 }
 new const akoBallSpritesBBall[] = "sprites/ref/gball.spr";
 new const akoBallSpritesSLBall[] = "sprites/ref/slball.spr";
+new const akoBallSpritesTPBall[] = "sprites/ref/tpball.spr";
 new const akoBallBoomSprites[] = "sprites/ref/gbomb.spr";
 new const akoBallAquaSprites[] = "sprites/ref/aqua.spr";
 
 enum
 {
 	BBALL,
-	SLBALL
+	SLBALL,
+	TPBALL
 }
 
 new const akoBallNames[BallMax][20] =
 {
 	"爆炸球",
-	"擊飛球"
+	"擊飛球",
+	"傳送球"
 }
 
 new akoBallSprites[BallMax][256];
@@ -100,6 +103,7 @@ public plugin_precache()
 {
 	akoBallSprites[BBALL] = akoBallSpritesBBall;
 	akoBallSprites[SLBALL] = akoBallSpritesSLBall;
+	akoBallSprites[TPBALL] = akoBallSpritesTPBall;
 	precache_model(gHaachamaModel);
 	precache_sound(gszAquaSound);
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
@@ -137,9 +141,10 @@ createMenu()
 	size = sizeof(akoBallSelectionMenu);
 	add(akoBallSelectionMenu, size, "\w睪丸選擇^n^n");
 	add(akoBallSelectionMenu, size, "\r1. \w爆炸球^n");
-	add(akoBallSelectionMenu, size, "\r2. \w擊飛球^n^n");
+	add(akoBallSelectionMenu, size, "\r2. \w擊飛球^n");
+	add(akoBallSelectionMenu, size, "\r3. \w傳送球^n^n");
 	add(akoBallSelectionMenu, size, "\r0. \w返回");
-	gKeysBallSelectionMenu = B1 | B2 | B0
+	gKeysBallSelectionMenu = B1 | B2 | B3 | B0
 
 }
 
@@ -217,6 +222,12 @@ public handleBallSelectionMenu(id, num)
 		}
 
 		case N2:
+		{
+			SelectedBallType[id] = num;
+			showBallMenu(id);
+		}
+
+		case N3:
 		{
 			SelectedBallType[id] = num;
 			showBallMenu(id);
@@ -431,18 +442,29 @@ public ballTouch(ent)
 				velocity[2] += 400.0
 				set_pev(victim, pev_velocity, velocity);
 			}
-			new Float:vTele[3];
-			pev(ent, pev_origin, vTele);
-			set_pev(attacker, pev_origin, vTele);
+			new Float:entOrigin[3], atkOrigin[3];
+			pev(ent, pev_origin, entOrigin);
+			pev(attacker, pev_origin, atkOrigin);
 
 			new Float:vVelocity[3];
-			pev(attacker, pev_velocity, vVelocity);
+			vVelocity[0] = atkOrigin[0] - entOrigin[0];
+			vVelocity[1] = atkOrigin[1] - entOrigin[1];
+			vVelocity[2] = atkOrigin[2] - entOrigin[2];
 
-			for(new i = 0; i < 3; i++)
-				vVelocity[i] = floatabs(vVelocity[i]) * 10.0;
+			new Float:num;
+			num = 250 / vector_length(vVelocity);
+
+			vVelocity[0] *= num;
+			vVelocity[1] *= num;
+			vVelocity[2] *= num;
+
 			set_pev(attacker, pev_velocity, vVelocity);
 
 			engfunc(EngFunc_RemoveEntity, ent);
+		}
+
+		if(ballType == TPBALL) {
+
 		}
 		
 	}
