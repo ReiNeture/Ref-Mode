@@ -42,6 +42,13 @@ new const BallSprites[2][] =
 	"sprites/gBall/gball.spr",		
 	"sprites/gBall/gbomb.spr"		
 }
+new const gTreasureModel[4][] =
+{
+	"models/w_ak47.mdl",
+	"models/w_m4a1.mdl",
+	"models/w_ump45.mdl",
+	"models/w_scout.mdl"
+} 
 
 const MAXDICK = 30;
 
@@ -229,13 +236,12 @@ createDick(id)
 		new ent = create_entity(gInfoTarget);
 
 		entity_set_string(ent, EV_SZ_classname, gDickClassName);
-		// entity_set_model(ent, gDickModel);
-		entity_set_model(ent, "models/w_ak47.mdl");
+		entity_set_model(ent, gTreasureModel[random_num(0,3)] );
 		entity_set_size(ent, Float:{-4.0, -4.0, -4.0}, Float:{4.0, 4.0, 4.0});
 		entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
 		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
 		entity_set_edict(ent, EV_ENT_owner, id);
-		entity_set_float(ent, EV_FL_fuser1, random_float(20.0, 100.0)); // 紀錄垂直軸隨機偏移量
+		entity_set_float(ent, EV_FL_fuser1, random_float(5.0, 100.0));  // 紀錄垂直軸隨機偏移量
 		entity_set_float(ent, EV_FL_fuser2, random_float(-70.0, 70.0)); // 紀錄水平軸隨機偏移量
 
 		dickThink(ent);
@@ -254,28 +260,24 @@ public dickThink(ent)
 
 	// 資料初始化
 	new id = entity_get_edict(ent, EV_ENT_owner);
-	new Float:vOrigin[3], Float:fAim[3], Float:fAngles[3];
+	static Float:vOrigin[3], Float:fAim[3], Float:fAngles[3];
 
-	velocity_by_aim(id, 64, fAim);
+	velocity_by_aim(id, 32, fAim);
 	vector_to_angle(fAim, fAngles);
 
-	// X軸線偏移設定
-	new Float:xOffsets[3];
-	xs_vec_copy(fAngles, xOffsets);
-	xOffsets[1] += 90.0;
-	angle_vector(xOffsets, ANGLEVECTOR_FORWARD, xOffsets);
-	xs_vec_mul_scalar(xOffsets, entity_get_float(ent, EV_FL_fuser2), xOffsets);
-
 	// 物件角度設定
-	fAngles[0] = 0.0;                  // 用於設定物件上下角度向量
-	fAngles[1] += 90.0;
-	fAngles[2] -= 90.0;
+	fAngles[0]  = 0.0;                               // 用於設定物件上下角度向量
+	fAngles[1] -= 90.0;
 	entity_set_vector(ent, EV_VEC_angles, fAngles);
 
+	// X軸線偏移設定
+	static Float:xOffsets[3];
+	makeRandomOffsets(id, entity_get_float(ent, EV_FL_fuser2), xOffsets);
+	
 	// 物件座標設定
 	entity_get_vector(id, EV_VEC_origin, vOrigin);
-	vOrigin[0] = vOrigin[0] + fAim[0] + xOffsets[0];
-	vOrigin[1] = vOrigin[1] + fAim[1] + xOffsets[1];
+	vOrigin[0] = vOrigin[0] - fAim[0] + xOffsets[0];
+	vOrigin[1] = vOrigin[1] - fAim[1] + xOffsets[1];
 	vOrigin[2] = vOrigin[2] + entity_get_float(ent, EV_FL_fuser1);
 	entity_set_origin(ent, vOrigin);
 
@@ -295,12 +297,13 @@ doDick(id)
 			entity_set_float(ent, EV_FL_nextthink, halflife_time() + 99999.9);
 			entity_set_int(ent, EV_INT_iuser1, 1);
 
-			new Float:fAim[3];
-			velocity_by_aim(id, 1500, fAim);
+			new Float:fAim[3], Float:xOffsets[3];
+			velocity_by_aim(id, 1200, fAim);
+			makeRandomOffsets(id, entity_get_float(ent, EV_FL_fuser2), xOffsets);
 
 			// 減去偏移值使中心點瞄準
-			fAim[0] += entity_get_float(ent, EV_FL_fuser2);
-			fAim[1] += entity_get_float(ent, EV_FL_fuser2); 
+			fAim[0] -= xOffsets[0];
+			fAim[1] -= xOffsets[1]; 
 			fAim[2] -= entity_get_float(ent, EV_FL_fuser1);
 			entity_set_vector(ent, EV_VEC_velocity, fAim);
 
@@ -309,6 +312,15 @@ doDick(id)
 		}
 		gCurrentDick[id] = 0;
 	}
+}
+makeRandomOffsets(id, Float:random, Float:vec[3])
+{
+	new Float:xOffsets[3];
+	entity_get_vector(id, EV_VEC_angles, xOffsets);
+	xOffsets[1] += 90.0;
+	angle_vector(xOffsets, ANGLEVECTOR_FORWARD, xOffsets);
+	xs_vec_mul_scalar(xOffsets, random, xOffsets);
+	vec = xOffsets;
 }
 
 public TouchDick(ent, ptr)
@@ -326,7 +338,7 @@ public TouchDick(ent, ptr)
 		if( entity_get_int(ent, EV_INT_iuser1) == 1 ) {
 			entity_get_vector(ent, EV_VEC_origin, fOrigin);
 			creat_exp_spr(fOrigin);
-			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 1000.0, DMG_ENERGYBEAM);
+			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 100.0, DMG_ENERGYBEAM);
 			remove_entity(ent);
 		}
 	}
@@ -562,9 +574,9 @@ stock attachBeamFollow(ent, life)
 	write_short(smoke);
 	write_byte(life); // life
 	write_byte(1); // width
-	write_byte(255); // r
-	write_byte(255); // g
-	write_byte(255); // b
+	write_byte(random_num(1,255)); // r
+	write_byte(random_num(1,255)); // g
+	write_byte(random_num(1,255)); // b
 	write_byte(127); // brightness
 	message_end();
 }
