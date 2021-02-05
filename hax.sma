@@ -447,14 +447,15 @@ public ballTouch(ent)
 
 		if(ballType == TPBALL) {
 			new id = pev(ent, pev_iuser1);
-			new Float:entAngle[3];
-			pev(ent, pev_angles, entAngle);
-			angle_vector(entAngle, ANGLEVECTOR_FORWARD, entAngle);
-			xs_vec_mul_scalar(entAngle, -64.0, entAngle);
+			new Float:entAngle[3], Float:eee[3];
+			pev(ent, pev_velocity, entAngle);
+			xs_vec_normalize(entAngle, eee);
+			xs_vec_mul_scalar(eee, -64.0, eee);
 			new Float:vOrigin[3];
-			vOrigin[0] += entAngle[0];
-			vOrigin[1] += entAngle[1];
-			vOrigin[2] += entAngle[2];
+			pev(ent, pev_origin, vOrigin);
+			vOrigin[0] += eee[0];
+			vOrigin[1] += eee[1];
+			vOrigin[2] = vOrigin[2] + 36;
 			set_pev(id, pev_origin, vOrigin);
 			engfunc(EngFunc_RemoveEntity, ent);
 		}
