@@ -6,10 +6,12 @@
 #include <fun>
 #include <xs>
 #include <vector>
+#include <cstrike>
 
 new gKeysMainMenu;
 new gKeysBallMenu;
 new gKeysBallSelectionMenu;
+new gKeysMahoujinMenu;
 
 enum
 {
@@ -35,11 +37,13 @@ new const gBallClassname[] = "Entball";
 new akoMainMenu[256];
 new akoBallMenu[256];
 new akoBallSelectionMenu[256];
+new akoMahoujinMenu[256];
 
 new SelectedBallType[33];
 
 new const gHaachamaModel[] = "models/haachama/haachama.mdl"
 new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
+new const dodgeSpeedBoost[] = "ref/speedboost.wav";
 new const BallSounds[2][] = 
 {
 	"ref/ballshoot.wav",		
@@ -49,7 +53,7 @@ new const akoBallSpritesBBall[] = "sprites/ref/gball.spr";
 new const akoBallSpritesSLBall[] = "sprites/ref/slball.spr";
 new const akoBallSpritesTPBall[] = "sprites/ref/tpball.spr";
 new const akoBallBoomSprites[] = "sprites/ref/gbomb.spr";
-new const akoBallAquaSprites[] = "sprites/ref/aqua.spr";
+new const akoBallKanataSprites[] = "sprites/ref/kanata.spr";
 
 enum
 {
@@ -70,12 +74,15 @@ new akoBallSprites[BallMax][256];
 new bool:g_stealth[33];
 new bool:headshot[33];
 new bool:dmg_reflection[33];
+new bool:mahoujin[33];
+new bool:speedboost[33];
 new Float:hachamaTimer[512];
+new mahoujinSpeed[33];
 
 new poop;
 new wave;
 new boom;
-new aqua;
+new kanata;
 
 
 public plugin_init()
@@ -83,11 +90,14 @@ public plugin_init()
 	register_plugin("hax", "1.0", "Ako");
 
 	register_clcmd("hax", "showMenu");
+	register_clcmd("respawn", "respawn");
 
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
 	RegisterHam(Ham_Touch, gBallEnt, "ballTouch");
+
+	register_event("CurWeapon", "eventCurWeapon", "be");
 
 	register_touch(gClassname, "player", "TouchHachama");
 	register_think(gClassname, "hachamaThink");
@@ -97,6 +107,7 @@ public plugin_init()
 	register_menucmd(register_menuid("haxMainMenu"), gKeysMainMenu, "handleMainMenu");
 	register_menucmd(register_menuid("haxBallMenu"), gKeysBallMenu, "handleBallMenu");
 	register_menucmd(register_menuid("haxBallSelectionMenu"), gKeysBallSelectionMenu, "handleBallSelectionMenu");
+	register_menucmd(register_menuid("haxMahoujinMenu"), gKeysMahoujinMenu, "handleMahoujinMenu");
 }
 
 public plugin_precache()
@@ -106,6 +117,7 @@ public plugin_precache()
 	akoBallSprites[TPBALL] = akoBallSpritesTPBall;
 	precache_model(gHaachamaModel);
 	precache_sound(gszAquaSound);
+	precache_sound(dodgeSpeedBoost);
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
 	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
 
@@ -116,7 +128,35 @@ public plugin_precache()
 		precache_sound(BallSounds[i]);
 
 	boom = precache_model(akoBallBoomSprites);
-	aqua = precache_model(akoBallAquaSprites);
+	kanata = precache_model(akoBallKanataSprites);
+}
+
+public client_PreThink(id)
+{
+	if(!is_user_connected(id))
+		return;
+
+	if(mahoujin[id]) {
+		static button1, button2;
+		button1 = pev(id, pev_button);
+		button2 = pev(id, pev_button);
+		if((button1 & IN_JUMP) && (button2 & IN_DUCK)) {
+			static Float:velocity[3];
+			velocity_by_aim(id, mahoujinSpeed[id], velocity);
+			velocity[2] = 500.0;
+			set_pev(id, pev_velocity, velocity);
+		}
+		entity_set_int(id,  EV_INT_watertype, CONTENTS_WATER);
+	}
+}
+
+public respawn(id)
+{
+	ExecuteHam(Ham_CS_RoundRespawn, id);
+	if(cs_get_user_team(id) == CS_TEAM_SPECTATOR) {
+		fm_give_item(id, "weapon_knife");
+		fm_give_item(id, "weapon_usp");
+	}
 }
 
 createMenu()
@@ -127,9 +167,10 @@ createMenu()
 	add(akoMainMenu, size, "\r2. \w反射傷害: %s ^n");
 	add(akoMainMenu, size, "\r3. \w隱身: %s ^n^n");
 	add(akoMainMenu, size, "\r4. \w色情睪丸 ^n");
-	add(akoMainMenu, size, "\r5. \w召喚哈洽馬 ^n^n^n");
+	add(akoMainMenu, size, "\r5. \w魔法陣選單^n");
+	add(akoMainMenu, size, "\r6. \w召喚哈洽馬 ^n^n^n");
 	add(akoMainMenu, size, "\r0. \w關閉");
-	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B0
+	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B6 | B0
 
 	size = sizeof(akoBallMenu);
 	add(akoBallMenu, size, "\w睪丸選單 ^n^n");
@@ -145,6 +186,14 @@ createMenu()
 	add(akoBallSelectionMenu, size, "\r3. \w傳送球^n^n");
 	add(akoBallSelectionMenu, size, "\r0. \w返回");
 	gKeysBallSelectionMenu = B1 | B2 | B3 | B0
+
+	size = sizeof(akoMahoujinMenu);
+	add(akoMahoujinMenu, size, "\w魔法陣選單^n^n");
+	add(akoMahoujinMenu, size, "\r1. \w魔法陣: %s^n");
+	add(akoMahoujinMenu, size, "\r2. \w速度: \y%d/3000^n");
+	add(akoMahoujinMenu, size, "\r3. \w速度歸零^n^n");
+	add(akoMahoujinMenu, size, "\r0. \w返回");
+	gKeysMahoujinMenu = B1 | B2 | B3 | B0
 
 }
 
@@ -185,6 +234,17 @@ showBallSelectionMenu(id)
 	show_menu(id, gKeysBallSelectionMenu, menu, -1, "haxBallSelectionMenu");
 }
 
+showMahoujinMenu(id)
+{
+	new menu[200];
+	new Mahoujin[6];
+	Mahoujin = (mahoujin[id] ? "\yOn" : "\yOff");
+
+	format(menu, 200, akoMahoujinMenu, Mahoujin, mahoujinSpeed[id]);
+
+	show_menu(id, gKeysMahoujinMenu, menu, -1, "haxMahoujinMenu");
+}
+
 public handleMainMenu(id, num)
 {
 	switch(num) {
@@ -192,11 +252,12 @@ public handleMainMenu(id, num)
 		case N2: { toggleDmgreflection(id); }
 		case N3: { toggleStealth(id); }
 		case N4: { showBallMenu(id); }
-		case N5: { summonHaachamaAiming(id); }
+		case N5: { showMahoujinMenu(id); }
+		case N6: { summonHaachamaAiming(id); }
 		case N0: { return; }
 	}
 
-	if(num != N4)
+	if(num != N4 && num != N5)
 		showMenu(id);
 }
 
@@ -220,20 +281,34 @@ public handleBallSelectionMenu(id, num)
 			SelectedBallType[id] = num;
 			showBallMenu(id);
 		}
-
 		case N2:
 		{
 			SelectedBallType[id] = num;
 			showBallMenu(id);
 		}
-
 		case N3:
 		{
 			SelectedBallType[id] = num;
 			showBallMenu(id);
 		}
-
 		case N0: { showBallMenu(id); }
+	}
+}
+
+public handleMahoujinMenu(id, num)
+{
+	switch(num) {
+		case N1: { toggleMahoujin(id); }
+		case N2:
+		{
+			if(mahoujinSpeed[id] < 3000) mahoujinSpeed[id] += 100;
+			else showMahoujinMenu(id);
+		}
+		case N3: { mahoujinSpeed[id] = 0; }
+		case N0: { showMenu(id); }
+	}
+	if(num != N0) {
+		showMahoujinMenu(id);
 	}
 }
 
@@ -259,6 +334,12 @@ toggleStealth(id)
 		g_stealth[id] = true;
 		Stealth_Off(id);
 	}
+}
+
+toggleMahoujin(id)
+{
+	if(mahoujin[id]) mahoujin[id] = false;
+	else mahoujin[id] = true;
 }
 
 Stealth_On(id)
@@ -384,7 +465,7 @@ public ballTouch(ent)
 
 	new bClassName[32];
 	new victim  = FM_NULLENT;
-	new attacker = pev(ent, pev_iuser1);
+	new id = pev(ent, pev_iuser1);
 	new ballType = entity_get_int(ent, EV_INT_iuser2);
 	pev(ent, pev_classname, bClassName, charsmax(bClassName))
 
@@ -410,7 +491,7 @@ public ballTouch(ent)
 				if(!is_user_alive(victim))
 					continue;
 
-				ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, BallDamage, DMG_TIMEBASED);
+				ExecuteHamB(Ham_TakeDamage, victim, id, id, BallDamage, DMG_TIMEBASED);
 			}
 			engfunc(EngFunc_RemoveEntity, ent);
 		}
@@ -424,7 +505,7 @@ public ballTouch(ent)
 			engfunc(EngFunc_WriteCoord, fOrigin[0]);
 			engfunc(EngFunc_WriteCoord, fOrigin[1]);
 			engfunc(EngFunc_WriteCoord, fOrigin[2]);
-			write_short(aqua);
+			write_short(kanata);
 			write_byte(5);
 			write_byte(1);
 			write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
@@ -442,11 +523,11 @@ public ballTouch(ent)
 				velocity[2] += 400.0
 				set_pev(victim, pev_velocity, velocity);
 			}
+
 			engfunc(EngFunc_RemoveEntity, ent);
 		}
 
 		if(ballType == TPBALL) {
-			new id = pev(ent, pev_iuser1);
 			new Float:entAngle[3], Float:eee[3];
 			pev(ent, pev_velocity, entAngle);
 			xs_vec_normalize(entAngle, eee);
@@ -463,12 +544,47 @@ public ballTouch(ent)
 	}
 }
 
+public eventCurWeapon(id)
+{
+	if(speedboost[id])
+		set_user_maxspeed(id, 700.0);
+}
+
 public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], tracehandle, damage_type)
 {
 	if (headshot[attacker] == true)
 	{
 		if (get_tr2(tracehandle, TR_iHitgroup) != HIT_HEAD) set_tr2(tracehandle, TR_iHitgroup, HIT_HEAD);
 	}
+
+	if(is_user_alive(victim) && is_user_connected(victim)) {
+		if(random_num(0, 8) != 0) {
+			new vOrigin[3];
+			get_tr2(tracehandle, TR_vecEndPos, vOrigin);
+
+			SetHamParamFloat(3, damage * 0);
+
+			set_task(8.0, "speedboostRemove", victim);
+
+			set_user_maxspeed(victim, 700.0);
+
+			emit_sound(victim, CHAN_WEAPON, dodgeSpeedBoost, 1.0, ATTN_NORM, 0, PITCH_NORM);
+
+			engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+			write_byte(TE_GLOWSPRITE);
+			engfunc(EngFunc_WriteCoord, vOrigin[0]);
+			engfunc(EngFunc_WriteCoord, vOrigin[1]);
+			engfunc(EngFunc_WriteCoord, vOrigin[2]);
+			write_short(kanata);
+			write_byte(1);
+			write_byte(3);
+			write_byte(175);
+			message_end();
+
+			speedboost[victim] = true;
+		}
+	}
+
 }
 
 public fw_PlayerSpawn_Post(id)
@@ -538,6 +654,14 @@ public fw_TakeDamage(victim, inflictor, attacker, damage, damagebits)
 	return HAM_IGNORED;
 }
 
+public speedboostRemove(victim)
+{
+	if(is_user_alive(victim) && speedboost[victim]) {
+		speedboost[victim] = false;
+		set_user_maxspeed(victim, 250.0);
+	}
+}
+
 stock fm_set_rendering(id, fx = kRenderFxNone, r = 255, g = 255, b = 255, render = kRenderNormal, amount = 16)
 {
 	static Float:color[3];
@@ -602,4 +726,28 @@ stock get_speed_vector_to_entity(ent1, ent2, Float:speed, Float:new_velocity[3])
 	new_velocity[2] *= num;
 	
 	return 1;
+}
+
+stock fm_give_item(index, const item[]) {
+	if (!equal(item, "weapon_", 7) && !equal(item, "ammo_", 5) && !equal(item, "item_", 5) && !equal(item, "tf_weapon_", 10))
+		return 0;
+	#define fm_create_entity(%1) engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, %1))
+	new ent = fm_create_entity(item);
+	if (!pev_valid(ent))
+		return 0;
+
+	new Float:origin[3];
+	pev(index, pev_origin, origin);
+	set_pev(ent, pev_origin, origin);
+	set_pev(ent, pev_spawnflags, pev(ent, pev_spawnflags) | SF_NORESPAWN);
+	dllfunc(DLLFunc_Spawn, ent);
+
+	new save = pev(ent, pev_solid);
+	dllfunc(DLLFunc_Touch, ent, index);
+	if (pev(ent, pev_solid) != save)
+		return ent;
+
+	engfunc(EngFunc_RemoveEntity, ent);
+
+	return -1;
 }
