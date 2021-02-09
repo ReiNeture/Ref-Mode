@@ -7,15 +7,15 @@
 #include <xs>
 #include <vector>
 #include <cstrike>
-#include <nvault>
 #include <float>
-#include <file>
+// #include <file>
+// #include <nvault>
 
 #define strong_weapon "weapon_ak47"
 #define strong_weapon_id CSW_AK47
 #define strong_speed 0.9
 
-new keep_file; // for nvault
+// new keep_file; // for nvault
 
 new color[33][3];
 new status[33][3];
@@ -42,8 +42,8 @@ public plugin_init()
 	register_plugin("Format TEST", "1.0", "Ref");
 	
 	register_clcmd("format_test", "test_function");
-	register_clcmd("keep_data", "nvault_save");
-	register_clcmd("load_data", "nvault_load");
+	// register_clcmd("keep_data", "nvault_save");
+	// register_clcmd("load_data", "nvault_load");
 	
 	//register_clcmd("ct_join", "Cmdmsg");
 	register_clcmd("write", "test_file");
@@ -82,7 +82,7 @@ public plugin_init()
 	register_forward(FM_PlayerPreThink, "fw_PlayerPreThink");
 	// register_touch("buil", "*", "fw_Touch_buil");
 	
-	keep_file = nvault_open("nvault_test");   // nvault handle
+	
 }
 public plugin_precache()
 {
@@ -535,33 +535,37 @@ public test_function(id) {
 }
 
 // [ NVAULT ]
-public nvault_save(id) {
-	new Vault_Key[64], Vault_data[100], N[4];
-	get_user_name(id, Vault_Key, 63);
-	replace_all(Vault_Key, 63, "'", "\'");
+// public nvault_save(id) {
+// 	keep_file = nvault_open("nvault_test");   // nvault handle
+// 	new Vault_Key[64], Vault_data[100], N[4];
+// 	get_user_name(id, Vault_Key, 63);
+// 	replace_all(Vault_Key, 63, "'", "\'");
 	
-	for ( new i=0 ; i<=3 ; ++i )
-		N[i] = random_num(1, 100);
+// 	for ( new i=0 ; i<=3 ; ++i )
+// 		N[i] = random_num(1, 100);
 		
-	formatex(Vault_data, 99, "%d#%d#%d#%d#", N[0],N[1],N[2],N[3]); // "77#88#99#1010#"
-	console_print(0, "Vault_data: %s", Vault_data);
+// 	formatex(Vault_data, 99, "%d#%d#%d#%d#", N[0],N[1],N[2],N[3]); // "77#88#99#1010#"
+// 	console_print(0, "Vault_data: %s", Vault_data);
 	
-	nvault_set(keep_file, Vault_Key, Vault_data);
-}
-public nvault_load(id) {
-	new Vault_Key[64], Vault_data[100], User_data[4];
-	get_user_name(id, Vault_Key, 63);
-	replace_all(Vault_Key, 63, "'", "\'");
+// 	nvault_set(keep_file, Vault_Key, Vault_data);
+// 	nvault_close(keep_file);
+// }
+// public nvault_load(id) {
+// 	keep_file = nvault_open("nvault_test");   // nvault handle
+// 	new Vault_Key[64], Vault_data[100], User_data[4];
+// 	get_user_name(id, Vault_Key, 63);
+// 	replace_all(Vault_Key, 63, "'", "\'");
 	
-	new left[10];
-	nvault_get(keep_file, Vault_Key, Vault_data, 99);  // Vault_data is "77#88#99#1010#"
-	for (new i=0; i< sizeof(User_data); i++) {
-		strtok(Vault_data, left, sizeof(left)-1, Vault_data, sizeof(Vault_data)-1, '#');
-		User_data[i] = str_to_num(left);
-	}
-	console_print(id, "%d - %d - %d - %d", User_data[0],User_data[1],User_data[2],User_data[3]);
-	console_print(id, "%d", User_data[0]+User_data[1]+User_data[2]+User_data[3]);
-}
+// 	new left[10];
+// 	nvault_get(keep_file, Vault_Key, Vault_data, 99);  // Vault_data is "77#88#99#1010#"
+// 	for (new i=0; i< sizeof(User_data); i++) {
+// 		strtok(Vault_data, left, sizeof(left)-1, Vault_data, sizeof(Vault_data)-1, '#');
+// 		User_data[i] = str_to_num(left);
+// 	}
+// 	console_print(id, "%d - %d - %d - %d", User_data[0],User_data[1],User_data[2],User_data[3]);
+// 	console_print(id, "%d", User_data[0]+User_data[1]+User_data[2]+User_data[3]);
+// 	nvault_close(keep_file);
+// }
 public set_Respawn(id) {
 	cs_user_spawn(id);
 	fm_give_item(id, "weapon_knife");
@@ -578,10 +582,10 @@ public bomb_planting(planter) {
 	if ( !is_user_admin(planter) )
 		user_slap(planter, 0, 0);
 }
-public client_putinserver(id) {
-	cs_set_user_team(id, CS_TEAM_T, 0);
-	set_task(0.1, "DeathPost", id);
-}
+// public client_putinserver(id) {
+// 	cs_set_user_team(id, CS_TEAM_T, 0);
+// 	set_task(0.1, "DeathPost", id);
+// }
 public amx_menu(id) {
 	client_cmd(id, "amx_menu");
 }
