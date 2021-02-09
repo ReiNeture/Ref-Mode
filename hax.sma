@@ -75,8 +75,8 @@ new bool:g_stealth[33];
 new bool:headshot[33];
 new bool:dmg_reflection[33];
 new bool:mahoujin[33];
-new bool:speedboost[33];
 new Float:hachamaTimer[512];
+new Float:SpeedBoostTimeOut[33];
 new mahoujinSpeed[33];
 
 new poop;
@@ -546,7 +546,9 @@ public ballTouch(ent)
 
 public eventCurWeapon(id)
 {
-	if(speedboost[id])
+	new Float:fTime = halflife_time();
+	new Float:fTimeLeft = SpeedBoostTimeOut[id] - fTime;
+	if(fTimeLeft > 0.0)
 		set_user_maxspeed(id, 700.0);
 }
 
@@ -560,9 +562,8 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 	if(is_user_alive(victim) && is_user_connected(victim)) {
 		if(random_num(0, 8) != 0) {
 			new vOrigin[3];
+			new Float:fTime = halflife_time();
 			get_tr2(tracehandle, TR_vecEndPos, vOrigin);
-
-			SetHamParamFloat(3, damage * 0);
 
 			set_task(8.0, "speedboostRemove", victim);
 
@@ -581,10 +582,11 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 			write_byte(175);
 			message_end();
 
-			speedboost[victim] = true;
+			SpeedBoostTimeOut[victim] = fTime + 8.0;
+			return HAM_SUPERCEDE;
 		}
 	}
-
+	return HAM_IGNORED
 }
 
 public fw_PlayerSpawn_Post(id)
@@ -656,8 +658,7 @@ public fw_TakeDamage(victim, inflictor, attacker, damage, damagebits)
 
 public speedboostRemove(victim)
 {
-	if(is_user_alive(victim) && speedboost[victim]) {
-		speedboost[victim] = false;
+	if(is_user_alive(victim)) {
 		set_user_maxspeed(victim, 250.0);
 	}
 }
