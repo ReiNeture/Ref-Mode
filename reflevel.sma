@@ -30,16 +30,21 @@ public plugin_init(){
     vault = nvault_open("reflevel");
 }
 
-public client_connect(id)
+public client_putinserver(id)
 {
-    show_hud(id+1234);
-    LoadData(id);
-    set_task(120.0, "AutoSave",id,_,_, "b");
+    if(!is_user_bot(id)) {
+        LoadData(id);
+        show_hud(id+1234);
+        set_task(120.0, "AutoSave", id, _, _, "b");
+    }
+
 }
 
 public client_disconnect(id)
 {
-    SaveData(id);
+    if(!is_user_bot(id)) {
+        SaveData(id);
+    }
 }
 
 public show_hud(id)
@@ -56,9 +61,10 @@ public show_hud(id)
 
 SaveData(id)
 {
+    
     new name[32], vaultKey[64], vaultData[64];
 
-    get_user_name(1, name, 31);
+    get_user_name(id, name, 31);
 
     format(vaultKey, 63, "%s", name);
     format(vaultData, 255, "%i#%i#%i#", reflevel[id][LEVEL], reflevel[id][EXP], refzmkill[id]);
@@ -68,9 +74,10 @@ SaveData(id)
 
 LoadData(id)
 {
+
     new name[32], vaultKey[64], vaultData[64];
 
-    get_user_name(1, name, 31);
+    get_user_name(id, name, 31);
 
     format(vaultKey, 63, "%s", name);
     format(vaultData, 255, "%i#%i#%i#", reflevel[id][LEVEL], reflevel[id][EXP], refzmkill[id]);
@@ -86,6 +93,7 @@ LoadData(id)
     reflevel[id][LEVEL] = str_to_num(lvl);
     reflevel[id][EXP] = str_to_num(exp);
     refzmkill[id] = str_to_num(kill);
+
 }
 
 public AutoSave(id)
@@ -93,39 +101,28 @@ public AutoSave(id)
     SaveData(id);
 }
 
-/*public fw_PlayerPreThink(id)
-{
-    if(!is_user_connected(id) && !is_user_alive(id))
-		return PLUGIN_HANDLED
-
-    new refexp = reflevel[id][LEVEL] * y14y;
-
-    if(reflevel[id][EXP] >= refexp) {
-        reflevel[id][EXP] -= refexp
-        reflevel[id][LEVEL] ++;
-    }
-    return PLUGIN_HANDLED;
-}*/
-
 public fw_PlayerKilled(victim, attacker, shouldgib)
 {
     if(attacker == victim || !is_user_alive(attacker))
         return HAM_IGNORED;
 
-    new refexp = reflevel[attacker][LEVEL] * y14y;
-
-    if(reflevel[attacker][EXP] >= refexp) {
-        reflevel[attacker][EXP] -= refexp
-        reflevel[attacker][LEVEL] ++;
-    }
+    if(reflevel[attacker][LEVEL] <= 0)
+        reflevel[attacker][LEVEL] = 1;
 
     if(get_user_team(victim) == 2){
         reflevel[attacker][EXP] += 1000 * get_cvar_num("refExpRate");
-        refzmkill[attacker] ++;
+        refzmkill[attacker]++;
     }
 
+    new refexp = reflevel[attacker][LEVEL] * y14y;
     if(reflevel[attacker][EXP] >= refexp) {
-        reflevel[attacker][EXP] = refexp - 1;
+        reflevel[attacker][EXP] -= refexp;
+        reflevel[attacker][LEVEL]++;
+    }
+
+    refexp = reflevel[attacker][LEVEL] * y14y;
+    if(reflevel[attacker][EXP] >= refexp) {
+        reflevel[attacker][EXP] = refexp-1;
     }
 
     return HAM_IGNORED;
@@ -162,4 +159,9 @@ public setExp(id)
     else if(Type[0] == '=')
         reflevel[cmd_target(id, Target)][EXP] = str_to_num(Value);
     return PLUGIN_HANDLED;
+}
+
+public plugin_end()
+{
+    nvault_close(vault);
 }
