@@ -124,6 +124,10 @@ public fw_PlayerKilled(victim, attacker, shouldgib)
         refzmkill[attacker] ++;
     }
 
+    if(reflevel[attacker][EXP] >= refexp) {
+        reflevel[attacker][EXP] = refexp - 1;
+    }
+
     return HAM_IGNORED;
 }
 
