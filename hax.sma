@@ -32,9 +32,12 @@ new const gBallClassname[] = "Entball";
 
 new gszMainMenu[200];
 
+new const gCam[] = "models/ref/cam.mdl";
+new const gAicore[] = "models/ref/w_aicore.mdl";
 new const gHaachamaModel[] = "models/haachama/haachama.mdl";
 new const gDickModel[] = "models/ref/dick.mdl";
 new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
+new const gszPortalSound[] = "ref/portal_ambient_loop1.wav"; // 4.665sec
 new const gszAquaMahuo[] = "sprites/ref/aqua.spr";
 new const gzHomura[] = "ref/homura.wav";
 new const BallSprites[2][] =
@@ -58,6 +61,7 @@ new bool:dmg_reflection[33];
 new Float:hachamaTimer[512];
 new Float:fTreasureCd[33];
 
+new gDisplayAqua[33];
 new gHaveDick[33][MAXDICK];
 new gCurrentDick[33];
 
@@ -71,6 +75,7 @@ public plugin_init()
 	register_plugin("hax", "1.0", "Ako");
 
 	register_clcmd("hax", "showMenu");
+	register_clcmd("aqua", "throwAqua");
 
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
@@ -83,6 +88,7 @@ public plugin_init()
 
 	register_think(gClassname, "hachamaThink");
 	register_think(gDickClassName, "dickThink");
+	register_think("AquaBody", "aquaBodyThink");
 
 	createMenu();
 
@@ -94,8 +100,11 @@ public plugin_precache()
 	precache_model(gDickModel);
 	precache_model(gHaachamaModel);
 	precache_model(gszAquaMahuo);
+	precache_model(gCam);
+	precache_model(gAicore);
 	precache_sound(gszAquaSound);
 	precache_sound(gzHomura);
+	precache_sound(gszPortalSound);
 	smoke = precache_model("sprites/steam1.spr");
 	exp = precache_model("sprites/ref/whiteexp.spr");
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
@@ -228,7 +237,73 @@ summonHaachama(Float:vOrigin[3])
 	entity_set_float(ent,EV_FL_framerate, 0.5);
 	entity_set_int(ent,EV_INT_sequence, 4);
 }
+public throwAqua(id) // 本體
+{
+	new light = throwAquaLight(id);
+	new ent = create_entity(gInfoTarget);
+	// entity_set_edict(light, EV_ENT_aiment, ent);
+	entity_set_int(light, EV_INT_iuser1, ent);
 
+	entity_set_string(ent, EV_SZ_classname, "AquaBody");
+	entity_set_model(ent, gAicore);
+	entity_set_size(ent, Float:{-3.0, -3.0, 0.0}, Float:{3.0, 3.0, 50.0});
+	entity_set_int(ent, EV_INT_solid, SOLID_BBOX);
+	entity_set_int(ent, EV_INT_movetype, MOVETYPE_TOSS);
+	entity_set_edict(ent, EV_ENT_owner, id);
+	entity_set_int(ent, EV_INT_iuser1, light);
+
+	new Float:velocity[3], Float:Origin[3];
+
+	velocity_by_aim(id, 100, velocity);
+	entity_get_vector(id, EV_VEC_origin, Origin);
+	Origin[0] += velocity[0];
+	Origin[1] += velocity[1];
+	// Origin[2] += velocity[2];
+	entity_set_origin(ent, Origin);
+	
+	entity_set_vector(ent, EV_VEC_velocity, velocity);
+
+	set_task(2.0, "displayAquaLight", light);
+}
+public displayAquaLight(ent)
+{
+	new body = entity_get_int(ent, EV_INT_iuser1);
+	entity_set_float(ent, EV_FL_renderamt, 135.0);
+
+	new Float:Origin[3];
+	entity_get_vector(body, EV_VEC_origin, Origin);
+	Origin[2] += 75.0;
+	entity_set_origin(ent, Origin);
+
+	entity_set_float(body, EV_FL_nextthink, halflife_time() + 0.1);
+}
+throwAquaLight(id) // 燈光
+{
+	new ent = create_entity(gInfoTarget);
+
+	entity_set_string(ent, EV_SZ_classname, "AquaLight");
+	entity_set_model(ent, gszAquaMahuo);
+	entity_set_size(ent, Float:{0.0, 0.0, 0.0}, Float:{0.0, 0.0, 0.0});
+	entity_set_float(ent, EV_FL_scale, 0.3);
+	entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
+	entity_set_int(ent, EV_INT_movetype, MOVETYPE_FOLLOW); 
+
+	entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
+	entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
+	entity_set_float(ent, EV_FL_renderamt, 0.0);
+
+	new Float:Origin[3];
+	entity_get_vector(id, EV_VEC_origin, Origin);
+	entity_set_origin(ent, Origin);
+
+	return ent;
+}
+public aquaBodyThink(ent)
+{
+	if (!is_valid_ent(ent)) return;
+	emit_sound(ent, CHAN_STATIC, gszPortalSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
+	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 4.62);
+}
 createDick(id)
 {
 	if( halflife_time() >= fTreasureCd[id] && gCurrentDick[id] < MAXDICK) {
@@ -266,7 +341,7 @@ public dickThink(ent)
 	vector_to_angle(fAim, fAngles);
 
 	// 物件角度設定
-	fAngles[0]  = 0.0;                               // 用於設定物件上下角度向量
+	fAngles[0]  = 0.0;           // 用於設定物件上下角度向量
 	fAngles[1] -= 90.0;
 	entity_set_vector(ent, EV_VEC_angles, fAngles);
 
@@ -338,8 +413,10 @@ public TouchDick(ent, ptr)
 		if( entity_get_int(ent, EV_INT_iuser1) == 1 ) {
 			entity_get_vector(ent, EV_VEC_origin, fOrigin);
 			creat_exp_spr(fOrigin);
-			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 100.0, DMG_ENERGYBEAM);
-			remove_entity(ent);
+			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 5000.0, DMG_ENERGYBEAM);
+
+			if( !equal(ptrClassName, "player") )
+				remove_entity(ent);
 		}
 	}
 }
@@ -367,13 +444,13 @@ createBall(id)
 		entity_set_int(ent, EV_INT_solid,   SOLID_TRIGGER);
 		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
 
-		entity_set_model(ent, gszAquaMahuo);
+		entity_set_model(ent, BallSprites[1]);
 		entity_set_size(ent, Float:{0.0, 0.0, 0.0}, Float:{0.0, 0.0, 0.0});
 
 		// entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
 		// entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
 		// entity_set_float(ent, EV_FL_renderamt, 255.0);
-		entity_set_float(ent, EV_FL_scale, random_float(0.1, 5.0));
+		entity_set_float(ent, EV_FL_scale, random_float(0.1, 0.4));
 		entity_set_int(ent, EV_INT_iuser1, id);
 		
 		new Float:fVelocity[3];
@@ -451,8 +528,7 @@ public hachamaThink(ent)
 
 public ballTouch(ent)
 {
-	if (!is_valid_ent(ent))
-		return;
+	if (!is_valid_ent(ent)) return;
 
 	new Float:fOrigin[3];
 	pev(ent, pev_origin, fOrigin);
@@ -467,7 +543,6 @@ public ballTouch(ent)
 	write_byte(15);
 	write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
 	message_end();
-
 }
 
 Stealth_On(id)
@@ -493,6 +568,11 @@ public fw_PlayerSpawn_Post(id)
 	if(g_stealth[id])
 	{
 		Stealth_On(id);
+	}
+
+	if( is_user_bot(id)) {
+		fm_strip_user_weapons(id);
+		fm_give_item(id, "weapon_knife");
 	}
 
 	return PLUGIN_HANDLED;
@@ -554,16 +634,16 @@ public fw_TakeDamage(victim, inflictor, attacker, damage, damagebits)
 
 stock creat_exp_spr(const Float:fOrigin[3])  //位置整數陣列X,Y,Z
 {
-		engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
-		write_byte(TE_EXPLOSION);
-		engfunc(EngFunc_WriteCoord, fOrigin[0]);
-		engfunc(EngFunc_WriteCoord, fOrigin[1]);
-		engfunc(EngFunc_WriteCoord, fOrigin[2]);
-		write_short(exp);
-		write_byte(5);
-		write_byte(15);
-		write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
-		message_end();
+	engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
+	write_byte(TE_EXPLOSION);
+	engfunc(EngFunc_WriteCoord, fOrigin[0]);
+	engfunc(EngFunc_WriteCoord, fOrigin[1]);
+	engfunc(EngFunc_WriteCoord, fOrigin[2]);
+	write_short(exp);
+	write_byte(5);
+	write_byte(15);
+	write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND);
+	message_end();
 }
 stock attachBeamFollow(ent, life)
 {
@@ -621,4 +701,38 @@ stock get_weapon_position(id, Float:fOrigin[], Float:add_forward = 0.0, Float:ad
 	fOrigin[0] = fOrigin[0] + Forward[0] + Right[0] + Up[0]
 	fOrigin[1] = fOrigin[1] + Forward[1] + Right[1] + Up[1]
 	fOrigin[2] = fOrigin[2] + Forward[2] + Right[2] + Up[2]
+}
+stock fm_strip_user_weapons(index) {
+	new ent = fm_create_entity("player_weaponstrip");
+	if (!pev_valid(ent))
+		return 0;
+
+	dllfunc(DLLFunc_Spawn, ent);
+	dllfunc(DLLFunc_Use, ent, index);
+	engfunc(EngFunc_RemoveEntity, ent);
+
+	return 1;
+}
+stock fm_give_item(id, const item[])
+{
+	static ent
+	ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, item))
+	if (!pev_valid(ent))
+		return;
+
+	static Float:originF[3], save
+	pev(id, pev_origin, originF)
+	set_pev(ent, pev_origin, originF)
+	set_pev(ent, pev_spawnflags, pev(ent, pev_spawnflags) | SF_NORESPAWN)
+	dllfunc(DLLFunc_Spawn, ent)
+	save = pev(ent, pev_solid)
+	dllfunc(DLLFunc_Touch, ent, id)
+	if (pev(ent, pev_solid) != save)
+		return;
+
+	engfunc(EngFunc_RemoveEntity, ent)
+}
+stock fm_create_entity(const classname[])
+{
+	return engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, classname))
 }

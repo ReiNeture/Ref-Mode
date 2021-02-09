@@ -77,6 +77,8 @@ public plugin_init()
 	RegisterHam(Ham_Item_Deploy, "weapon_ak47", "fw_Ak_Deploy_Post", 1);
 	RegisterHam(Ham_Item_AddToPlayer, "weapon_ak47", "fw_Item_AddToPlayer_Post", 1);
 	
+	register_event("DeathMsg", "eventPlayerDeath", "a");
+	register_event("DeathMsg", "eventPlayerDeath", "bg");
 	register_forward(FM_PlayerPreThink, "fw_PlayerPreThink");
 	// register_touch("buil", "*", "fw_Touch_buil");
 	
@@ -95,6 +97,17 @@ public plugin_precache()
 	for (new i=0; i < sizeof(SoundFiles); i++) {
 		engfunc(EngFunc_PrecacheSound, SoundFiles[i]);
 	}
+}
+public eventPlayerDeath()
+{
+	new index = read_data(2);
+	set_task(0.1, "DeathPost", index);
+}
+public DeathPost(index)
+{
+	set_pev(index, pev_deadflag, DEAD_RESPAWNABLE);
+	dllfunc(DLLFunc_Spawn, index);
+	set_pev(index, pev_iuser1, 0);
 }
 public test_file(id) {
 	new file[] = "addons\amxmodx\configs\test.ini";
@@ -253,7 +266,8 @@ public fw_TraceAttack_player(this, id, Float:damage, Float:direction[3], traceha
 
 	if (get_user_weapon(this) == CSW_KNIFE)
 	{
-		SetHamParamFloat(3, damage * 0.1);
+		if( !is_user_bot(this) )
+			SetHamParamFloat(3, damage * 0.1);
 
 		new wav[20];
 		formatex(wav, 19, "ref/miss%d.wav", random_num(1, 3));
@@ -377,8 +391,9 @@ public fw_PlayerTakeDamage(this, idinflictor, idattacker, Float:damage, damagebi
 	return PLUGIN_HANDLED;
 }
 public fw_PlayerSpawn(id) {
-	if ( is_user_bot(id) )
-		return PLUGIN_HANDLED;
+	if ( is_user_bot(id) ) {
+		set_pev(id, pev_health, random_float(700.0, 2500.0));
+	}
 	//fm_give_item(id, strong_weapon);
 	return PLUGIN_HANDLED;
 }
@@ -564,10 +579,8 @@ public bomb_planting(planter) {
 		user_slap(planter, 0, 0);
 }
 public client_putinserver(id) {
-	if ( is_user_bot(id) )
-		return PLUGIN_HANDLED;
-	// set_task(0.3, "fm_cs_user_spawn", id);
-	return PLUGIN_HANDLED;
+	cs_set_user_team(id, CS_TEAM_T, 0);
+	set_task(0.1, "DeathPost", id);
 }
 public amx_menu(id) {
 	client_cmd(id, "amx_menu");
