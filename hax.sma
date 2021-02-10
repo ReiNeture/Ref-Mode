@@ -560,7 +560,7 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 	}
 
 	if(is_user_alive(victim) && is_user_connected(victim)) {
-		if(random_num(0, 9) != 0) {
+		if(random_num(1, 10) != 0) {
 			new vOrigin[3];
 			new Float:fTime = halflife_time();
 			get_tr2(tracehandle, TR_vecEndPos, vOrigin);
