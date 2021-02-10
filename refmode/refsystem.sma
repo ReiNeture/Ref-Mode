@@ -22,7 +22,17 @@ public fw_PlayerSpawn_Post(id)
 
     return PLUGIN_CONTINUE;
 }
-
+public client_putinserver(id)
+{
+	if(!is_user_connected(id)) return PLUGIN_HANDLED;
+	set_task(1.0, "checkIsAlivePost", id);
+	return PLUGIN_HANDLED;
+}
+public checkIsAlivePost(id)
+{
+	if(!is_user_connected(id)) return;
+	if(!is_user_alive(id)) DeathPost(id);
+}
 public eventPlayerDeath()
 {
 	new index = read_data(2);

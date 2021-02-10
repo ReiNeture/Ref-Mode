@@ -4,6 +4,7 @@
 #include <fakemeta>
 #include <engine>
 #include <xs>
+#include <vector>
 
 enum
 {
@@ -12,23 +13,26 @@ enum
 };
 
 new gKeysSkillMenu;
-const gSkillMax = 2;
+const gSkillMax = 3;
 
 enum
 {
 	SK_TREASURE,
-	SK_WATER
+	MA_WATER,
+	MA_ROBOT
 };
 
 new const gszSkillNames[gSkillMax][32] =
 {
     "財寶",
-    "飲水機"
+    "飲水機",
+	"自動機槍"
 }
 
 new const gInfoTarget[] = "env_sprite";
 new const gDickClassName[] = "my_dick";
-new const gAquaBodyClassName[] = "aqua_body"
+new const gAquaBodyClassName[] = "aqua_body";
+new const gRobotClassName[] = "robot_gun";
 
 const MAXDICK = 30;  // 財寶同階召喚數量
 new gHaveDick[33][MAXDICK];
@@ -47,13 +51,15 @@ new gCurrentWater[33];
 
 new const gszShellSound1[] = "ref/miss1.wav";
 new const gszShellSound2[] = "ref/miss2.wav";
-new const gszShellSound3[] = "ref/miss3.wav";
-new const gszHomuraSound[] = "ref/homura.wav";
-new const gszPortalSound[] = "ref/portal_ambient_loop1.wav";
-new const gszSomkeSprite[] = "sprites/ref/steam1.spr";
-new const gszWhiteSprite[] = "sprites/ref/whiteexp.spr";
-new const gszAquaSprite[] = "sprites/ref/aqua.spr";
-new const gszAircoreModel[] = "models/ref/w_aicore.mdl";
+new const gszShellSound3[] = "ref/miss3.wav";                       // 護盾音效
+new const gszHomuraSound[] = "ref/homura.wav";                      // 財寶發射音效
+new const gszRobotFireSound[] = "ref/mg36.wav";                      // 機槍塔發射音效
+new const gszPortalSound[] = "ref/portal_ambient_loop1.wav";        // 飲水機音效
+new const gszSomkeSprite[] = "sprites/ref/steam1.spr";              // 車尾燈用
+new const gszWhiteSprite[] = "sprites/ref/whiteexp.spr";            // 爆炸白漿
+new const gszAquaSprite[] = "sprites/ref/aqua.spr";                 // 阿夸投影
+new const gszAircoreModel[] = "models/ref/w_aicore.mdl";            // 飲水機
+new const gszMachineRobotModel[] = "models/ref/w_m134_vulcan.mdl";  // 飛行機槍機器人
 
 new smoke, exp;
 new gPlayerSelect[33];
@@ -64,10 +70,11 @@ public plugin_init()
     register_clcmd("ttt", "showSkillMenu");
 
     RegisterHam(Ham_Touch, gInfoTarget, "fw_touch");
-
     register_forward(FM_CmdStart, "fw_cmdstart");
+
     register_think(gDickClassName, "dickThink");
     register_think(gAquaBodyClassName, "aquaBodyThink");
+    register_think(gRobotClassName, "robotThink");
 
     createMenu();
     register_menucmd(register_menuid("SkillMenu"), gKeysSkillMenu, "handleSkillMenu");
@@ -80,7 +87,9 @@ public plugin_precache()
     precache_sound(gszShellSound3);
     precache_sound(gszHomuraSound);
     precache_sound(gszPortalSound);
+    precache_sound(gszRobotFireSound);
     precache_model(gszAircoreModel);
+    precache_model(gszMachineRobotModel);
 
     smoke = precache_model(gszSomkeSprite);
     exp = precache_model(gszWhiteSprite);
@@ -120,7 +129,8 @@ public handleSkillMenu(id, num)
 {
     switch(num) {
         case SK_TREASURE: gPlayerSelect[id] = num;
-        case SK_WATER: doWater(id);
+        case MA_WATER: doWater(id);
+		case MA_ROBOT: createRobot(id);
     }
     
     showSkillMenu(id);
@@ -173,7 +183,112 @@ public fw_cmdstart(id, uc_handle, seed)
 	}
     return FMRES_IGNORED;
 }
+/*============================================= MachineRobot ===========================================*/
+createRobot(id)
+{
+	static entity;
+	entity = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, gInfoTarget));
+	if (!pev_valid(entity) ) return;
 
+	new Float:vOrigin[3];
+	pev(id, pev_origin, vOrigin);
+	vOrigin[0] += 40.0;
+	vOrigin[2] += 10.0;
+
+	set_pev(entity, pev_classname, gRobotClassName);
+	set_pev(entity, pev_owner, id);
+	set_pev(entity, pev_movetype, MOVETYPE_NOCLIP);
+	set_pev(entity, pev_solid, SOLID_NOT);
+
+	engfunc(EngFunc_SetSize, entity, Float:{-3.0, -3.0, -3.0}, Float:{3.0, 3.0, 3.0});
+	engfunc(EngFunc_SetModel, entity, gszMachineRobotModel);
+	engfunc(EngFunc_SetOrigin, entity, vOrigin);
+
+	set_pev(entity, pev_nextthink, halflife_time()+0.1);
+}
+
+public robotThink(entity)
+{
+	if (!pev_valid(entity) ) return;
+
+	static id;
+	static Float:vOrigin[3], Float:tOrigin[3], Float:fVelocity[3], Float:vAngle[3];
+	id = pev(entity, pev_owner);
+
+	pev(id, pev_v_angle, vAngle);
+	vAngle[1] -= 50.0;
+	engfunc(EngFunc_MakeVectors, vAngle);
+	global_get(glb_v_forward, vAngle);
+	xs_vec_mul_scalar(vAngle, 45.0, vAngle);
+
+	pev(entity, pev_origin, tOrigin);
+	pev(id, pev_origin, vOrigin);
+
+	vOrigin[0] += vAngle[0];
+	vOrigin[1] += vAngle[1];
+	vOrigin[2] += 10.0;
+
+	static Float:distance;
+	distance = get_distance_f(tOrigin, vOrigin);
+
+	if( distance >= 500.0 )
+		set_pev(entity, pev_origin, vOrigin);
+	else if( distance >= 32.0 ) {
+		get_speed_vector(tOrigin, vOrigin, 400.0, fVelocity);
+		set_pev(entity, pev_velocity, fVelocity);
+	} else
+		set_pev(entity, pev_velocity, Float:{0.0, 0.0, 0.0});
+
+	doFire(entity);
+	set_pev(entity, pev_nextthink, halflife_time()+0.1);
+}
+doFire(entity)
+{
+	new Float:vOrigin[3], Float:eOrigin[3];
+	new near = 0;
+	new Float:distance = -1.0;
+
+	new id = pev(entity, pev_owner);
+	pev(id, pev_origin, vOrigin);
+
+	for(new i = 1; i <= 32; ++i) {
+		if( i==id || !is_user_connected(i) || !is_user_alive(i)) continue;
+
+		pev(i, pev_origin, eOrigin);
+		new Float:temp = get_distance_f(vOrigin, eOrigin);
+		if( temp <= 400.0 && temp > distance) {
+			distance = temp;
+			near = i;
+		}
+	}
+
+	if( near ) {
+		ExecuteHamB(Ham_TakeDamage, near, id, id, 230.0, DMG_SONIC);
+		
+		pev(entity, pev_origin, vOrigin);		
+		pev(near, pev_origin, eOrigin);
+
+		static Float:angle[3];
+		angle[0] = vOrigin[0] - eOrigin[0];
+		angle[1] = vOrigin[1] - eOrigin[1];
+		angle[2] = vOrigin[2] - eOrigin[2];
+		vector_to_angle(angle, angle);
+		angle[1] +=  90.0;
+		set_pev(entity, pev_angles, angle);
+
+		message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
+		write_byte(TE_TRACER);
+		engfunc(EngFunc_WriteCoord, vOrigin[0]);
+		engfunc(EngFunc_WriteCoord, vOrigin[1]);
+		engfunc(EngFunc_WriteCoord, vOrigin[2]);
+		engfunc(EngFunc_WriteCoord, eOrigin[0]);
+		engfunc(EngFunc_WriteCoord, eOrigin[1]);
+		engfunc(EngFunc_WriteCoord, eOrigin[2]);
+		message_end();
+
+		emit_sound(entity, CHAN_STATIC, gszRobotFireSound, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
+	}
+}
 /*============================================= Treasure ===============================================*/
 createDick(id)
 {
@@ -228,7 +343,7 @@ public dickThink(ent)
 	entity_set_origin(ent, vOrigin);
 
 	// 物件思考設定
-	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.01);
+	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.05);
 }
 
 doDick(id)
@@ -378,4 +493,17 @@ stock attachBeamFollow(ent, life)
 	write_byte(random_num(1,255)); // b
 	write_byte(127); // brightness
 	message_end();
+}
+
+stock get_speed_vector(const Float:origin1[3], const Float:origin2[3], Float:speed, Float:new_velocity[3])
+{
+	new_velocity[0] = origin2[0] - origin1[0]
+	new_velocity[1] = origin2[1] - origin1[1]
+	new_velocity[2] = origin2[2] - origin1[2]
+	new Float:num = floatsqroot(speed*speed / (new_velocity[0]*new_velocity[0] + new_velocity[1]*new_velocity[1] + new_velocity[2]*new_velocity[2]))
+	new_velocity[0] *= num
+	new_velocity[1] *= num
+	new_velocity[2] *= num
+
+	return 1;
 }
