@@ -11,7 +11,6 @@
 new gKeysMainMenu;
 new gKeysBallMenu;
 new gKeysBallSelectionMenu;
-new gKeysMahoujinMenu;
 
 enum
 {
@@ -29,20 +28,15 @@ const BallSpeed = 2000;
 const Float:BallDamage = 150.0;
 const Float:BallRadiusExplode =	150.0;
 
-new const gInfoTarget[] = "env_sprite"; // info_target
-new const gClassname[] = "func_breakable"; //func_haachama
 new const gBallEnt[] = "env_sprite";
 new const gBallClassname[] = "Entball";
 
 new akoMainMenu[256];
 new akoBallMenu[256];
 new akoBallSelectionMenu[256];
-new akoMahoujinMenu[256];
 
 new SelectedBallType[33];
 
-new const gHaachamaModel[] = "models/haachama/haachama.mdl"
-new const gszAquaSound[] = "ref/AkaihaatoRemixZ.wav";
 new const dodgeSpeedBoost[] = "ref/speedboost.wav";
 new const BallSounds[2][] = 
 {
@@ -54,6 +48,7 @@ new const akoBallSpritesSLBall[] = "sprites/ref/slball.spr";
 new const akoBallSpritesTPBall[] = "sprites/ref/tpball.spr";
 new const akoBallBoomSprites[] = "sprites/ref/gbomb.spr";
 new const akoBallKanataSprites[] = "sprites/ref/kanata.spr";
+new const akoExplosionBulletSprites[] = "sprites/ref/explosion.spr"
 
 enum
 {
@@ -75,14 +70,14 @@ new bool:g_stealth[33];
 new bool:headshot[33];
 new bool:dmg_reflection[33];
 new bool:mahoujin[33];
-new Float:hachamaTimer[512];
+new bool:explosionbullet[33];
 new Float:SpeedBoostTimeOut[33];
-new mahoujinSpeed[33];
 
 new poop;
 new wave;
 new boom;
 new kanata;
+new expb;
 
 
 public plugin_init()
@@ -93,21 +88,19 @@ public plugin_init()
 	register_clcmd("respawn", "respawn");
 
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
+	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack_bullet");
+	RegisterHam(Ham_TraceAttack, "worldspawn", "fw_TraceAttack_bullet");
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
 	RegisterHam(Ham_Touch, gBallEnt, "ballTouch");
 
 	register_event("CurWeapon", "eventCurWeapon", "be");
 
-	register_touch(gClassname, "player", "TouchHachama");
-	register_think(gClassname, "hachamaThink");
-
 	createMenu();
 
 	register_menucmd(register_menuid("haxMainMenu"), gKeysMainMenu, "handleMainMenu");
 	register_menucmd(register_menuid("haxBallMenu"), gKeysBallMenu, "handleBallMenu");
 	register_menucmd(register_menuid("haxBallSelectionMenu"), gKeysBallSelectionMenu, "handleBallSelectionMenu");
-	register_menucmd(register_menuid("haxMahoujinMenu"), gKeysMahoujinMenu, "handleMahoujinMenu");
 }
 
 public plugin_precache()
@@ -115,8 +108,6 @@ public plugin_precache()
 	akoBallSprites[BBALL] = akoBallSpritesBBall;
 	akoBallSprites[SLBALL] = akoBallSpritesSLBall;
 	akoBallSprites[TPBALL] = akoBallSpritesTPBall;
-	precache_model(gHaachamaModel);
-	precache_sound(gszAquaSound);
 	precache_sound(dodgeSpeedBoost);
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
 	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
@@ -129,6 +120,7 @@ public plugin_precache()
 
 	boom = precache_model(akoBallBoomSprites);
 	kanata = precache_model(akoBallKanataSprites);
+	expb = precache_model(akoExplosionBulletSprites);
 }
 
 public client_PreThink(id)
@@ -142,7 +134,7 @@ public client_PreThink(id)
 		button2 = pev(id, pev_button);
 		if((button1 & IN_JUMP) && (button2 & IN_DUCK)) {
 			static Float:velocity[3];
-			velocity_by_aim(id, mahoujinSpeed[id], velocity);
+			velocity_by_aim(id, 800, velocity);
 			velocity[2] = 500.0;
 			set_pev(id, pev_velocity, velocity);
 		}
@@ -165,10 +157,10 @@ createMenu()
 	add(akoMainMenu, size, "\w大便雞雞尿尿 ^n^n");
 	add(akoMainMenu, size, "\r1. \waimbot: %s ^n");
 	add(akoMainMenu, size, "\r2. \w反射傷害: %s ^n");
-	add(akoMainMenu, size, "\r3. \w隱身: %s ^n^n");
-	add(akoMainMenu, size, "\r4. \w色情睪丸 ^n");
-	add(akoMainMenu, size, "\r5. \w魔法陣選單^n");
-	add(akoMainMenu, size, "\r6. \w召喚哈洽馬 ^n^n^n");
+	add(akoMainMenu, size, "\r3. \w隱身: %s ^n");
+	add(akoMainMenu, size, "\r4. \w大跳: %s ^n");
+	add(akoMainMenu, size, "\r5. \w爆炸睪丸: %s^n^n");
+	add(akoMainMenu, size, "\r6. \w睪丸選單 ^n^n^n");
 	add(akoMainMenu, size, "\r0. \w關閉");
 	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B6 | B0
 
@@ -186,15 +178,6 @@ createMenu()
 	add(akoBallSelectionMenu, size, "\r3. \w傳送球^n^n");
 	add(akoBallSelectionMenu, size, "\r0. \w返回");
 	gKeysBallSelectionMenu = B1 | B2 | B3 | B0
-
-	size = sizeof(akoMahoujinMenu);
-	add(akoMahoujinMenu, size, "\w魔法陣選單^n^n");
-	add(akoMahoujinMenu, size, "\r1. \w魔法陣: %s^n");
-	add(akoMahoujinMenu, size, "\r2. \w速度: \y%d/3000^n");
-	add(akoMahoujinMenu, size, "\r3. \w速度歸零^n^n");
-	add(akoMahoujinMenu, size, "\r0. \w返回");
-	gKeysMahoujinMenu = B1 | B2 | B3 | B0
-
 }
 
 public showMenu(id)
@@ -203,11 +186,15 @@ public showMenu(id)
 	new Aimbot[6];
 	new Dmgreflection[6];
 	new Stealth[6];
+	new Mahoujin[6];
+	new Explosionbullet[6];
 	Aimbot = (headshot[id] ? "\yOn" : "\rOff");
 	Dmgreflection = (dmg_reflection[id] ? "\yOn" : "\rOff");
 	Stealth = (g_stealth[id] ? "\yOn" : "\rOff");
+	Mahoujin = (mahoujin[id] ? "\yOn" : "\rOff");
+	Explosionbullet = (explosionbullet[id] ? "\yOn" : "\rOff");
 
-	format(menu, 200, akoMainMenu, Aimbot, Dmgreflection, Stealth);
+	format(menu, 200, akoMainMenu, Aimbot, Dmgreflection, Stealth, Mahoujin, Explosionbullet);
 
 	show_menu(id, gKeysMainMenu, menu, -1, "haxMainMenu");
 
@@ -234,30 +221,19 @@ showBallSelectionMenu(id)
 	show_menu(id, gKeysBallSelectionMenu, menu, -1, "haxBallSelectionMenu");
 }
 
-showMahoujinMenu(id)
-{
-	new menu[200];
-	new Mahoujin[6];
-	Mahoujin = (mahoujin[id] ? "\yOn" : "\yOff");
-
-	format(menu, 200, akoMahoujinMenu, Mahoujin, mahoujinSpeed[id]);
-
-	show_menu(id, gKeysMahoujinMenu, menu, -1, "haxMahoujinMenu");
-}
-
 public handleMainMenu(id, num)
 {
 	switch(num) {
 		case N1: { toggleAimbot(id); }
 		case N2: { toggleDmgreflection(id); }
 		case N3: { toggleStealth(id); }
-		case N4: { showBallMenu(id); }
-		case N5: { showMahoujinMenu(id); }
-		case N6: { summonHaachamaAiming(id); }
+		case N4: { toggleMahoujin(id); }
+		case N5: { toggleExplosionbullet(id); }
+		case N6: { showBallMenu(id); }
 		case N0: { return; }
 	}
 
-	if(num != N4 && num != N5)
+	if(num != N6)
 		showMenu(id);
 }
 
@@ -295,23 +271,6 @@ public handleBallSelectionMenu(id, num)
 	}
 }
 
-public handleMahoujinMenu(id, num)
-{
-	switch(num) {
-		case N1: { toggleMahoujin(id); }
-		case N2:
-		{
-			if(mahoujinSpeed[id] < 3000) mahoujinSpeed[id] += 100;
-			else showMahoujinMenu(id);
-		}
-		case N3: { mahoujinSpeed[id] = 0; }
-		case N0: { showMenu(id); }
-	}
-	if(num != N0) {
-		showMahoujinMenu(id);
-	}
-}
-
 toggleAimbot(id)
 {
 	if(headshot[id]) headshot[id] = false;
@@ -342,41 +301,17 @@ toggleMahoujin(id)
 	else mahoujin[id] = true;
 }
 
+toggleExplosionbullet(id)
+{
+	if(explosionbullet[id]) explosionbullet[id] = false;
+	else explosionbullet[id] = true;
+}
+
 Stealth_On(id)
 	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
 
 Stealth_Off(id)
 	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 0);
-
-summonHaachamaAiming(id)
-{
-	new Origin[3];
-	new Float:vOrigin[3];
-
-	get_user_origin(id, Origin, 3);
-	IVecFVec(Origin, vOrigin);
-	vOrigin[2] += 36.0;
-
-	summonHaachama(vOrigin);
-}
-
-summonHaachama(Float:vOrigin[3])
-{
-	new ent = create_entity(gInfoTarget);
-
-	entity_set_string(ent, EV_SZ_classname, gClassname);
-	entity_set_model(ent, gHaachamaModel);
-	entity_set_int(ent, EV_INT_solid, SOLID_BBOX); //TRIGGER
-	entity_set_size(ent, Float:{-16.0, -16.0, -25.0}, Float:{16.0, 16.0, 25.0});
-	entity_set_origin(ent, vOrigin);
-
-	entity_set_float(ent,EV_FL_takedamage, 1.0);
-	entity_set_float(ent,EV_FL_health, 100.0);
-
-	entity_set_float(ent,EV_FL_animtime, 0.5);
-	entity_set_float(ent,EV_FL_framerate, 0.5);
-	entity_set_int(ent,EV_INT_sequence, 4);
-}
 
 createBall(id, const ballType)
 {
@@ -408,54 +343,6 @@ createBall(id, const ballType)
 
 	entity_set_vector(ent, EV_VEC_velocity, vVelocity);
 	emit_sound(id, CHAN_WEAPON, BallSounds[0], VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
-}
-
-public TouchHachama(Ptd, Ptr)
-{
-	if (!is_valid_ent(Ptd))
-		return;
-
-	// new Float:origin[3];
-	// entity_get_vector(Ptr, EV_VEC_origin, origin);
-	// entity_set_vector(Ptd, EV_VEC_origin, origin);
-
-	if( !entity_get_edict(Ptd, EV_ENT_owner) ) {
-		
-		hachamaTimer[Ptd] = halflife_time()+70.0;
-
-		entity_set_edict(Ptd, EV_ENT_owner, Ptr);
-		entity_set_float(Ptd, EV_FL_nextthink, halflife_time() + 0.1);
-
-		emit_sound(Ptd, CHAN_STATIC, gszAquaSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
-	}
-}
-public hachamaThink(ent)
-{
-	if (!is_valid_ent(ent))
-		return;
-
-	if( halflife_time() > hachamaTimer[ent])
-	{
-		remove_entity(ent);
-		return;
-	}
-
-	new id = entity_get_edict(ent, EV_ENT_owner);
-	if( (!is_user_connected(id) || !is_user_alive(id)) && id)
-	{
-		drop_to_floor(ent);
-		entity_set_edict(ent, EV_ENT_owner, 0);
-	}
-
-	if( id ) {
-		new Float:origin[3];
-		entity_get_vector(id, EV_VEC_origin, origin);
-		// origin[2] += 10.0;
-		entity_set_vector(ent, EV_VEC_origin, origin);
-		drop_to_floor(ent);
-	}
-
-	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.1);
 }
 
 public ballTouch(ent)
@@ -554,13 +441,13 @@ public eventCurWeapon(id)
 
 public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], tracehandle, damage_type)
 {
-	if (headshot[attacker] == true)
+	if (headshot[attacker])
 	{
 		if (get_tr2(tracehandle, TR_iHitgroup) != HIT_HEAD) set_tr2(tracehandle, TR_iHitgroup, HIT_HEAD);
 	}
 
 	if(is_user_alive(victim) && is_user_connected(victim)) {
-		if(random_num(1, 10) != 0) {
+		if(random_num(1, 10) != 1) {
 			new vOrigin[3];
 			new Float:fTime = halflife_time();
 			get_tr2(tracehandle, TR_vecEndPos, vOrigin);
@@ -587,6 +474,35 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 		}
 	}
 	return HAM_IGNORED
+}
+
+public fw_TraceAttack_bullet(victim, attacker, Float:damage, Float:direction[3], tracehandle, damage_type)
+{
+	if(explosionbullet[attacker] && get_user_weapon(attacker) != CSW_KNIFE) {
+		if(random_num(1, 2) == 1) {
+			new fOrigin[3];
+			get_tr2(tracehandle, TR_vecEndPos, fOrigin);
+
+			while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 75.0)) != 0) {
+				if(!is_user_alive(victim))
+					continue;
+
+				ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, BallDamage, DMG_TIMEBASED);
+			}
+
+			engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0);
+			write_byte(TE_EXPLOSION);
+			engfunc(EngFunc_WriteCoord, fOrigin[0]);
+			engfunc(EngFunc_WriteCoord, fOrigin[1]);
+			engfunc(EngFunc_WriteCoord, fOrigin[2]);
+			write_short(expb);
+			write_byte(5);
+			write_byte(15);
+			write_byte(TE_EXPLFLAG_NOPARTICLES);
+			message_end();
+
+		}
+	}
 }
 
 public fw_PlayerSpawn_Post(id)
