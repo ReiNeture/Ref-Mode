@@ -565,14 +565,14 @@ public fw_PlayerSpawn_Post(id)
 	if (!is_user_alive(id) && !is_user_connected(id))
 		return PLUGIN_HANDLED;
 
-	if(g_stealth[id])
-	{
-		Stealth_On(id);
-	}
-
 	if( is_user_bot(id)) {
 		fm_strip_user_weapons(id);
 		fm_give_item(id, "weapon_knife");
+	}
+
+	if(g_stealth[id])
+	{
+		Stealth_On(id);
 	}
 
 	return PLUGIN_HANDLED;

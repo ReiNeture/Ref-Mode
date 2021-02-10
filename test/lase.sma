@@ -23,11 +23,31 @@ public plugin_init()
     register_clcmd("sd", "sd");
     register_clcmd("cre", "cre");
     register_clcmd("mov", "mov");
+    register_clcmd("lig", "lig");
 
     // I included the entire plugin because in order to draw the laser, you need to precache a sprite. Incorporate
     // these elements into your own plugin.
     
     // The shoot_laser() will (if the entity is on the floor) fire a laser from the entity, normal to the surface it's resting on.
+}
+public lig(id)
+{
+    new origin[3];
+    get_user_origin(id, origin, 0);
+
+    message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
+    write_byte(TE_ELIGHT)
+    write_short(id)
+    write_coord(origin[0])
+    write_coord(origin[1])
+    write_coord(origin[2])
+    write_coord(100)
+    write_byte(120)
+    write_byte(20)
+    write_byte(20)
+    write_byte(100)
+    write_coord(50)
+    message_end();
 }
 public cre(id)
 {
