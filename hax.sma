@@ -73,6 +73,7 @@ new bool:dmg_reflection[33];
 new bool:mahoujin[33];
 new bool:explosionbullet[33];
 new bool:fragementexplode[33];
+new bool:dodge[33];
 new Float:SpeedBoostTimeOut[33];
 
 new poop;
@@ -177,10 +178,11 @@ createMenu()
 	add(akoMainMenu, size, "\r3. \w隱身: %s ^n");
 	add(akoMainMenu, size, "\r4. \w大跳: %s ^n");
 	add(akoMainMenu, size, "\r5. \w爆炸睪丸: %s^n");
-	add(akoMainMenu, size, "\r6. \w破片睪丸: %s^n^n");
-	add(akoMainMenu, size, "\r7. \w睪丸選單 ^n^n^n");
+	add(akoMainMenu, size, "\r6. \w破片睪丸: %s^n");
+	add(akoMainMenu, size, "\r7. \w迴避: %s^n^n");
+	add(akoMainMenu, size, "\r8. \w睪丸選單 ^n^n^n");
 	add(akoMainMenu, size, "\r0. \w關閉");
-	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B0
+	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B0
 
 	size = sizeof(akoBallMenu);
 	add(akoBallMenu, size, "\w睪丸選單 ^n^n");
@@ -207,14 +209,16 @@ public showMenu(id)
 	new Mahoujin[6];
 	new Explosionbullet[6];
 	new Fragementexplode[6];
+	new Dodge[6];
 	Aimbot = (headshot[id] ? "\yOn" : "\rOff");
 	Dmgreflection = (dmg_reflection[id] ? "\yOn" : "\rOff");
 	Stealth = (g_stealth[id] ? "\yOn" : "\rOff");
 	Mahoujin = (mahoujin[id] ? "\yOn" : "\rOff");
 	Explosionbullet = (explosionbullet[id] ? "\yOn" : "\rOff");
 	Fragementexplode = (fragementexplode[id] ? "\yOn" : "\rOff");
+	Dodge = (dodge[id] ? "\yOn" : "\rOff");
 
-	format(menu, 256, akoMainMenu, Aimbot, Dmgreflection, Stealth, Mahoujin, Explosionbullet, Fragementexplode);
+	format(menu, 256, akoMainMenu, Aimbot, Dmgreflection, Stealth, Mahoujin, Explosionbullet, Fragementexplode, Dodge);
 
 	show_menu(id, gKeysMainMenu, menu, -1, "haxMainMenu");
 
@@ -250,11 +254,12 @@ public handleMainMenu(id, num)
 		case N4: { toggleMahoujin(id); }
 		case N5: { toggleExplosionbullet(id); }
 		case N6: { toggleFragementexplode(id); }
-		case N7: { showBallMenu(id); }
+		case N7: { toggleDodge(id); }
+		case N8: { showBallMenu(id); }
 		case N0: { return; }
 	}
 
-	if(num != N7)
+	if(num != N8)
 		showMenu(id);
 }
 
@@ -332,6 +337,12 @@ toggleFragementexplode(id)
 {
 	if(fragementexplode[id]) fragementexplode[id] = false;
 	else fragementexplode[id] = true;
+}
+
+toggleDodge(id)
+{
+	if(dodge[id]) dodge[id] = false;
+	else dodge[id] = true;
 }
 
 Stealth_On(id)
@@ -557,7 +568,7 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 		if (get_tr2(tracehandle, TR_iHitgroup) != HIT_HEAD) set_tr2(tracehandle, TR_iHitgroup, HIT_HEAD);
 	}
 
-	if(is_user_alive(victim) && is_user_connected(victim) && get_user_team(victim) == 1) {
+	if(dodge[victim] && is_user_alive(victim) && is_user_connected(victim) && get_user_team(victim) == 1) {
 		if(random_num(1, 10) != 1) {
 			new vOrigin[3];
 			new Float:fTime = halflife_time();
