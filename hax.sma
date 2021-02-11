@@ -152,8 +152,8 @@ public client_PreThink(id)
 		button2 = pev(id, pev_button);
 		if((button1 & IN_JUMP) && (button2 & IN_DUCK)) {
 			static Float:velocity[3];
-			velocity_by_aim(id, 800, velocity);
-			velocity[2] = 500.0;
+			velocity_by_aim(id, 700, velocity);
+			velocity[2] = 450.0;
 			set_pev(id, pev_velocity, velocity);
 		}
 		entity_set_int(id,  EV_INT_watertype, CONTENTS_WATER);
@@ -471,7 +471,7 @@ public ballTouch(ent)
 	}
 }
 
-public createFragement(id)
+public createFragement(id, Float:vOrigin[3])
 {
 	static const Float:xpis[] = {300.0, -300.0, -300.0}
 	static const Float:ypis[] = {0.0, -300.0, 300.0}
@@ -489,8 +489,7 @@ public createFragement(id)
 		set_pev(ent, pev_solid, SOLID_BBOX);
 		set_pev(ent, pev_owner, id);
 
-		static Float:vVelocity[3], Float:vOrigin[3];
-		pev(id, pev_origin, vOrigin);
+		static Float:vVelocity[3];
 		vOrigin[0] += xsta[i];
 		vOrigin[1] += ysta[i];
 		set_pev(ent, pev_origin, vOrigin);
@@ -508,46 +507,30 @@ public createFragement(id)
 		write_byte(TE_BEAMFOLLOW)
 		write_short(ent)
 		write_short(smoke)
-		write_byte(5)
 		write_byte(3)
-		write_byte(random_num(0,255))
-		write_byte(random_num(0,255))
-		write_byte(random_num(0,255))
+		write_byte(1)
+		write_byte(0)
 		write_byte(255)
+		write_byte(255)
+		write_byte(70)
 		message_end()
 	}
 }
 
-public fragementexplodeTouch(ent)
+public fragementexplodeTouch(ent, ptr)
 {
 	if(!is_valid_ent(ent))	return;
 
-	new victim = FM_NULLENT;
 	new id = pev(ent, pev_owner);
-	static entClassName[32];
+	static Float:fOrigin[3];
+	static entClassName[32], ptrClassName[32];
 	pev(ent, pev_classname, entClassName, charsmax(entClassName));
+	pev(ptr, pev_classname, ptrClassName, charsmax(ptrClassName));
 
-	if(equal(entClassName, fragementClassname)) {
-		static Float:fOrigin[3];
+	if(equal(entClassName, fragementClassname) && !equal(ptrClassName, fragementClassname) && id != ptr) {
+		
 		pev(ent, pev_origin, fOrigin);
-
-		while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 75.0)) != 0) {
-			if(!is_user_alive(victim) || get_user_team(victim) == 1)
-				continue;
-
-			ExecuteHamB(Ham_TakeDamage, victim, id, id, 500.0, DMG_TIMEBASED);
-		}
-
-		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0);
-		write_byte(TE_EXPLOSION);
-		engfunc(EngFunc_WriteCoord, fOrigin[0]);
-		engfunc(EngFunc_WriteCoord, fOrigin[1]);
-		engfunc(EngFunc_WriteCoord, fOrigin[2]);
-		write_short(expb);
-		write_byte(5);
-		write_byte(15);
-		write_byte(TE_EXPLFLAG_NOPARTICLES);
-		message_end();
+		ExecuteHamB(Ham_TakeDamage, ptr, ptr, id, 500.0, DMG_ENERGYBEAM);
 
 		engfunc(EngFunc_RemoveEntity, ent)
 	}
@@ -633,8 +616,12 @@ public fw_PlayerKilled(victim, attacker, shouldgib)
 	if(!fragementexplode[attacker])
 		return HAM_IGNORED;
 
-	if(get_user_team(victim) == 2)
-		createFragement(victim);
+	if(get_user_team(victim) == 2) {
+		static Float:vOrigin[3];
+		pev(victim, pev_origin, vOrigin);
+		createFragement(attacker, vOrigin);
+	}
+		
 
 	return HAM_IGNORED;
 }
