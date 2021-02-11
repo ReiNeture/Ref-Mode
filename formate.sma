@@ -77,8 +77,8 @@ public plugin_init()
 	RegisterHam(Ham_Item_Deploy, "weapon_ak47", "fw_Ak_Deploy_Post", 1);
 	RegisterHam(Ham_Item_AddToPlayer, "weapon_ak47", "fw_Item_AddToPlayer_Post", 1);
 	
-	register_event("DeathMsg", "eventPlayerDeath", "a");
-	register_event("DeathMsg", "eventPlayerDeath", "bg");
+	// register_event("DeathMsg", "eventPlayerDeath", "a");
+	// register_event("DeathMsg", "eventPlayerDeath", "bg");
 	register_forward(FM_PlayerPreThink, "fw_PlayerPreThink");
 	// register_touch("buil", "*", "fw_Touch_buil");
 	
@@ -101,7 +101,7 @@ public plugin_precache()
 public eventPlayerDeath()
 {
 	new index = read_data(2);
-	set_task(0.1, "DeathPost", index);
+	set_task(0.16, "DeathPost", index);
 }
 public DeathPost(index)
 {
@@ -324,13 +324,13 @@ public fw_PlayerKilled(this, idattacker, shouldgib) {
 	get_user_origin(idattacker, ida_origin,  0);
 	distance = get_distance(this_origin, ida_origin);
 
-	new Float:volume = 0.0;
-	switch (distance/200) {
+	new Float:volume;
+	switch (distance/100) {
 		case 0: volume = 1.0;
 		case 1..3: volume = 0.8;
-		case 4..5: volume = 0.7;
-		case 6..7: volume = 0.6;
-		default:   volume = 0.4;
+		case 4..5: volume = 0.6;
+		case 6..7: volume = 0.4;
+		default:   volume = 0.2;
 	}
 	emit_sound(idattacker, CHAN_STATIC, "ref/hit1.wav", volume, ATTN_NORM, 0, PITCH_NORM);
 	new Float:heal = float(pev(idattacker, pev_health));
@@ -355,9 +355,9 @@ public fw_PlayerKilled(this, idattacker, shouldgib) {
 	write_coord(this_origin[2]);
 	write_short(100); // radius
 	write_short(butterfly);
-	write_byte(12); // count
+	write_byte(1); // count
 	write_byte(TEFIRE_FLAG_SOMEFLOAT);
-	write_byte(100); // life 0.1's
+	write_byte(10); // life 0.1's
 	message_end();
 	
 	new Float:this_aim[3];
@@ -376,7 +376,7 @@ public fw_PlayerKilled(this, idattacker, shouldgib) {
 	engfunc(EngFunc_WriteCoord, this_aim[2]); // write_coord(this_aim[2]); // velocity z default 165
 	write_byte(10); // random velocity
 	write_short(chick);
-	write_byte(7); // count
+	write_byte(5); // count
 	write_byte(10); // life 0.1's
 	write_byte(4); // 1 : Glass sounds and models draw at 50% opacity  2 : Metal sounds  4 : Flesh sounds  8 : Wood sounds  64 : Rock sounds 
 	message_end();
