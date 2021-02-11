@@ -528,7 +528,6 @@ public fragementexplodeTouch(ent, ptr)
 	pev(ptr, pev_classname, ptrClassName, charsmax(ptrClassName));
 
 	if(equal(entClassName, fragementClassname) && !equal(ptrClassName, fragementClassname) && id != ptr) {
-		
 		pev(ent, pev_origin, fOrigin);
 		ExecuteHamB(Ham_TakeDamage, ptr, ptr, id, 500.0, DMG_ENERGYBEAM);
 
