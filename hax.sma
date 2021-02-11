@@ -28,8 +28,9 @@ const BallSpeed = 2000;
 const Float:BallDamage = 150.0;
 const Float:BallRadiusExplode =	150.0;
 
-new const gBallEnt[] = "env_sprite";
+new const EntInfo[] = "env_sprite";
 new const gBallClassname[] = "Entball";
+new const fragementClassname[] = "Entfragement";
 
 new akoMainMenu[256];
 new akoBallMenu[256];
@@ -71,6 +72,8 @@ new bool:headshot[33];
 new bool:dmg_reflection[33];
 new bool:mahoujin[33];
 new bool:explosionbullet[33];
+new bool:fragementexplode[33];
+new bool:dodge[33];
 new Float:SpeedBoostTimeOut[33];
 
 new poop;
@@ -78,6 +81,7 @@ new wave;
 new boom;
 new kanata;
 new expb;
+new smoke;
 
 
 public plugin_init()
@@ -86,13 +90,16 @@ public plugin_init()
 
 	register_clcmd("hax", "showMenu");
 	register_clcmd("respawn", "respawn");
+	register_clcmd("ttt", "createFragement");
 
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack_bullet");
 	RegisterHam(Ham_TraceAttack, "worldspawn", "fw_TraceAttack_bullet");
+	RegisterHam(Ham_Killed, "player", "fw_PlayerKilled", 1);
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
-	RegisterHam(Ham_Touch, gBallEnt, "ballTouch");
+	RegisterHam(Ham_Touch, EntInfo, "ballTouch");
+	RegisterHam(Ham_Touch, EntInfo, "fragementexplodeTouch");
 
 	register_event("CurWeapon", "eventCurWeapon", "be");
 
@@ -111,6 +118,7 @@ public plugin_precache()
 	precache_sound(dodgeSpeedBoost);
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
 	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
+	smoke = precache_model("sprites/steam1.spr");
 
 	for(new i = 0; i < BallMax; i++)
 		precache_model(akoBallSprites[i]);
@@ -122,6 +130,16 @@ public plugin_precache()
 	kanata = precache_model(akoBallKanataSprites);
 	expb = precache_model(akoExplosionBulletSprites);
 }
+
+/*public tt(id)
+{
+	new name[64]
+	for(new i = 1; i <= 32; i++){
+		if(!is_user_connected(i)) continue;
+		get_user_name(i, name, 63)
+		console_print(id, "%d -- %s", i, name);
+	}
+}*/
 
 public client_PreThink(id)
 {
@@ -159,10 +177,12 @@ createMenu()
 	add(akoMainMenu, size, "\r2. \w反射傷害: %s ^n");
 	add(akoMainMenu, size, "\r3. \w隱身: %s ^n");
 	add(akoMainMenu, size, "\r4. \w大跳: %s ^n");
-	add(akoMainMenu, size, "\r5. \w爆炸睪丸: %s^n^n");
-	add(akoMainMenu, size, "\r6. \w睪丸選單 ^n^n^n");
+	add(akoMainMenu, size, "\r5. \w爆炸睪丸: %s^n");
+	add(akoMainMenu, size, "\r6. \w破片睪丸: %s^n");
+	add(akoMainMenu, size, "\r7. \w迴避: %s^n^n");
+	add(akoMainMenu, size, "\r8. \w睪丸選單 ^n^n^n");
 	add(akoMainMenu, size, "\r0. \w關閉");
-	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B6 | B0
+	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B0
 
 	size = sizeof(akoBallMenu);
 	add(akoBallMenu, size, "\w睪丸選單 ^n^n");
@@ -182,19 +202,23 @@ createMenu()
 
 public showMenu(id)
 {
-	new menu[200];
+	new menu[256];
 	new Aimbot[6];
 	new Dmgreflection[6];
 	new Stealth[6];
 	new Mahoujin[6];
 	new Explosionbullet[6];
+	new Fragementexplode[6];
+	new Dodge[6];
 	Aimbot = (headshot[id] ? "\yOn" : "\rOff");
 	Dmgreflection = (dmg_reflection[id] ? "\yOn" : "\rOff");
 	Stealth = (g_stealth[id] ? "\yOn" : "\rOff");
 	Mahoujin = (mahoujin[id] ? "\yOn" : "\rOff");
 	Explosionbullet = (explosionbullet[id] ? "\yOn" : "\rOff");
+	Fragementexplode = (fragementexplode[id] ? "\yOn" : "\rOff");
+	Dodge = (dodge[id] ? "\yOn" : "\rOff");
 
-	format(menu, 200, akoMainMenu, Aimbot, Dmgreflection, Stealth, Mahoujin, Explosionbullet);
+	format(menu, 256, akoMainMenu, Aimbot, Dmgreflection, Stealth, Mahoujin, Explosionbullet, Fragementexplode, Dodge);
 
 	show_menu(id, gKeysMainMenu, menu, -1, "haxMainMenu");
 
@@ -229,11 +253,13 @@ public handleMainMenu(id, num)
 		case N3: { toggleStealth(id); }
 		case N4: { toggleMahoujin(id); }
 		case N5: { toggleExplosionbullet(id); }
-		case N6: { showBallMenu(id); }
+		case N6: { toggleFragementexplode(id); }
+		case N7: { toggleDodge(id); }
+		case N8: { showBallMenu(id); }
 		case N0: { return; }
 	}
 
-	if(num != N6)
+	if(num != N8)
 		showMenu(id);
 }
 
@@ -307,6 +333,18 @@ toggleExplosionbullet(id)
 	else explosionbullet[id] = true;
 }
 
+toggleFragementexplode(id)
+{
+	if(fragementexplode[id]) fragementexplode[id] = false;
+	else fragementexplode[id] = true;
+}
+
+toggleDodge(id)
+{
+	if(dodge[id]) dodge[id] = false;
+	else dodge[id] = true;
+}
+
 Stealth_On(id)
 	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
 
@@ -316,7 +354,7 @@ Stealth_Off(id)
 createBall(id, const ballType)
 {
 	new Float:vOrigin[3], Float:vVelocity[3];
-	new ent = create_entity(gBallEnt);
+	new ent = create_entity(EntInfo);
 	new BallSpr[256];
 
 	get_weapon_position(id, vOrigin, 40.0, 12.0, -5.0)
@@ -375,10 +413,10 @@ public ballTouch(ent)
 			emit_sound(ent, CHAN_WEAPON, BallSounds[1], VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 
 			while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, BallRadiusExplode)) != 0) {
-				if(!is_user_alive(victim))
+				if(!is_user_alive(victim) || id == victim)
 					continue;
 
-				ExecuteHamB(Ham_TakeDamage, victim, id, id, BallDamage, DMG_TIMEBASED);
+				ExecuteHamB(Ham_TakeDamage, victim, id, id, BallDamage, DMG_ENERGYBEAM);
 			}
 			engfunc(EngFunc_RemoveEntity, ent);
 		}
@@ -417,8 +455,10 @@ public ballTouch(ent)
 		if(ballType == TPBALL) {
 			new Float:entAngle[3], Float:eee[3];
 			pev(ent, pev_velocity, entAngle);
+
 			xs_vec_normalize(entAngle, eee);
 			xs_vec_mul_scalar(eee, -64.0, eee);
+
 			new Float:vOrigin[3];
 			pev(ent, pev_origin, vOrigin);
 			vOrigin[0] += eee[0];
@@ -428,6 +468,88 @@ public ballTouch(ent)
 			engfunc(EngFunc_RemoveEntity, ent);
 		}
 		
+	}
+}
+
+public createFragement(id)
+{
+	static const Float:xpis[] = {300.0, -300.0, -300.0}
+	static const Float:ypis[] = {0.0, -300.0, 300.0}
+
+	static const Float:xsta[] = {20.0, -20.0, -20.0}
+	static const Float:ysta[] = {0.0, -20.0, 20.0}
+	static ent
+
+	for(new i = 0; i <= 2; i++) {
+		ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, EntInfo));
+		set_pev(ent, pev_classname, fragementClassname);
+		engfunc(EngFunc_SetModel, ent, "models/winebottle.mdl");
+		engfunc(EngFunc_SetSize, ent, Float:{-0.7, -0.7, -0.7}, Float:{0.7, 0.7, 0.7});
+		set_pev(ent, pev_movetype, MOVETYPE_FLY);
+		set_pev(ent, pev_solid, SOLID_BBOX);
+		set_pev(ent, pev_owner, id);
+
+		static Float:vVelocity[3], Float:vOrigin[3];
+		pev(id, pev_origin, vOrigin);
+		vOrigin[0] += xsta[i];
+		vOrigin[1] += ysta[i];
+		set_pev(ent, pev_origin, vOrigin);
+
+		vVelocity[0] = xpis[i];
+		vVelocity[1] = ypis[i];
+		vVelocity[2] = 0.0;
+
+		vVelocity[0] *= 500.0;
+		vVelocity[1] *= 500.0;
+		
+		set_pev(ent, pev_velocity, vVelocity);
+
+		message_begin(MSG_BROADCAST, SVC_TEMPENTITY)
+		write_byte(TE_BEAMFOLLOW)
+		write_short(ent)
+		write_short(smoke)
+		write_byte(5)
+		write_byte(3)
+		write_byte(random_num(0,255))
+		write_byte(random_num(0,255))
+		write_byte(random_num(0,255))
+		write_byte(255)
+		message_end()
+	}
+}
+
+public fragementexplodeTouch(ent)
+{
+	if(!is_valid_ent(ent))	return;
+
+	new victim = FM_NULLENT;
+	new id = pev(ent, pev_owner);
+	static entClassName[32];
+	pev(ent, pev_classname, entClassName, charsmax(entClassName));
+
+	if(equal(entClassName, fragementClassname)) {
+		static Float:fOrigin[3];
+		pev(ent, pev_origin, fOrigin);
+
+		while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 75.0)) != 0) {
+			if(!is_user_alive(victim) || get_user_team(victim) == 1)
+				continue;
+
+			ExecuteHamB(Ham_TakeDamage, victim, id, id, 500.0, DMG_TIMEBASED);
+		}
+
+		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0);
+		write_byte(TE_EXPLOSION);
+		engfunc(EngFunc_WriteCoord, fOrigin[0]);
+		engfunc(EngFunc_WriteCoord, fOrigin[1]);
+		engfunc(EngFunc_WriteCoord, fOrigin[2]);
+		write_short(expb);
+		write_byte(5);
+		write_byte(15);
+		write_byte(TE_EXPLFLAG_NOPARTICLES);
+		message_end();
+
+		engfunc(EngFunc_RemoveEntity, ent)
 	}
 }
 
@@ -446,7 +568,7 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 		if (get_tr2(tracehandle, TR_iHitgroup) != HIT_HEAD) set_tr2(tracehandle, TR_iHitgroup, HIT_HEAD);
 	}
 
-	if(is_user_alive(victim) && is_user_connected(victim)) {
+	if(dodge[victim] && is_user_alive(victim) && is_user_connected(victim) && get_user_team(victim) == 1) {
 		if(random_num(1, 10) != 1) {
 			new vOrigin[3];
 			new Float:fTime = halflife_time();
@@ -480,14 +602,15 @@ public fw_TraceAttack_bullet(victim, attacker, Float:damage, Float:direction[3],
 {
 	if(explosionbullet[attacker] && get_user_weapon(attacker) != CSW_KNIFE) {
 		if(random_num(1, 2) == 1) {
+			victim  = FM_NULLENT;
 			new fOrigin[3];
 			get_tr2(tracehandle, TR_vecEndPos, fOrigin);
 
 			while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 75.0)) != 0) {
-				if(!is_user_alive(victim))
+				if(!is_user_alive(victim) || attacker == victim)
 					continue;
 
-				ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, BallDamage, DMG_TIMEBASED);
+				ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, 500.0, DMG_ENERGYBEAM);
 			}
 
 			engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0);
@@ -503,6 +626,17 @@ public fw_TraceAttack_bullet(victim, attacker, Float:damage, Float:direction[3],
 
 		}
 	}
+}
+
+public fw_PlayerKilled(victim, attacker, shouldgib)
+{
+	if(!fragementexplode[attacker])
+		return HAM_IGNORED;
+
+	if(get_user_team(victim) == 2)
+		createFragement(victim);
+
+	return HAM_IGNORED;
 }
 
 public fw_PlayerSpawn_Post(id)
