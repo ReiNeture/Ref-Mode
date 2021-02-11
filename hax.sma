@@ -90,7 +90,6 @@ public plugin_init()
 
 	register_clcmd("hax", "showMenu");
 	register_clcmd("respawn", "respawn");
-	register_clcmd("ttt", "createFragement");
 
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack_bullet");
@@ -130,6 +129,14 @@ public plugin_precache()
 	kanata = precache_model(akoBallKanataSprites);
 	expb = precache_model(akoExplosionBulletSprites);
 }
+
+public plugin_natives()
+{
+	register_native("hax", "native_hax", 0);
+}
+
+public native_hax(id)
+	showMenu(id);
 
 /*public tt(id)
 {
@@ -313,11 +320,11 @@ toggleStealth(id)
 {
 	if(g_stealth[id] && is_user_alive(id)){
 		g_stealth[id] = false;
-		Stealth_On(id);
+		fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
 	}
 	else{
 		g_stealth[id] = true;
-		Stealth_Off(id);
+		fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 0);
 	}
 }
 
@@ -344,12 +351,6 @@ toggleDodge(id)
 	if(dodge[id]) dodge[id] = false;
 	else dodge[id] = true;
 }
-
-Stealth_On(id)
-	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
-
-Stealth_Off(id)
-	fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 0);
 
 createBall(id, const ballType)
 {
@@ -471,7 +472,7 @@ public ballTouch(ent)
 	}
 }
 
-public createFragement(id, Float:vOrigin[3])
+createFragement(id, Float:vOrigin[3])
 {
 	static const Float:xpis[] = {300.0, -300.0, -300.0}
 	static const Float:ypis[] = {0.0, -300.0, 300.0}
@@ -498,8 +499,8 @@ public createFragement(id, Float:vOrigin[3])
 		vVelocity[1] = ypis[i];
 		vVelocity[2] = 0.0;
 
-		vVelocity[0] *= 500.0;
-		vVelocity[1] *= 500.0;
+		vVelocity[0] * 200.0;
+		vVelocity[1] * 200.0;
 		
 		set_pev(ent, pev_velocity, vVelocity);
 
@@ -627,12 +628,12 @@ public fw_PlayerKilled(victim, attacker, shouldgib)
 
 public fw_PlayerSpawn_Post(id)
 {
-	if (!is_user_alive(id) && !is_user_connected(id))
+	if (!is_user_connected(id))
 		return PLUGIN_HANDLED;
 
 	if(g_stealth[id])
 	{
-		Stealth_On(id);
+		fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
 	}
 
 	return PLUGIN_HANDLED;
