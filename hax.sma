@@ -25,7 +25,7 @@ enum
 
 const BallMax = 3;
 const BallSpeed = 2000;
-const Float:BallDamage = 150.0;
+const Float:BallDamage = 3000.0;
 const Float:BallRadiusExplode =	150.0;
 
 new const EntInfo[] = "env_sprite";
@@ -50,7 +50,7 @@ new const akoBallSpritesTPBall[] = "sprites/ref/tpball.spr";
 new const akoBallBoomSprites[] = "sprites/ref/gbomb.spr";
 new const akoBallKanataSprites[] = "sprites/ref/kanata.spr";
 new const akoExplosionBulletSprites[] = "sprites/ref/explosion.spr"
-
+new const bornModel[] = "models/ref/feather.mdl"
 enum
 {
 	BBALL,
@@ -118,6 +118,7 @@ public plugin_precache()
 	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
 	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
 	smoke = precache_model("sprites/steam1.spr");
+	precache_model(bornModel);
 
 	for(new i = 0; i < BallMax; i++)
 		precache_model(akoBallSprites[i]);
@@ -132,7 +133,7 @@ public plugin_precache()
 
 public plugin_natives()
 {
-	register_native("hax", "native_hax", 0);
+	register_native("get_hax_menu", "native_hax", 1);
 }
 
 public native_hax(id)
@@ -160,10 +161,9 @@ public client_PreThink(id)
 		if((button1 & IN_JUMP) && (button2 & IN_DUCK)) {
 			static Float:velocity[3];
 			velocity_by_aim(id, 700, velocity);
-			velocity[2] = 450.0;
+			velocity[2] = 250.0;
 			set_pev(id, pev_velocity, velocity);
 		}
-		entity_set_int(id,  EV_INT_watertype, CONTENTS_WATER);
 	}
 }
 
@@ -484,10 +484,10 @@ createFragement(id, Float:vOrigin[3])
 	for(new i = 0; i <= 2; i++) {
 		ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, EntInfo));
 		set_pev(ent, pev_classname, fragementClassname);
-		engfunc(EngFunc_SetModel, ent, "models/winebottle.mdl");
+		engfunc(EngFunc_SetModel, ent, bornModel);
 		engfunc(EngFunc_SetSize, ent, Float:{-0.7, -0.7, -0.7}, Float:{0.7, 0.7, 0.7});
 		set_pev(ent, pev_movetype, MOVETYPE_FLY);
-		set_pev(ent, pev_solid, SOLID_BBOX);
+		set_pev(ent, pev_solid, SOLID_TRIGGER);
 		set_pev(ent, pev_owner, id);
 
 		static Float:vVelocity[3];
@@ -499,8 +499,8 @@ createFragement(id, Float:vOrigin[3])
 		vVelocity[1] = ypis[i];
 		vVelocity[2] = 0.0;
 
-		vVelocity[0] * 200.0;
-		vVelocity[1] * 200.0;
+		vVelocity[0] *= 400.0;
+		vVelocity[1] *= 400.0;
 		
 		set_pev(ent, pev_velocity, vVelocity);
 
@@ -523,13 +523,12 @@ public fragementexplodeTouch(ent, ptr)
 	if(!is_valid_ent(ent))	return;
 
 	new id = pev(ent, pev_owner);
-	static Float:fOrigin[3];
 	static entClassName[32], ptrClassName[32];
+
 	pev(ent, pev_classname, entClassName, charsmax(entClassName));
 	pev(ptr, pev_classname, ptrClassName, charsmax(ptrClassName));
 
 	if(equal(entClassName, fragementClassname) && !equal(ptrClassName, fragementClassname) && id != ptr) {
-		pev(ent, pev_origin, fOrigin);
 		ExecuteHamB(Ham_TakeDamage, ptr, ptr, id, 500.0, DMG_ENERGYBEAM);
 
 		engfunc(EngFunc_RemoveEntity, ent)
@@ -557,7 +556,7 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 			new Float:fTime = halflife_time();
 			get_tr2(tracehandle, TR_vecEndPos, vOrigin);
 
-			set_task(8.0, "speedboostRemove", victim);
+			set_task(7.0, "speedboostRemove", victim);
 
 			set_user_maxspeed(victim, 700.0);
 

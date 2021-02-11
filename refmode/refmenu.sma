@@ -242,10 +242,10 @@ doFire(entity)
 		engfunc(EngFunc_WriteCoord, vOrigin[2]-30.0);
 		engfunc(EngFunc_WriteCoord, eOrigin[0]);
 		engfunc(EngFunc_WriteCoord, eOrigin[1]);
-		engfunc(EngFunc_WriteCoord, eOrigin[2]);
+		engfunc(EngFunc_WriteCoord, eOrigin[2]+30.0);
 		message_end();
 
-		emit_sound(entity, CHAN_STATIC, gszRobotFireSound, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
+		emit_sound(entity, CHAN_WEAPON, gszRobotFireSound, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 	}
 }
 /*============================================= Treasure ===============================================*/
@@ -361,7 +361,6 @@ removeAllDick(id)
 /*============================================= WaterCore ===============================================*/
 public doWater(id) // 本體
 {
-
     if( gCurrentWater[id] ) deleteOldWater(gCurrentWater[id]);
 
     new light = throwAquaLight(id);
@@ -381,9 +380,6 @@ public doWater(id) // 本體
 
     velocity_by_aim(id, 128, velocity);
     entity_get_vector(id, EV_VEC_origin, Origin);
-    // Origin[0] += velocity[0];
-    // Origin[1] += velocity[1];
-    // Origin[2] += velocity[2];
     entity_set_origin(ent, Origin);
 	
     entity_set_vector(ent, EV_VEC_velocity, velocity);

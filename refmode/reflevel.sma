@@ -4,6 +4,8 @@
 #include <hamsandwich>
 #include <nvault>
 
+native get_hax_menu(id);
+
 new reflevel[33][2];
 new refzmkill[33];
 new const y14y = 100
@@ -18,7 +20,7 @@ enum {
 public plugin_init(){
     register_plugin("reflevel", "Ako", "1.0");
 
-    //register_forward(FM_PlayerPreThink, "fw_PlayerPreThink");
+    register_clcmd("yy", "yy");
     RegisterHam(Ham_Killed, "player", "fw_PlayerKilled", 1);
 
     register_concmd("restd", "restData");
@@ -29,7 +31,10 @@ public plugin_init(){
     sync = CreateHudSyncObj();
     vault = nvault_open("reflevel");
 }
-
+public yy(id)
+{
+    get_hax_menu(id);
+}
 public client_putinserver(id)
 {
     if(!is_user_bot(id)) {

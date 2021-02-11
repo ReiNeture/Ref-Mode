@@ -322,7 +322,7 @@ public fw_PlayerKilled(this, idattacker, shouldgib) {
 	new ida_origin[3], this_origin[3], distance;
 	get_user_origin(this,       this_origin, 0);
 	get_user_origin(idattacker, ida_origin,  0);
-	distance = get_distance(this_origin, ida_origin);
+/*	distance = get_distance(this_origin, ida_origin);
 
 	new Float:volume;
 	switch (distance/100) {
@@ -346,7 +346,7 @@ public fw_PlayerKilled(this, idattacker, shouldgib) {
 	write_byte(0);
 	write_byte(20);  // Alpha
 	message_end();
-
+*/
 	// message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
 	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
 	write_byte(TE_FIREFIELD);     // 領域特效
