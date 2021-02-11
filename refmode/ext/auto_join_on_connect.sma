@@ -69,7 +69,8 @@ public message_vgui_menu(msgid, dest, id) {
 }
 
 bool:should_autojoin(id) {
-	return (get_pcvar_num(g_pcvar_team) && !get_user_team(id) && !task_exists(id) && (!get_pcvar_num(g_pcvar_imm) || !(get_user_flags(id) & IMMUNITY_ACCESS_LEVEL)))
+	return (get_pcvar_num(g_pcvar_team) && !get_user_team(id) && !task_exists(id) && (!get_pcvar_num(g_pcvar_imm) || !(get_user_flags(id) & IMMUNITY_ACCESS_LEVEL))
+	&& !is_user_bot(id));
 }
 
 set_force_team_join_task(id, menu_msgid) {

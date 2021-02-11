@@ -34,10 +34,10 @@ new const gDickClassName[] = "my_dick";
 new const gAquaBodyClassName[] = "aqua_body";
 new const gRobotClassName[] = "robot_gun";
 
-const MAXDICK = 30;  // 財寶同階召喚數量
-new gHaveDick[33][MAXDICK];
-new gCurrentDick[33];
-new Float:gTreasureCd[33];
+const MAXDICK = 30;             // 財寶同階召喚數量
+new gHaveDick[33][MAXDICK];     // 記錄所有財寶的索引
+new gCurrentDick[33];           // 紀錄目前此玩家財寶數
+new Float:gTreasureCd[33];      // 紀錄冷卻時間 0.1sec
 
 new const gTreasureModel[4][] =
 {
@@ -53,31 +53,33 @@ new const gszShellSound1[] = "ref/miss1.wav";
 new const gszShellSound2[] = "ref/miss2.wav";
 new const gszShellSound3[] = "ref/miss3.wav";                       // 護盾音效
 new const gszHomuraSound[] = "ref/homura.wav";                      // 財寶發射音效
-new const gszRobotFireSound[] = "ref/mg36.wav";                      // 機槍塔發射音效
+new const gszRobotFireSound[] = "ref/mg36.wav";                     // 機槍塔發射音效
 new const gszPortalSound[] = "ref/portal_ambient_loop1.wav";        // 飲水機音效
 new const gszSomkeSprite[] = "sprites/ref/steam1.spr";              // 車尾燈用
 new const gszWhiteSprite[] = "sprites/ref/whiteexp.spr";            // 爆炸白漿
 new const gszAquaSprite[] = "sprites/ref/aqua.spr";                 // 阿夸投影
 new const gszAircoreModel[] = "models/ref/w_aicore.mdl";            // 飲水機
-new const gszMachineRobotModel[] = "models/ref/w_m134_vulcan.mdl";  // 飛行機槍機器人
+new const gszMachineRobotModel[] = "models/ref/w_m134_vulcan.mdl";  // 飛行機槍塔機器人
+new const gszCanonRobotModel[] = "models/ref/sentry3.mdl";          // 備用機搶塔
 
 new smoke, exp;
 new gPlayerSelect[33];
 
 public plugin_init()
 {
-    register_plugin("RefMenu", "1.0", "Reff");
-    register_clcmd("ttt", "showSkillMenu");
+	register_plugin("RefMenu", "1.0", "Reff");
+	register_clcmd("ttt", "showSkillMenu");
 
-    RegisterHam(Ham_Touch, gInfoTarget, "fw_touch");
-    register_forward(FM_CmdStart, "fw_cmdstart");
+	RegisterHam(Ham_Touch, gInfoTarget, "fw_touch");
+	register_event("DeathMsg", "eventPlayerDeath", "a");
+	register_forward(FM_CmdStart, "fw_cmdstart");
 
-    register_think(gDickClassName, "dickThink");
-    register_think(gAquaBodyClassName, "aquaBodyThink");
-    register_think(gRobotClassName, "robotThink");
+	register_think(gDickClassName, "dickThink");
+	register_think(gAquaBodyClassName, "aquaBodyThink");
+	register_think(gRobotClassName, "robotThink");
 
-    createMenu();
-    register_menucmd(register_menuid("SkillMenu"), gKeysSkillMenu, "handleSkillMenu");
+	createMenu();
+	register_menucmd(register_menuid("SkillMenu"), gKeysSkillMenu, "handleSkillMenu");
 }
 
 public plugin_precache()
@@ -90,6 +92,7 @@ public plugin_precache()
     precache_sound(gszRobotFireSound);
     precache_model(gszAircoreModel);
     precache_model(gszMachineRobotModel);
+    precache_model(gszCanonRobotModel);
 
     smoke = precache_model(gszSomkeSprite);
     exp = precache_model(gszWhiteSprite);
@@ -136,53 +139,6 @@ public handleSkillMenu(id, num)
     showSkillMenu(id);
 }
 
-public fw_touch(ent, ptr)
-{
-	if (!is_valid_ent(ent)) return;
-
-	new szClassName[32], ptrClassName[32];
-	entity_get_string(ent, EV_SZ_classname, szClassName, charsmax(szClassName));
-	entity_get_string(ptr, EV_SZ_classname, ptrClassName, charsmax(ptrClassName));
-
-	new Float:fOrigin[3];
-	new id = entity_get_edict(ent, EV_ENT_owner);
-
-	if(equal(szClassName, gDickClassName) && !equal(ptrClassName, gDickClassName) && id != ptr ) {
-		if( entity_get_int(ent, EV_INT_iuser1) == 1 ) {
-			entity_get_vector(ent, EV_VEC_origin, fOrigin);
-			creat_exp_spr(fOrigin);
-			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 5000.0, DMG_ENERGYBEAM);
-
-			if( !equal(ptrClassName, "player") )
-				remove_entity(ent);
-		}
-	}
-}
-
-public fw_cmdstart(id, uc_handle, seed)
-{
-    if (!is_user_alive(id)) return FMRES_IGNORED;
-    static button;
-    button = get_uc(uc_handle, UC_Buttons);
-    
-    if (button & IN_USE) {
-        switch(gPlayerSelect[id]){
-            
-        }
-    }
-    
-    if (button & IN_USE && (pev(id, pev_oldbuttons) & IN_USE))
-    {
-        if(gPlayerSelect[id] ==  SK_TREASURE)
-            createDick(id);
-        return FMRES_HANDLED;
-
-	} else if ( !(button & IN_USE) && (pev(id, pev_oldbuttons) & IN_USE)) {
-		doDick(id);
-		return FMRES_HANDLED;
-	}
-    return FMRES_IGNORED;
-}
 /*============================================= MachineRobot ===========================================*/
 createRobot(id)
 {
@@ -193,15 +149,16 @@ createRobot(id)
 	new Float:vOrigin[3];
 	pev(id, pev_origin, vOrigin);
 	vOrigin[0] += 40.0;
-	vOrigin[2] += 10.0;
+	vOrigin[2] += 100.0;
 
 	set_pev(entity, pev_classname, gRobotClassName);
 	set_pev(entity, pev_owner, id);
 	set_pev(entity, pev_movetype, MOVETYPE_NOCLIP);
 	set_pev(entity, pev_solid, SOLID_NOT);
+	set_pev(entity, pev_angles, {180.0, 0.0, 0.0});    // 初始角度上下翻轉
 
 	engfunc(EngFunc_SetSize, entity, Float:{-3.0, -3.0, -3.0}, Float:{3.0, 3.0, 3.0});
-	engfunc(EngFunc_SetModel, entity, gszMachineRobotModel);
+	engfunc(EngFunc_SetModel, entity, gszCanonRobotModel);
 	engfunc(EngFunc_SetOrigin, entity, vOrigin);
 
 	set_pev(entity, pev_nextthink, halflife_time()+0.1);
@@ -215,6 +172,7 @@ public robotThink(entity)
 	static Float:vOrigin[3], Float:tOrigin[3], Float:fVelocity[3], Float:vAngle[3];
 	id = pev(entity, pev_owner);
 
+	// 設置位置於玩家視角的右前方五十度
 	pev(id, pev_v_angle, vAngle);
 	vAngle[1] -= 50.0;
 	engfunc(EngFunc_MakeVectors, vAngle);
@@ -226,15 +184,15 @@ public robotThink(entity)
 
 	vOrigin[0] += vAngle[0];
 	vOrigin[1] += vAngle[1];
-	vOrigin[2] += 10.0;
+	vOrigin[2] += 50.0;         // 跟隨點的高度
 
 	static Float:distance;
 	distance = get_distance_f(tOrigin, vOrigin);
 
-	if( distance >= 500.0 )
+	if( distance >= 500.0 )									   // 瞬間移動的距離
 		set_pev(entity, pev_origin, vOrigin);
-	else if( distance >= 32.0 ) {
-		get_speed_vector(tOrigin, vOrigin, 400.0, fVelocity);
+	else if( distance >= 100.0 ) {                             // 開始跟隨的距離
+		get_speed_vector(tOrigin, vOrigin, 400.0, fVelocity);  // 跟隨的移動速度
 		set_pev(entity, pev_velocity, fVelocity);
 	} else
 		set_pev(entity, pev_velocity, Float:{0.0, 0.0, 0.0});
@@ -256,7 +214,7 @@ doFire(entity)
 
 		pev(i, pev_origin, eOrigin);
 		new Float:temp = get_distance_f(vOrigin, eOrigin);
-		if( temp <= 400.0 && temp > distance) {
+		if( temp <= 400.0 && temp > distance) {   //攻擊距離設定
 			distance = temp;
 			near = i;
 		}
@@ -273,14 +231,15 @@ doFire(entity)
 		angle[1] = vOrigin[1] - eOrigin[1];
 		angle[2] = vOrigin[2] - eOrigin[2];
 		vector_to_angle(angle, angle);
-		angle[1] +=  90.0;
+		angle[0] += 180.0;	// 角度上下倒轉
+
 		set_pev(entity, pev_angles, angle);
 
 		message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
 		write_byte(TE_TRACER);
 		engfunc(EngFunc_WriteCoord, vOrigin[0]);
 		engfunc(EngFunc_WriteCoord, vOrigin[1]);
-		engfunc(EngFunc_WriteCoord, vOrigin[2]);
+		engfunc(EngFunc_WriteCoord, vOrigin[2]-30.0);
 		engfunc(EngFunc_WriteCoord, eOrigin[0]);
 		engfunc(EngFunc_WriteCoord, eOrigin[1]);
 		engfunc(EngFunc_WriteCoord, eOrigin[2]);
@@ -352,9 +311,11 @@ doDick(id)
 		for (new i = 0; i < MAXDICK; ++i)
 		{
 			new ent = gHaveDick[id][i];
-			if ( !is_valid_ent(ent) || ent == 0 ) continue;
-
 			gHaveDick[id][i] = 0;
+
+			if ( !is_valid_ent(ent) || ent == 0 ) 
+				continue;
+
 			entity_set_float(ent, EV_FL_nextthink, halflife_time() + 99999.9);
 			entity_set_int(ent, EV_INT_iuser1, 1);
 
@@ -383,7 +344,20 @@ makeRandomOffsets(id, Float:random, Float:vec[3])
 	xs_vec_mul_scalar(xOffsets, random, xOffsets);
 	vec = xOffsets;
 }
+removeAllDick(id)
+{
+	if( gCurrentDick[id] <= 0 ) return;
 
+	for (new i = 0; i < MAXDICK; ++i)
+	{
+		new ent = gHaveDick[id][i];
+		gHaveDick[id][i] = 0;
+
+		if ( !is_valid_ent(ent) || ent == 0 ) continue;
+		remove_entity(ent);
+		gCurrentDick[id] = 0;
+	}
+}
 /*============================================= WaterCore ===============================================*/
 public doWater(id) // 本體
 {
@@ -463,6 +437,69 @@ deleteOldWater(ent)
     remove_task(light+3344);
     remove_entity(light);
     remove_entity(ent);
+}
+
+/*========================================== function end ================================================*/
+public fw_touch(ent, ptr)
+{
+	if (!is_valid_ent(ent)) return;
+
+	new szClassName[32], ptrClassName[32];
+	entity_get_string(ent, EV_SZ_classname, szClassName, charsmax(szClassName));
+	entity_get_string(ptr, EV_SZ_classname, ptrClassName, charsmax(ptrClassName));
+
+	new Float:fOrigin[3];
+	new id = entity_get_edict(ent, EV_ENT_owner);
+
+	if(equal(szClassName, gDickClassName) && !equal(ptrClassName, gDickClassName) && id != ptr ) {
+		if( entity_get_int(ent, EV_INT_iuser1) == 1 ) {
+			entity_get_vector(ent, EV_VEC_origin, fOrigin);
+			creat_exp_spr(fOrigin);
+			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 5000.0, DMG_ENERGYBEAM);
+
+			if( !equal(ptrClassName, "player") )
+				remove_entity(ent);
+		}
+	}
+}
+
+public fw_cmdstart(id, uc_handle, seed)
+{
+    if (!is_user_alive(id)) return FMRES_IGNORED;
+    static button;
+    button = get_uc(uc_handle, UC_Buttons);
+    
+    if (button & IN_USE) {
+        switch(gPlayerSelect[id]){
+            
+        }
+    }
+    
+    if (button & IN_USE && (pev(id, pev_oldbuttons) & IN_USE))
+    {
+        if(gPlayerSelect[id] ==  SK_TREASURE)
+            createDick(id);
+        return FMRES_HANDLED;
+
+	} else if ( !(button & IN_USE) && (pev(id, pev_oldbuttons) & IN_USE)) {
+		doDick(id);
+		return FMRES_HANDLED;
+	}
+    return FMRES_IGNORED;
+}
+public eventPlayerDeath()
+{
+	new index = read_data(2);
+	doDick(index);
+}
+public client_putinserver(id)
+{
+}
+
+public client_disconnect(id)
+{
+	doDick(id);
+	// removeAllDick(id);
 }
 
 stock creat_exp_spr(const Float:fOrigin[3])
