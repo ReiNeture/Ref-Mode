@@ -1,9 +1,6 @@
 #include <amxmodx>
 #include <amxmisc>
-#include <engine>
-#include <fun>
 #include <cstrike>
-#include <fakemeta>
 
 new gKeysMainMenu;
 enum

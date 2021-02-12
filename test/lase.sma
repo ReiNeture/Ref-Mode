@@ -24,14 +24,21 @@ public plugin_init()
     register_clcmd("cre", "cre");
     register_clcmd("mov", "mov");
     register_clcmd("lig", "lig");
+    register_message(SVC_PRINT, "hkmsg");
 
     // I included the entire plugin because in order to draw the laser, you need to precache a sprite. Incorporate
     // these elements into your own plugin.
     
     // The shoot_laser() will (if the entity is on the floor) fire a laser from the entity, normal to the surface it's resting on.
 }
+public hkmsg(msgid, dest, id) {
+	new eid = get_msg_arg_int(1);
+	client_print(0, print_chat, "--%d", eid);
+	return PLUGIN_CONTINUE;
+}
 public lig(id)
 {
+    client_print(id, print_console, "reworepwr3324");
     new origin[3];
     get_user_origin(id, origin, 0);
 

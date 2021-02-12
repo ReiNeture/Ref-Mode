@@ -24,9 +24,9 @@ enum
 
 new const gszSkillNames[gSkillMax][32] =
 {
-    "財寶",
-    "飲水機",
-	"自動機槍"
+    "王之財寶",
+    "夸寶的飲水機",
+	"自動機槍塔"
 }
 
 new const gInfoTarget[] = "env_sprite";
@@ -47,22 +47,23 @@ new const gTreasureModel[4][] =
 	"models/w_scout.mdl"
 }
 
-new gCurrentWater[33];
+new gCurrentWater[33], gCurrentRobot[33];
 
 new const gszShellSound1[] = "ref/miss1.wav";
 new const gszShellSound2[] = "ref/miss2.wav";
 new const gszShellSound3[] = "ref/miss3.wav";                       // 護盾音效
 new const gszHomuraSound[] = "ref/homura.wav";                      // 財寶發射音效
 new const gszRobotFireSound[] = "ref/mg36.wav";                     // 機槍塔發射音效
-new const gszPortalSound[] = "ref/portal_ambient_loop1.wav";        // 飲水機音效
+new const gszPortalSound[] = "ref/portal_ambient_loop1.wav";        // 飲水機機體音效
+
+new const gszAircoreModel[] = "models/ref/w_aicore.mdl";            // 飲水機
+new const gszCanonRobotModel[] = "models/ref/sentry3.mdl";          // 機搶塔
+
 new const gszSomkeSprite[] = "sprites/ref/steam1.spr";              // 車尾燈用
 new const gszWhiteSprite[] = "sprites/ref/whiteexp.spr";            // 爆炸白漿
 new const gszAquaSprite[] = "sprites/ref/aqua.spr";                 // 阿夸投影
-new const gszAircoreModel[] = "models/ref/w_aicore.mdl";            // 飲水機
-new const gszMachineRobotModel[] = "models/ref/w_m134_vulcan.mdl";  // 飛行機槍塔機器人
-new const gszCanonRobotModel[] = "models/ref/sentry3.mdl";          // 備用機搶塔
 
-new smoke, exp;
+new smoke, exp, aqua;
 new gPlayerSelect[33];
 
 public plugin_init()
@@ -84,18 +85,19 @@ public plugin_init()
 
 public plugin_precache()
 {
-    precache_sound(gszShellSound1);
-    precache_sound(gszShellSound2);
-    precache_sound(gszShellSound3);
-    precache_sound(gszHomuraSound);
-    precache_sound(gszPortalSound);
-    precache_sound(gszRobotFireSound);
-    precache_model(gszAircoreModel);
-    precache_model(gszMachineRobotModel);
-    precache_model(gszCanonRobotModel);
+	precache_sound(gszShellSound1);
+	precache_sound(gszShellSound2);
+	precache_sound(gszShellSound3);
+	precache_sound(gszHomuraSound);
+	precache_sound(gszPortalSound);
+	precache_sound(gszRobotFireSound);
 
-    smoke = precache_model(gszSomkeSprite);
-    exp = precache_model(gszWhiteSprite);
+	precache_model(gszAircoreModel);
+	precache_model(gszCanonRobotModel);
+
+	aqua = precache_model(gszAquaSprite);
+	smoke = precache_model(gszSomkeSprite);
+	exp = precache_model(gszWhiteSprite);
 }
 
 createMenu()
@@ -148,7 +150,6 @@ createRobot(id)
 
 	new Float:vOrigin[3];
 	pev(id, pev_origin, vOrigin);
-	vOrigin[0] += 40.0;
 	vOrigin[2] += 100.0;
 
 	set_pev(entity, pev_classname, gRobotClassName);
@@ -156,12 +157,13 @@ createRobot(id)
 	set_pev(entity, pev_movetype, MOVETYPE_NOCLIP);
 	set_pev(entity, pev_solid, SOLID_NOT);
 	set_pev(entity, pev_angles, {180.0, 0.0, 0.0});    // 初始角度上下翻轉
+	gCurrentRobot[id] = entity;
 
 	engfunc(EngFunc_SetSize, entity, Float:{-3.0, -3.0, -3.0}, Float:{3.0, 3.0, 3.0});
 	engfunc(EngFunc_SetModel, entity, gszCanonRobotModel);
 	engfunc(EngFunc_SetOrigin, entity, vOrigin);
 
-	set_pev(entity, pev_nextthink, halflife_time()+0.1);
+	set_pev(entity, pev_nextthink, halflife_time()+0.5);
 }
 
 public robotThink(entity)
@@ -171,6 +173,11 @@ public robotThink(entity)
 	static id;
 	static Float:vOrigin[3], Float:tOrigin[3], Float:fVelocity[3], Float:vAngle[3];
 	id = pev(entity, pev_owner);
+
+	if(!is_user_connected(id)) {
+		remove_entity(entity);
+		return;
+	}
 
 	// 設置位置於玩家視角的右前方五十度
 	pev(id, pev_v_angle, vAngle);
@@ -184,7 +191,7 @@ public robotThink(entity)
 
 	vOrigin[0] += vAngle[0];
 	vOrigin[1] += vAngle[1];
-	vOrigin[2] += 50.0;         // 跟隨點的高度
+	vOrigin[2] += 50.0;        								   // 跟隨點的高度
 
 	static Float:distance;
 	distance = get_distance_f(tOrigin, vOrigin);
@@ -192,36 +199,25 @@ public robotThink(entity)
 	if( distance >= 500.0 )									   // 瞬間移動的距離
 		set_pev(entity, pev_origin, vOrigin);
 	else if( distance >= 100.0 ) {                             // 開始跟隨的距離
-		get_speed_vector(tOrigin, vOrigin, 400.0, fVelocity);  // 跟隨的移動速度
+		get_speed_vector(tOrigin, vOrigin, 350.0, fVelocity);  // 跟隨的移動速度
 		set_pev(entity, pev_velocity, fVelocity);
 	} else
 		set_pev(entity, pev_velocity, Float:{0.0, 0.0, 0.0});
 
 	doFire(entity);
-	set_pev(entity, pev_nextthink, halflife_time()+0.1);
+	set_pev(entity, pev_nextthink, halflife_time()+0.15);
 }
 doFire(entity)
 {
-	new Float:vOrigin[3], Float:eOrigin[3];
-	new near = 0;
-	new Float:distance = -1.0;
+	static id; id = pev(entity, pev_owner);
+	if( !is_user_alive(id)) return;
 
-	new id = pev(entity, pev_owner);
-	pev(id, pev_origin, vOrigin);
-
-	for(new i = 1; i <= 32; ++i) {
-		if( i==id || !is_user_connected(i) || !is_user_alive(i)) continue;
-
-		pev(i, pev_origin, eOrigin);
-		new Float:temp = get_distance_f(vOrigin, eOrigin);
-		if( temp <= 400.0 && temp > distance) {   //攻擊距離設定
-			distance = temp;
-			near = i;
-		}
-	}
+	static near; near = findNearPlayers(id);
 
 	if( near ) {
-		ExecuteHamB(Ham_TakeDamage, near, id, id, 230.0, DMG_SONIC);
+		static Float:vOrigin[3], Float:eOrigin[3];
+
+		ExecuteHamB(Ham_TakeDamage, near, id, id, 375.0, DMG_SONIC);
 		
 		pev(entity, pev_origin, vOrigin);		
 		pev(near, pev_origin, eOrigin);
@@ -242,11 +238,53 @@ doFire(entity)
 		engfunc(EngFunc_WriteCoord, vOrigin[2]-30.0);
 		engfunc(EngFunc_WriteCoord, eOrigin[0]);
 		engfunc(EngFunc_WriteCoord, eOrigin[1]);
-		engfunc(EngFunc_WriteCoord, eOrigin[2]+30.0);
+		engfunc(EngFunc_WriteCoord, eOrigin[2]+25.0);
 		message_end();
 
 		emit_sound(entity, CHAN_WEAPON, gszRobotFireSound, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 	}
+}
+
+findNearPlayers(id)
+{
+	new near = 0;
+	new Float:vOrigin[3], Float:eOrigin[3];
+	new Float:distance = -1.0;
+	pev(id, pev_origin, vOrigin);
+
+	for(new i = 1; i <= 32; ++i) {
+
+		if( !is_user_connected(i) || !is_user_alive(i) || 
+		i==id || get_user_team(id) == get_user_team(i) ) continue;	
+
+		pev(i, pev_origin, eOrigin);
+		new Float:temp = get_distance_f(vOrigin, eOrigin);
+		if( temp <= 450.0 && temp > distance) {   //攻擊距離設定
+			if( nonBlockedByWorld(id, vOrigin, eOrigin) ) {
+				distance = temp;
+				near = i;
+			}
+		}
+	}
+	return near;
+}
+nonBlockedByWorld(id, Float:origin1[3], Float:origin2[3])	// 開火前判斷是否有牆壁
+{
+	static trace;
+	trace = create_tr2();
+	engfunc(EngFunc_TraceLine, origin1, origin2, IGNORE_MONSTERS, id, trace);
+
+	new Float:fraction;
+	get_tr2(trace, TR_flFraction, fraction);
+	free_tr2(trace);
+
+	return fraction == 1.0;
+}
+
+removeRobot(id)
+{
+	new ent = gCurrentRobot[id];
+	remove_entity(ent);
 }
 /*============================================= Treasure ===============================================*/
 createDick(id)
@@ -320,13 +358,14 @@ doDick(id)
 			entity_set_int(ent, EV_INT_iuser1, 1);
 
 			new Float:fAim[3], Float:xOffsets[3];
-			velocity_by_aim(id, 1100, fAim);
+			velocity_by_aim(id, 1300, fAim);
 			makeRandomOffsets(id, entity_get_float(ent, EV_FL_fuser2), xOffsets);
 
 			// 減去偏移值使中心點瞄準
 			fAim[0] -= xOffsets[0];
 			fAim[1] -= xOffsets[1]; 
 			fAim[2] -= entity_get_float(ent, EV_FL_fuser1);
+			fAim[2] += 10.0;
 			entity_set_vector(ent, EV_VEC_velocity, fAim);
 
 			attachBeamFollow(ent, 10);
@@ -361,7 +400,7 @@ removeAllDick(id)
 /*============================================= WaterCore ===============================================*/
 public doWater(id) // 本體
 {
-    if( gCurrentWater[id] ) deleteOldWater(gCurrentWater[id]);
+    if( gCurrentWater[id] ) deleteOldWater(id);
 
     new light = throwAquaLight(id);
     new ent = create_entity(gInfoTarget);
@@ -378,64 +417,107 @@ public doWater(id) // 本體
 
     new Float:velocity[3], Float:Origin[3];
 
-    velocity_by_aim(id, 128, velocity);
+    velocity_by_aim(id, 625, velocity);
     entity_get_vector(id, EV_VEC_origin, Origin);
     entity_set_origin(ent, Origin);
 	
     entity_set_vector(ent, EV_VEC_velocity, velocity);
 
-    set_task(2.0, "displayAquaLight", light+3344);
+    set_task(5.0, "displayAquaLight", light+3344);
 }
 public displayAquaLight(ent)
 {
-    ent = ent - 3344;
-    new body = entity_get_int(ent, EV_INT_iuser1);
-    entity_set_float(ent, EV_FL_renderamt, 135.0);
+	ent = ent - 3344;
+	new body = entity_get_int(ent, EV_INT_iuser1);
 
-    new Float:Origin[3];
-    entity_get_vector(body, EV_VEC_origin, Origin);
-    Origin[2] += 75.0;
-    entity_set_origin(ent, Origin);
+	if( !is_valid_ent(ent) || !is_valid_ent(body)) {
+		remove_entity(ent);
+		remove_entity(body);
+		return;
+	}
+	entity_set_float(ent, EV_FL_renderamt, 135.0);
 
-    entity_set_float(body, EV_FL_nextthink, halflife_time() + 0.1);
+	new Float:Origin[3];
+	entity_get_vector(body, EV_VEC_origin, Origin);
+	Origin[2] += 75.0;
+	entity_set_origin(ent, Origin);
+
+	entity_set_float(body, EV_FL_nextthink, halflife_time() + 1.0);
 }
 throwAquaLight(id) // 燈光
 {
-	new ent = create_entity(gInfoTarget);
+	new ent ;
+	if( (ent = create_entity(gInfoTarget)) )
+	{
+		entity_set_string(ent, EV_SZ_classname, "AquaLight");
+		entity_set_model(ent, gszAquaSprite);
+		entity_set_float(ent, EV_FL_scale, 0.3);
+		entity_set_int(ent, EV_INT_solid, SOLID_NOT);
 
-	entity_set_string(ent, EV_SZ_classname, "AquaLight");
-	entity_set_model(ent, gszAquaSprite);
-	entity_set_size(ent, Float:{0.0, 0.0, 0.0}, Float:{0.0, 0.0, 0.0});
-	entity_set_float(ent, EV_FL_scale, 0.3);
-	entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
-	// entity_set_int(ent, EV_INT_movetype, MOVETYPE_FOLLOW); 
+		entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
+		entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
+		entity_set_float(ent, EV_FL_renderamt, 0.0);
 
-	entity_set_int(ent, EV_INT_renderfx, kRenderFxGlowShell);
-	entity_set_int(ent, EV_INT_rendermode, kRenderTransAdd);
-	entity_set_float(ent, EV_FL_renderamt, 0.0);
+		new Float:Origin[3];
+		entity_get_vector(id, EV_VEC_origin, Origin);
+		entity_set_origin(ent, Origin);
 
-	new Float:Origin[3];
-	entity_get_vector(id, EV_VEC_origin, Origin);
-	entity_set_origin(ent, Origin);
-
-	return ent;
+		return ent;
+	}
+	return 0;
 }
 public aquaBodyThink(ent)
 {
 	if (!is_valid_ent(ent)) return;
+
+	doWaterHeal(ent);
 	emit_sound(ent, CHAN_STATIC, gszPortalSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
 	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 4.62);
 }
 
-deleteOldWater(ent)
+doWaterHeal(ent)
 {
-    new light = entity_get_int(ent, EV_INT_iuser1);
-    remove_task(light+3344);
-    remove_entity(light);
-    remove_entity(ent);
+	new Float:origin[3];
+	new owner = pev(ent, pev_owner);
+	new healer = FM_NULLENT;
+	pev(ent, pev_origin, origin);
+	attachBeamCylinder(origin);
+
+	while((healer = engfunc(EngFunc_FindEntityInSphere, healer, origin, 400.0)) != 0) {
+		if( !is_user_alive(healer) || get_user_team(healer) != get_user_team(owner)) continue;
+
+		new health = pev(healer, pev_health);
+		if( health < 2000.0) {
+			set_pev(healer, pev_health, 2000.0);
+
+			engfunc(EngFunc_MessageBegin, MSG_ONE, get_user_msgid("ScreenFade"), 0, healer);
+			write_short(1<<10); // Duration --> Note: Duration and HoldTime is in special units. 1 second is equal to (1<<12) i.e. 4096 units.
+			write_short(1<<11); // Holdtime
+			write_short(0x0000); // 0x0001 Fade in
+			write_byte(0);
+			write_byte(245);
+			write_byte(245);
+			write_byte(30);  // Alpha
+			message_end();
+
+			client_cmd(healer, "spk ref/miss3.wav");
+		}
+	}
 }
 
-/*========================================== function end ================================================*/
+deleteOldWater(id)
+{
+	if( !gCurrentWater[id] ) return;
+
+	new ent = gCurrentWater[id];
+	new light = entity_get_int(ent, EV_INT_iuser1);
+	gCurrentWater[id] = 0;
+	remove_task(light+3344);
+	remove_entity(light);
+	remove_entity(ent);
+}
+/*========================================== COMMON FUNCTION =============================================*/
+/*========================================== FUNCTION END ================================================*/
 public fw_touch(ent, ptr)
 {
 	if (!is_valid_ent(ent)) return;
@@ -494,8 +576,43 @@ public client_putinserver(id)
 
 public client_disconnect(id)
 {
+	gPlayerSelect[id] = -1;
 	doDick(id);
-	// removeAllDick(id);
+	deleteOldWater(id);
+	removeRobot(id);
+}
+public plugin_natives()
+{
+	register_native("test_tr", "native_test_tr", 1);
+}
+public native_test_tr(id)
+{
+	createDick(id);
+	doDick(id);
+}
+/*============================================== STOCK =======================================*/
+stock attachBeamCylinder(Float:position[3])
+{
+	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+	write_byte(TE_BEAMTORUS);
+	write_coord(floatround(position[0]));
+	write_coord(floatround(position[1]));
+	write_coord(floatround(position[2]));
+	write_coord(floatround(position[0]));
+	write_coord(floatround(position[1]));
+	write_coord(floatround(position[2])+450);
+	write_short(aqua);
+	write_byte(0);
+	write_byte(0);
+	write_byte(10);
+	write_byte(1);
+	write_byte(0);
+	write_byte(0);
+	write_byte(245);
+	write_byte(245);
+	write_byte(150)
+	write_byte(9);
+	message_end();
 }
 
 stock creat_exp_spr(const Float:fOrigin[3])

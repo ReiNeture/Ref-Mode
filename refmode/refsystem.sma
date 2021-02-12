@@ -2,6 +2,8 @@
 #include <fakemeta>
 #include <hamsandwich>
 
+native test_tr(id);
+
 new const SoundFiles[6][] =
 {
 	"ref/hit1.wav",
@@ -11,7 +13,7 @@ new const SoundFiles[6][] =
 	"ref/helmet_hit.wav",
 	"ref/knife_slash1.wav"
 }
-
+new chick;
 
 public plugin_init()
 {
@@ -19,6 +21,7 @@ public plugin_init()
 
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 	RegisterHam(Ham_Killed, "player", "fw_PlayerKilled");
+	RegisterHam(Ham_TraceAttack, "worldspawn", "fw_TraceAttack_world");
 
 	register_event("DeathMsg", "eventPlayerDeath", "a");
 	register_event("DeathMsg", "eventPlayerDeath", "bg");
@@ -29,12 +32,14 @@ public plugin_precache()
 	for (new i=0; i < sizeof(SoundFiles); i++) {
 		engfunc(EngFunc_PrecacheSound, SoundFiles[i]);
 	}
+	chick = engfunc(EngFunc_PrecacheModel, "models/chick.mdl");
 }
 
 public fw_PlayerKilled(this, attack, shouldgib)
 {
 	if ( !is_user_alive(attack) || !is_user_connected(attack) ) return PLUGIN_HANDLED;
 
+	// 擊殺音效控制
 	static Float:thisOrigin[3], Float:attOrigin[3], distance;
 	pev(this,   pev_origin, thisOrigin);
 	pev(attack, pev_origin, attOrigin );
@@ -51,9 +56,10 @@ public fw_PlayerKilled(this, attack, shouldgib)
 	}
 	emit_sound(attack, CHAN_STATIC, SoundFiles[0], volume, ATTN_NORM, 0, PITCH_NORM);
 
+	// 擊殺補血控制
 	new Float:heal = float(pev(attack, pev_health));
 	if( heal < 1000.0 ) {
-		set_pev(attack, pev_health, heal+20.0);
+		set_pev(attack, pev_health, heal+10.0);
 
 		engfunc(EngFunc_MessageBegin, MSG_ONE, get_user_msgid("ScreenFade"), {0,0,0}, attack);
 		write_short(1<<10); // Duration --> Note: Duration and HoldTime is in special units. 1 second is equal to (1<<12) i.e. 4096 units.
@@ -66,18 +72,62 @@ public fw_PlayerKilled(this, attack, shouldgib)
 		message_end();
 	}
 
+	// 擊殺噴小雞
+	new Float:this_aim[3], this_origin[3];
+	get_user_origin(this, this_origin, 0);
+	velocity_by_aim(attack, 780, this_aim);
+
+	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+	write_byte(TE_BREAKMODEL);
+	write_coord(this_origin[0]);
+	write_coord(this_origin[1]);
+	write_coord(this_origin[2]+24);
+	write_coord(16); // size x
+	write_coord(16); // size y
+	write_coord(16); // size z
+	engfunc(EngFunc_WriteCoord, this_aim[0]); // write_coord(this_aim[0]); // velocity x 
+	engfunc(EngFunc_WriteCoord, this_aim[1]); // write_coord(this_aim[1]); // velocity y
+	engfunc(EngFunc_WriteCoord, this_aim[2]); // write_coord(this_aim[2]); // velocity z default 165
+	write_byte(30); // random velocity
+	write_short(chick);
+	write_byte(3); // count
+	write_byte(10); // life 0.1's
+	write_byte(4); // 1 : Glass sounds and models draw at 50% opacity  2 : Metal sounds  4 : Flesh sounds  8 : Wood sounds  64 : Rock sounds 
+	message_end();
+
 	return PLUGIN_HANDLED;
 }
+public fw_TraceAttack_world(this, id, Float:damage, Float:direction[3], tracehandle, damagebits)
+{
+	if( get_user_weapon(id) != CSW_KNIFE) {
+		new Float:end[3];
+		new start[3];
+		get_tr2(tracehandle, TR_vecEndPos, end);
+		get_user_origin(id, start, 1);
 
+		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+		write_byte(TE_TRACER);
+		write_coord(start[0]);
+		write_coord(start[1]);
+		write_coord(start[2]);
+		write_coord(floatround(end[0]));
+		write_coord(floatround(end[1]));
+		write_coord(floatround(end[2]));
+		message_end();
+	}
+}
 public fw_PlayerSpawn_Post(id)
 {
-    if (!is_user_alive(id) && !is_user_connected(id))
-        return PLUGIN_HANDLED;
+	if (!is_user_alive(id) && !is_user_connected(id))
+		return PLUGIN_HANDLED;
 
-    fm_strip_user_weapons(id);
-    fm_give_item(id, "weapon_knife");
+	fm_strip_user_weapons(id);
+	fm_give_item(id, "weapon_knife");
+	
+	if ( is_user_bot(id) )
+		set_pev(id, pev_health, random_float(200.0, 1000.0));
 
-    return PLUGIN_CONTINUE;
+	return PLUGIN_CONTINUE;
 }
 public client_putinserver(id)
 {

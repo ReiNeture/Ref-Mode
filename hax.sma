@@ -612,16 +612,16 @@ public fw_TraceAttack_bullet(victim, attacker, Float:damage, Float:direction[3],
 
 public fw_PlayerKilled(victim, attacker, shouldgib)
 {
-	if(!fragementexplode[attacker])
-		return HAM_IGNORED;
+	if(attacker == victim || !is_user_connected(attacker)) return HAM_IGNORED;
 
-	if(get_user_team(victim) == 2) {
-		static Float:vOrigin[3];
-		pev(victim, pev_origin, vOrigin);
-		createFragement(attacker, vOrigin);
+	if(fragementexplode[attacker]) {
+
+		if(get_user_team(victim) == 2) {
+			static Float:vOrigin[3];
+			pev(victim, pev_origin, vOrigin);
+			createFragement(attacker, vOrigin);
+		}
 	}
-		
-
 	return HAM_IGNORED;
 }
 
