@@ -76,8 +76,6 @@ new bool:fragementexplode[33];
 new bool:dodge[33];
 new Float:SpeedBoostTimeOut[33];
 
-new poop;
-new wave;
 new boom;
 new kanata;
 new expb;
@@ -100,6 +98,8 @@ public plugin_init()
 	RegisterHam(Ham_Touch, EntInfo, "ballTouch");
 	RegisterHam(Ham_Touch, EntInfo, "fragementexplodeTouch");
 
+	register_forward(FM_CmdStart, "fw_cmdstart");
+
 	register_event("CurWeapon", "eventCurWeapon", "be");
 
 	createMenu();
@@ -115,8 +115,6 @@ public plugin_precache()
 	akoBallSprites[SLBALL] = akoBallSpritesSLBall;
 	akoBallSprites[TPBALL] = akoBallSpritesTPBall;
 	precache_sound(dodgeSpeedBoost);
-	poop = engfunc(EngFunc_PrecacheModel, "models/winebottle.mdl");
-	wave = engfunc(EngFunc_PrecacheModel, "sprites/shockwave.spr");
 	smoke = precache_model("sprites/steam1.spr");
 	precache_model(bornModel);
 
@@ -138,34 +136,6 @@ public plugin_natives()
 
 public native_hax(id)
 	showMenu(id);
-
-/*public tt(id)
-{
-	new name[64]
-	for(new i = 1; i <= 32; i++){
-		if(!is_user_connected(i)) continue;
-		get_user_name(i, name, 63)
-		console_print(id, "%d -- %s", i, name);
-	}
-}*/
-
-public client_PreThink(id)
-{
-	if(!is_user_connected(id))
-		return;
-
-	if(mahoujin[id]) {
-		static button1, button2;
-		button1 = pev(id, pev_button);
-		button2 = pev(id, pev_button);
-		if((button1 & IN_JUMP) && (button2 & IN_DUCK)) {
-			static Float:velocity[3];
-			velocity_by_aim(id, 700, velocity);
-			velocity[2] = 250.0;
-			set_pev(id, pev_velocity, velocity);
-		}
-	}
-}
 
 public respawn(id)
 {
@@ -552,26 +522,30 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 
 	if(dodge[victim] && is_user_alive(victim) && is_user_connected(victim) && get_user_team(victim) == 1) {
 		if(random_num(1, 10) != 1) {
-			new vOrigin[3];
 			new Float:fTime = halflife_time();
-			get_tr2(tracehandle, TR_vecEndPos, vOrigin);
 
 			set_task(7.0, "speedboostRemove", victim);
 
 			set_user_maxspeed(victim, 700.0);
 
 			emit_sound(victim, CHAN_WEAPON, dodgeSpeedBoost, 1.0, ATTN_NORM, 0, PITCH_NORM);
+			static Float:last_time;
+			if(fTime - last_time >= 0.2) {
+				new Float:vOrigin[3];
+				get_tr2(tracehandle, TR_vecEndPos, vOrigin);
 
-			engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
-			write_byte(TE_GLOWSPRITE);
-			engfunc(EngFunc_WriteCoord, vOrigin[0]);
-			engfunc(EngFunc_WriteCoord, vOrigin[1]);
-			engfunc(EngFunc_WriteCoord, vOrigin[2]);
-			write_short(kanata);
-			write_byte(1);
-			write_byte(3);
-			write_byte(175);
-			message_end();
+				engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+				write_byte(TE_GLOWSPRITE);
+				engfunc(EngFunc_WriteCoord, vOrigin[0]);
+				engfunc(EngFunc_WriteCoord, vOrigin[1]);
+				engfunc(EngFunc_WriteCoord, vOrigin[2]);
+				write_short(kanata);
+				write_byte(1);
+				write_byte(3);
+				write_byte(175);
+				message_end();
+				last_time = fTime;
+			}
 
 			SpeedBoostTimeOut[victim] = fTime + 8.0;
 			return HAM_SUPERCEDE;
@@ -650,45 +624,9 @@ public fw_TakeDamage(victim, inflictor, attacker, damage, damagebits)
 	xs_vec_mul_scalar(victim_aim, scalar, originF);
 	pev(attacker, pev_origin, attacker_origin);
 
-	if(dmg_reflection[victim]){
+	if(dmg_reflection[victim])
 		ExecuteHam(Ham_TakeDamage, attacker, victim, victim, damage,  DMG_TIMEBASED);
 
-		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
-		write_byte(TE_MODEL);
-		write_coord(victim_origin[0]); //x
-		write_coord(victim_origin[1]); //y
-		write_coord(victim_origin[2]); //z
-		engfunc(EngFunc_WriteCoord, originF[0]); //velocity x
-		engfunc(EngFunc_WriteCoord, originF[1]); //velocity y
-		engfunc(EngFunc_WriteCoord, originF[2]); //velocity z
-		write_angle(0);
-		write_short(poop);
-		write_byte(2); //bounceSound 0 : No Sound 1 : Bullet casing 2 : Shotgun shell
-		write_byte(10); //life sec*0.1
-		message_end();
-
-		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, attacker_origin, 0);
-		write_byte(TE_BEAMCYLINDER);
-		engfunc(EngFunc_WriteCoord, attacker_origin[0]); // x 
-		engfunc(EngFunc_WriteCoord, attacker_origin[1]); // y 
-		engfunc(EngFunc_WriteCoord, attacker_origin[2]); // z 
-		engfunc(EngFunc_WriteCoord, attacker_origin[0]); // x axis (X 軸)
-		engfunc(EngFunc_WriteCoord, attacker_origin[1]); // y axis (Y 軸)
-		engfunc(EngFunc_WriteCoord, attacker_origin[2]+400.0); // z axis (Z 軸)
-		write_short(wave)
-		write_byte(0); // startframe (幀幅開始)
-		write_byte(0); // framerate (幀幅頻率)
-		write_byte(3); // life 
-		write_byte(30); // width 
-		write_byte(0); // noise 
-		write_byte(235); // r
-		write_byte(0); // g
-		write_byte(0); // b 
-		write_byte(50); // brightness 
-		write_byte(0); // speed 
-		message_end()
-
-	}
 	return HAM_IGNORED;
 }
 
@@ -697,6 +635,30 @@ public speedboostRemove(victim)
 	if(is_user_alive(victim)) {
 		set_user_maxspeed(victim, 250.0);
 	}
+}
+
+public fw_cmdstart(id)
+{
+	if(!is_user_connected(id))
+		return PLUGIN_HANDLED;
+
+	if(mahoujin[id]) {
+		static button1, button2;
+		static Float:last_time;
+		button1 = pev(id, pev_button);
+		button2 = pev(id, pev_button);
+		if(halflife_time() - last_time >= 0.5) {
+			if((button1 & IN_JUMP) && (button2 & IN_DUCK)) {
+			static Float:velocity[3];
+			velocity_by_aim(id, 700, velocity);
+			velocity[2] = 250.0;
+			set_pev(id, pev_velocity, velocity);
+			}
+			last_time = halflife_time();
+		}
+	}
+
+	return PLUGIN_HANDLED;
 }
 
 stock fm_set_rendering(id, fx = kRenderFxNone, r = 255, g = 255, b = 255, render = kRenderNormal, amount = 16)
