@@ -4,8 +4,6 @@
 #include <hamsandwich>
 #include <nvault>
 
-native get_hax_menu(id);
-
 new reflevel[33][2];
 new refzmkill[33];
 new const y14y = 100
@@ -20,21 +18,26 @@ enum {
 public plugin_init(){
     register_plugin("reflevel", "Ako", "1.0");
 
-    register_clcmd("yy", "yy");
     RegisterHam(Ham_Killed, "player", "fw_PlayerKilled", 1);
 
     register_concmd("restd", "restData");
     register_concmd("exp", "setExp");
 
-    register_cvar("refExpRate", "1");
+    register_cvar("refExpRate", "2");
 
     sync = CreateHudSyncObj();
     vault = nvault_open("reflevel");
 }
-public yy(id)
+
+public plugin_natives()
 {
-    get_hax_menu(id);
+	register_native("ref_get_level", "native_ref_get_level", 1);
 }
+public native_ref_get_level(id)
+{
+    return reflevel[id][LEVEL];
+}
+
 public client_putinserver(id)
 {
     if(!is_user_bot(id)) {
@@ -115,7 +118,7 @@ public fw_PlayerKilled(victim, attacker, shouldgib)
         reflevel[attacker][LEVEL] = 1;
 
     if(get_user_team(victim) == 2){
-        reflevel[attacker][EXP] += 1000 * get_cvar_num("refExpRate");
+        reflevel[attacker][EXP] += 700 * get_cvar_num("refExpRate");
         refzmkill[attacker]++;
     }
 

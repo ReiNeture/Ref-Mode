@@ -24,7 +24,6 @@ public plugin_init()
 
 createMenu()
 {
-	//main
 	new size = sizeof(gszMainMenu);
 	add(gszMainMenu, size, "\w武器選單 ^n^n");
 	add(gszMainMenu, size, "\r1. \wAK-47 %s ^n");

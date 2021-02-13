@@ -356,8 +356,7 @@ createBall(id, const ballType)
 
 public ballTouch(ent)
 {
-	if (!is_valid_ent(ent))
-		return;
+	if (!is_valid_ent(ent)) return HAM_HANDLED;
 
 	new bClassName[32];
 	new victim  = FM_NULLENT;
@@ -440,6 +439,7 @@ public ballTouch(ent)
 		}
 		
 	}
+	return HAM_HANDLED;
 }
 
 createFragement(id, Float:vOrigin[3])
@@ -490,7 +490,7 @@ createFragement(id, Float:vOrigin[3])
 
 public fragementexplodeTouch(ent, ptr)
 {
-	if(!is_valid_ent(ent))	return;
+	if(!is_valid_ent(ent)) return HAM_HANDLED;
 
 	new id = pev(ent, pev_owner);
 	static entClassName[32], ptrClassName[32];
@@ -503,6 +503,8 @@ public fragementexplodeTouch(ent, ptr)
 
 		engfunc(EngFunc_RemoveEntity, ent)
 	}
+
+	return HAM_HANDLED;
 }
 
 public eventCurWeapon(id)
@@ -516,15 +518,14 @@ public eventCurWeapon(id)
 public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], tracehandle, damage_type)
 {
 	if (headshot[attacker])
-	{
-		if (get_tr2(tracehandle, TR_iHitgroup) != HIT_HEAD) set_tr2(tracehandle, TR_iHitgroup, HIT_HEAD);
-	}
+		if (get_tr2(tracehandle, TR_iHitgroup) != HIT_HEAD)
+			set_tr2(tracehandle, TR_iHitgroup, HIT_HEAD);
 
 	if(dodge[victim] && is_user_alive(victim) && is_user_connected(victim) && get_user_team(victim) == 1) {
 		if(random_num(1, 10) != 1) {
 			new Float:fTime = halflife_time();
 
-			set_task(7.0, "speedboostRemove", victim);
+			set_task(4.0, "speedboostRemove", victim);
 
 			set_user_maxspeed(victim, 700.0);
 
@@ -547,11 +548,11 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 				last_time = fTime;
 			}
 
-			SpeedBoostTimeOut[victim] = fTime + 8.0;
+			SpeedBoostTimeOut[victim] = fTime + 4.0;
 			return HAM_SUPERCEDE;
 		}
 	}
-	return HAM_IGNORED
+	return HAM_IGNORED;
 }
 
 public fw_TraceAttack_bullet(victim, attacker, Float:damage, Float:direction[3], tracehandle, damage_type)
@@ -605,9 +606,7 @@ public fw_PlayerSpawn_Post(id)
 		return PLUGIN_HANDLED;
 
 	if(g_stealth[id])
-	{
 		fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
-	}
 
 	return PLUGIN_HANDLED;
 }
@@ -632,9 +631,8 @@ public fw_TakeDamage(victim, inflictor, attacker, damage, damagebits)
 
 public speedboostRemove(victim)
 {
-	if(is_user_alive(victim)) {
+	if(is_user_alive(victim))
 		set_user_maxspeed(victim, 250.0);
-	}
 }
 
 public fw_cmdstart(id)
@@ -643,18 +641,19 @@ public fw_cmdstart(id)
 		return PLUGIN_HANDLED;
 
 	if(mahoujin[id]) {
-		static button1, button2;
-		static Float:last_time;
-		button1 = pev(id, pev_button);
-		button2 = pev(id, pev_button);
-		if(halflife_time() - last_time >= 0.5) {
-			if((button1 & IN_JUMP) && (button2 & IN_DUCK)) {
-			static Float:velocity[3];
-			velocity_by_aim(id, 700, velocity);
-			velocity[2] = 250.0;
-			set_pev(id, pev_velocity, velocity);
+		static button;
+		static Float:last_time[33];
+		button = pev(id, pev_button);
+
+		if(halflife_time() - last_time[id] >= 0.3) {
+			if((button & IN_JUMP) && (button & IN_DUCK)) {
+				static Float:velocity[3];
+				velocity_by_aim(id, 700, velocity);
+				velocity[2] = 350.0;
+				set_pev(id, pev_velocity, velocity);
+				
+				last_time[id] = halflife_time();
 			}
-			last_time = halflife_time();
 		}
 	}
 

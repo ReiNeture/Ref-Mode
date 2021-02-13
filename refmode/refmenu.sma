@@ -13,20 +13,22 @@ enum
 };
 
 new gKeysSkillMenu;
-const gSkillMax = 3;
+const gSkillMax = 4;
 
 enum
 {
 	SK_TREASURE,
-	MA_WATER,
-	MA_ROBOT
+	SK_WATER,
+	SK_ROBOT,
+	SK_SHIELD
 };
 
 new const gszSkillNames[gSkillMax][32] =
 {
     "王之財寶",
     "夸寶的飲水機",
-	"自動機槍塔"
+	"自動機槍塔",
+	"能量護盾"
 }
 
 new const gInfoTarget[] = "env_sprite";
@@ -49,8 +51,8 @@ new const gTreasureModel[4][] =
 
 new gCurrentWater[33], gCurrentRobot[33];
 
-new const gszShellSound1[] = "ref/miss1.wav";
-new const gszShellSound2[] = "ref/miss2.wav";
+new const gszShellSound1[] = "ref/miss1.wav";                       // 護盾音效
+new const gszShellSound2[] = "ref/miss2.wav";                       // 護盾音效
 new const gszShellSound3[] = "ref/miss3.wav";                       // 護盾音效
 new const gszHomuraSound[] = "ref/homura.wav";                      // 財寶發射音效
 new const gszRobotFireSound[] = "ref/mg36.wav";                     // 機槍塔發射音效
@@ -62,8 +64,9 @@ new const gszCanonRobotModel[] = "models/ref/sentry3.mdl";          // 機搶塔
 new const gszSomkeSprite[] = "sprites/ref/steam1.spr";              // 車尾燈用
 new const gszWhiteSprite[] = "sprites/ref/whiteexp.spr";            // 爆炸白漿
 new const gszAquaSprite[] = "sprites/ref/aqua.spr";                 // 阿夸投影
+new const gszShieldSprite[] = "sprites/ref/vac.spr";                // 護盾特效
 
-new smoke, exp, aqua;
+new smoke, exp, aqua, shield;
 new gPlayerSelect[33];
 
 public plugin_init()
@@ -72,6 +75,8 @@ public plugin_init()
 	register_clcmd("ttt", "showSkillMenu");
 
 	RegisterHam(Ham_Touch, gInfoTarget, "fw_touch");
+	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack_player");
+
 	register_event("DeathMsg", "eventPlayerDeath", "a");
 	register_forward(FM_CmdStart, "fw_cmdstart");
 
@@ -98,6 +103,7 @@ public plugin_precache()
 	aqua = precache_model(gszAquaSprite);
 	smoke = precache_model(gszSomkeSprite);
 	exp = precache_model(gszWhiteSprite);
+	shield = precache_model(gszShieldSprite);
 }
 
 createMenu()
@@ -105,7 +111,7 @@ createMenu()
     arrayset(gPlayerSelect, -1, sizeof(gPlayerSelect));
 
     // Skills Class Menu
-    gKeysSkillMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 | B0;
+    gKeysSkillMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 ;
 }
 
 public showSkillMenu(id)
@@ -134,10 +140,10 @@ public handleSkillMenu(id, num)
 {
     switch(num) {
         case SK_TREASURE: gPlayerSelect[id] = num;
-        case MA_WATER: doWater(id);
-		case MA_ROBOT: createRobot(id);
+        case SK_WATER: doWater(id);
+		case SK_ROBOT: createRobot(id);
+		case SK_SHIELD: gPlayerSelect[id] = num;
     }
-    
     showSkillMenu(id);
 }
 
@@ -217,7 +223,7 @@ doFire(entity)
 	if( near ) {
 		static Float:vOrigin[3], Float:eOrigin[3];
 
-		ExecuteHamB(Ham_TakeDamage, near, id, id, 375.0, DMG_SONIC);
+		ExecuteHamB(Ham_TakeDamage, near, id, id, 35.0, DMG_SONIC);
 		
 		pev(entity, pev_origin, vOrigin);		
 		pev(near, pev_origin, eOrigin);
@@ -369,7 +375,7 @@ doDick(id)
 			entity_set_vector(ent, EV_VEC_velocity, fAim);
 
 			attachBeamFollow(ent, 10);
-			emit_sound(ent, CHAN_WEAPON, "ref/homura.wav", VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
+			emit_sound(ent, CHAN_WEAPON, gszHomuraSound, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 		}
 		gCurrentDick[id] = 0;
 	}
@@ -520,7 +526,7 @@ deleteOldWater(id)
 /*========================================== FUNCTION END ================================================*/
 public fw_touch(ent, ptr)
 {
-	if (!is_valid_ent(ent)) return;
+	if (!is_valid_ent(ent)) return FMRES_HANDLED;
 
 	new szClassName[32], ptrClassName[32];
 	entity_get_string(ent, EV_SZ_classname, szClassName, charsmax(szClassName));
@@ -533,12 +539,13 @@ public fw_touch(ent, ptr)
 		if( entity_get_int(ent, EV_INT_iuser1) == 1 ) {
 			entity_get_vector(ent, EV_VEC_origin, fOrigin);
 			creat_exp_spr(fOrigin);
-			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 5000.0, DMG_ENERGYBEAM);
+			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 2000.0, DMG_ENERGYBEAM);
 
 			if( !equal(ptrClassName, "player") )
 				remove_entity(ent);
 		}
 	}
+	return FMRES_HANDLED;
 }
 
 public fw_cmdstart(id, uc_handle, seed)
@@ -563,8 +570,43 @@ public fw_cmdstart(id, uc_handle, seed)
 		doDick(id);
 		return FMRES_HANDLED;
 	}
+
     return FMRES_IGNORED;
 }
+public fw_TraceAttack_player(this, id, Float:damage, Float:direction[3], tracehandle, damagebits)
+{
+	if ( !is_user_alive(this)) return HAM_HANDLED;
+
+	if( gPlayerSelect[this] == SK_SHIELD) {
+
+		SetHamParamFloat(3, damage * 0.3);
+
+		static Float:last_time;
+		if ( get_gametime() - last_time >= 0.2) 
+		{
+			new Float:origin[3];
+			get_tr2(tracehandle, TR_vecEndPos, origin);
+
+			engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+			write_byte(TE_GLOWSPRITE); 
+			engfunc(EngFunc_WriteCoord, origin[0]);
+			engfunc(EngFunc_WriteCoord, origin[1]);
+			engfunc(EngFunc_WriteCoord, origin[2]);
+			write_short(shield);    // 光盾
+			write_byte(1);           // 淡出時間
+			write_byte(3);           // width
+			write_byte(165);         // 亮度
+			message_end();
+			last_time = get_gametime();
+		}
+
+		static wav[20];
+		formatex(wav, charsmax(wav), "ref/miss%d.wav", random_num(1, 3));
+		emit_sound(this, CHAN_WEAPON, wav, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
+	}
+	return HAM_HANDLED;
+}
+
 public eventPlayerDeath()
 {
 	new index = read_data(2);
@@ -584,12 +626,16 @@ public client_disconnect(id)
 public plugin_natives()
 {
 	register_native("test_tr", "native_test_tr", 1);
+	register_native("open_refmenu", "native_open_refmenu", 1);
 }
 public native_test_tr(id)
 {
 	createDick(id);
 	doDick(id);
 }
+public native_open_refmenu(id)
+	showSkillMenu(id);
+
 /*============================================== STOCK =======================================*/
 stock attachBeamCylinder(Float:position[3])
 {
