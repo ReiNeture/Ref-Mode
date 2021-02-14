@@ -152,7 +152,7 @@ createRobot(id)
 {
 	static entity;
 	entity = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, gInfoTarget));
-	if (!pev_valid(entity) ) return;
+	if (!pev_valid(entity) ) return FMRES_IGNORED;
 
 	new Float:vOrigin[3];
 	pev(id, pev_origin, vOrigin);
@@ -170,19 +170,21 @@ createRobot(id)
 	engfunc(EngFunc_SetOrigin, entity, vOrigin);
 
 	set_pev(entity, pev_nextthink, halflife_time()+0.5);
+
+	return FMRES_HANDLED;
 }
 
 public robotThink(entity)
 {
-	if (!pev_valid(entity) ) return;
+	if (!pev_valid(entity) ) return FMRES_IGNORED;
 
 	static id;
 	static Float:vOrigin[3], Float:tOrigin[3], Float:fVelocity[3], Float:vAngle[3];
 	id = pev(entity, pev_owner);
 
 	if(!is_user_connected(id)) {
-		remove_entity(entity);
-		return;
+		engfunc(EngFunc_RemoveEntity, entity);
+		return FMRES_HANDLED;
 	}
 
 	// 設置位置於玩家視角的右前方五十度
@@ -212,11 +214,13 @@ public robotThink(entity)
 
 	doFire(entity);
 	set_pev(entity, pev_nextthink, halflife_time()+0.15);
+
+	return FMRES_HANDLED;
 }
 doFire(entity)
 {
 	static id; id = pev(entity, pev_owner);
-	if( !is_user_alive(id)) return;
+	if( !is_user_alive(id)) return FMRES_IGNORED;
 
 	static near; near = findNearPlayers(id);
 
@@ -249,6 +253,7 @@ doFire(entity)
 
 		emit_sound(entity, CHAN_WEAPON, gszRobotFireSound, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 	}
+	return FMRES_HANDLED;
 }
 
 findNearPlayers(id)
@@ -290,7 +295,7 @@ nonBlockedByWorld(id, Float:origin1[3], Float:origin2[3])	// 開火前判斷是�
 removeRobot(id)
 {
 	new ent = gCurrentRobot[id];
-	remove_entity(ent);
+	engfunc(EngFunc_RemoveEntity, ent);
 }
 /*============================================= Treasure ===============================================*/
 createDick(id)
@@ -320,7 +325,7 @@ createDick(id)
 }
 public dickThink(ent)
 {
-	if (!is_valid_ent(ent)) return;
+	if (!is_valid_ent(ent)) return FMRES_IGNORED;
 
 	// 資料初始化
 	new id = entity_get_edict(ent, EV_ENT_owner);
@@ -347,6 +352,7 @@ public dickThink(ent)
 
 	// 物件思考設定
 	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.05);
+	return FMRES_HANDLED;
 }
 
 doDick(id)
@@ -449,6 +455,7 @@ public displayAquaLight(ent)
 	entity_set_origin(ent, Origin);
 
 	entity_set_float(body, EV_FL_nextthink, halflife_time() + 1.0);
+	return;
 }
 throwAquaLight(id) // 燈光
 {
@@ -474,11 +481,12 @@ throwAquaLight(id) // 燈光
 }
 public aquaBodyThink(ent)
 {
-	if (!is_valid_ent(ent)) return;
+	if (!is_valid_ent(ent)) return FMRES_IGNORED;
 
 	doWaterHeal(ent);
 	emit_sound(ent, CHAN_STATIC, gszPortalSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
 	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 4.62);
+	return FMRES_HANDLED;
 }
 
 doWaterHeal(ent)
@@ -526,7 +534,7 @@ deleteOldWater(id)
 /*========================================== FUNCTION END ================================================*/
 public fw_touch(ent, ptr)
 {
-	if (!is_valid_ent(ent)) return FMRES_HANDLED;
+	if (!is_valid_ent(ent)) return FMRES_IGNORED;
 
 	new szClassName[32], ptrClassName[32];
 	entity_get_string(ent, EV_SZ_classname, szClassName, charsmax(szClassName));
@@ -550,7 +558,8 @@ public fw_touch(ent, ptr)
 
 public fw_cmdstart(id, uc_handle, seed)
 {
-    if (!is_user_alive(id)) return FMRES_IGNORED;
+    if (!is_user_alive(id)|| !is_user_connected(id)) return FMRES_IGNORED;
+
     static button;
     button = get_uc(uc_handle, UC_Buttons);
     
@@ -575,7 +584,7 @@ public fw_cmdstart(id, uc_handle, seed)
 }
 public fw_TraceAttack_player(this, id, Float:damage, Float:direction[3], tracehandle, damagebits)
 {
-	if ( !is_user_alive(this)) return HAM_HANDLED;
+	if ( !is_user_alive(this) || !is_user_connected(this)) return HAM_IGNORED;
 
 	if( gPlayerSelect[this] == SK_SHIELD) {
 

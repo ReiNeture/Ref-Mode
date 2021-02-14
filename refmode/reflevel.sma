@@ -40,24 +40,31 @@ public native_ref_get_level(id)
 
 public client_putinserver(id)
 {
-    if(!is_user_bot(id)) {
+    if(!is_user_bot(id) ) {
         LoadData(id);
-        show_hud(id+1234);
-        set_task(120.0, "AutoSave", id, _, _, "b");
+        set_task(0.2, "show_hud", id+1234);
+        set_task(120.0, "AutoSave", id+777, _, _, "b");
     }
 
 }
 
 public client_disconnect(id)
 {
-    if(!is_user_bot(id)) {
+    if(!is_user_bot(id))
         SaveData(id);
-    }
+
+    remove_task(id+1234);
+    remove_task(id+777);
 }
 
 public show_hud(id)
 {
     id -= 1234;
+    if( !is_user_connected(id)) {
+        remove_task(id+1234);
+        return PLUGIN_HANDLED;
+    }
+
     static red = 0;
     static green = 255;
     static blue = 255;
@@ -65,11 +72,12 @@ public show_hud(id)
     set_hudmessage(red, green, blue, -0.85, 0.15, 0, 0.0, 0.3, 0.0, 0.0, -1);
     ShowSyncHudMsg(id, sync, "|炫光彩色雞雞|^n|血量: %d|^n|等級: %d|^n|經驗: %d / %d|^n|經驗倍率: %d|^n|擊殺數: %d|", get_user_health(id), reflevel[id][LEVEL], reflevel[id][EXP], reflevel[id][LEVEL] * y14y, get_cvar_num("refExpRate"), refzmkill[id]);
     set_task(0.2, "show_hud", id+1234);
+
+    return PLUGIN_HANDLED;
 }
 
 SaveData(id)
 {
-    
     new name[32], vaultKey[64], vaultData[64];
 
     get_user_name(id, name, 31);
@@ -82,7 +90,6 @@ SaveData(id)
 
 LoadData(id)
 {
-
     new name[32], vaultKey[64], vaultData[64];
 
     get_user_name(id, name, 31);
@@ -106,6 +113,7 @@ LoadData(id)
 
 public AutoSave(id)
 {
+    id = id -777;
     SaveData(id);
 }
 
@@ -133,7 +141,7 @@ public fw_PlayerKilled(victim, attacker, shouldgib)
         reflevel[attacker][EXP] = refexp-1;
     }
 
-    return HAM_IGNORED;
+    return HAM_HANDLED;
 }
 
 public restData(id)

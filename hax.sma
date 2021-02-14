@@ -25,8 +25,8 @@ enum
 
 const BallMax = 3;
 const BallSpeed = 2000;
-const Float:BallDamage = 3000.0;
-const Float:BallRadiusExplode =	150.0;
+const Float:BallDamage = 155.0;
+const Float:BallRadiusExplode =	100.0;
 
 new const EntInfo[] = "env_sprite";
 new const gBallClassname[] = "Entball";
@@ -567,7 +567,7 @@ public fw_TraceAttack_bullet(victim, attacker, Float:damage, Float:direction[3],
 				if(!is_user_alive(victim) || attacker == victim)
 					continue;
 
-				ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, 500.0, DMG_ENERGYBEAM);
+				ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, 93.0, DMG_ENERGYBEAM);
 			}
 
 			engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0);
