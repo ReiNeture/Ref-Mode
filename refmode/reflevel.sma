@@ -78,7 +78,7 @@ public show_hud(id)
 
 SaveData(id)
 {
-    new name[32], vaultKey[64], vaultData[64];
+    new name[32], vaultKey[64], vaultData[256];
 
     get_user_name(id, name, 31);
 
@@ -90,12 +90,12 @@ SaveData(id)
 
 LoadData(id)
 {
-    new name[32], vaultKey[64], vaultData[64];
+    new name[32], vaultKey[64], vaultData[256];
 
     get_user_name(id, name, 31);
 
     format(vaultKey, 63, "%s", name);
-    format(vaultData, 255, "%i#%i#%i#", reflevel[id][LEVEL], reflevel[id][EXP], refzmkill[id]);
+    // format(vaultData, 255, "%i#%i#%i#", reflevel[id][LEVEL], reflevel[id][EXP], refzmkill[id]);
 
     nvault_get(vault, vaultKey, vaultData, 255);
 

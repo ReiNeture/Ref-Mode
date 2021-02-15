@@ -307,11 +307,13 @@ createDick(id)
 		entity_set_string(ent, EV_SZ_classname, gDickClassName);
 		entity_set_model(ent, gTreasureModel[random_num(0,3)] );
 		entity_set_size(ent, Float:{-7.0, -7.0, -7.0}, Float:{7.0, 7.0, 7.0});
-		entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
-		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
+		entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER); // SOLID_TRIGGER MOVETYPE_BOUNCE SOLID_BBOX  MOVETYPE_BOUNCEMISSILE MOVETYPE_FLYMISSILE
+		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLYMISSILE);
 		entity_set_edict(ent, EV_ENT_owner, id);
 		entity_set_float(ent, EV_FL_fuser1, random_float(5.0, 90.0));  // 紀錄垂直軸隨機偏移量
 		entity_set_float(ent, EV_FL_fuser2, random_float(-50.0, 50.0)); // 紀錄水平軸隨機偏移量
+		entity_set_int(ent, EV_INT_iuser1, 0);                          // 紀錄是否發射狀態
+		// entity_set_int(ent, EV_INT_iuser4, 0);                          // 紀錄碰撞次數
 
 		dickThink(ent);
 		
@@ -327,6 +329,16 @@ public dickThink(ent)
 {
 	if (!is_valid_ent(ent)) return FMRES_IGNORED;
 
+	new states = entity_get_int(ent, EV_INT_iuser1);
+	if( states == 1 )
+		firedState(ent);
+	else
+		handleState(ent);
+
+	return FMRES_HANDLED;
+}
+handleState(ent)
+{
 	// 資料初始化
 	new id = entity_get_edict(ent, EV_ENT_owner);
 	static Float:vOrigin[3], Float:fAim[3], Float:fAngles[3];
@@ -352,9 +364,12 @@ public dickThink(ent)
 
 	// 物件思考設定
 	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 0.05);
-	return FMRES_HANDLED;
 }
-
+firedState(ent)
+{
+	if (is_valid_ent(ent) )
+		remove_entity(ent);
+}
 doDick(id)
 {
 	if( gCurrentDick[id] > 0 ) {
@@ -366,7 +381,7 @@ doDick(id)
 			if ( !is_valid_ent(ent) || ent == 0 ) 
 				continue;
 
-			entity_set_float(ent, EV_FL_nextthink, halflife_time() + 99999.9);
+			entity_set_float(ent, EV_FL_nextthink, halflife_time() + 7.0);
 			entity_set_int(ent, EV_INT_iuser1, 1);
 
 			new Float:fAim[3], Float:xOffsets[3];
@@ -545,12 +560,17 @@ public fw_touch(ent, ptr)
 
 	if(equal(szClassName, gDickClassName) && !equal(ptrClassName, gDickClassName) && id != ptr ) {
 		if( entity_get_int(ent, EV_INT_iuser1) == 1 ) {
+
+			// new times = entity_get_int(ent, EV_INT_iuser4);
+			// entity_set_int(ent, EV_INT_iuser4, (times+1));
+			
 			entity_get_vector(ent, EV_VEC_origin, fOrigin);
 			creat_exp_spr(fOrigin);
 			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 2000.0, DMG_ENERGYBEAM);
 
-			if( !equal(ptrClassName, "player") )
-				remove_entity(ent);
+			// if( !equal(ptrClassName, "player") &&  times >= 4 )
+			remove_entity(ent);
+
 		}
 	}
 	return FMRES_HANDLED;
