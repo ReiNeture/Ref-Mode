@@ -165,6 +165,36 @@ Create_Akara(Origin[3])
 	}
 }
 
+Create_Profession(Origin[3])
+{
+	new Float:flOrigin[3], Float:Angle[3]
+	IVecFVec(Origin, flOrigin)
+
+	new hachama_ent = create_entity("info_target")
+
+	if(pev_valid(hachama_ent))
+	{
+		entity_set_string(hachama_ent, EV_SZ_classname, "Hachama")
+				
+		entity_set_int(hachama_ent, EV_INT_solid, SOLID_BBOX)
+		entity_set_int(hachama_ent, EV_INT_movetype, MOVETYPE_NONE)
+		entity_set_edict(hachama_ent, EV_ENT_owner, 0)
+		entity_set_int(hachama_ent, EV_INT_sequence, 1);
+		entity_get_vector(hachama_ent, EV_VEC_angles, Angle);
+		Angle[1] -= 90;
+		entity_set_vector(hachama_ent, EV_VEC_angles, Angle);
+
+		drop_to_floor(hachama_ent)
+
+		flOrigin[2] += 35.0
+		entity_set_vector(hachama_ent, EV_VEC_origin, flOrigin)
+		
+		entity_set_model(hachama_ent, g_w_profession)
+		entity_set_size(hachama_ent, Float:{-16.0, -16.0, -25.0}, Float:{16.0, 16.0, 25.0})		
+		entity_set_float(hachama_ent, EV_FL_nextthink,halflife_time() + 0.01)
+	}
+}
+
 Save_Origin(CurMap[], Origin[3])
 {	
 	new MapFile[64], Text[64]
@@ -199,6 +229,22 @@ Save_Origin_Akara(CurMap[], Origin[3])
 {	
 	new MapFile[64], Text[64]
 	format(MapFile, 63, "%s/%s_akara.cfg", g_ItemOriginDir, CurMap)
+
+	if(!file_exists(MapFile)) 
+	{
+		new Comments[64]
+		format(Comments, 63, "; %s 的地圖道具座標.", CurMap)
+		write_file(MapFile, Comments, -1)
+	}
+	
+	format(Text, 63, "%i %i %i", Origin[0], Origin[1], Origin[2])
+	write_file(MapFile, Text, -1)
+}
+
+Save_Origin_Profession(CurMap[], Origin[3])
+{	
+	new MapFile[64], Text[64]
+	format(MapFile, 63, "%s/%s_profession.cfg", g_ItemOriginDir, CurMap)
 
 	if(!file_exists(MapFile)) 
 	{
@@ -286,9 +332,9 @@ Load_Origins_Charsi(CurMap[])
 		parse(Text, iOrigin[0], 15, iOrigin[1], 15, iOrigin[2], 15)
 		
 		g_MapItemNum1++
-		g_MapItemOrgins1[g_MapItemNum][0] = str_to_num(iOrigin[0])
-		g_MapItemOrgins1[g_MapItemNum][1] = str_to_num(iOrigin[1])
-		g_MapItemOrgins1[g_MapItemNum][2] = str_to_num(iOrigin[2])
+		g_MapItemOrgins1[g_MapItemNum1][0] = str_to_num(iOrigin[0])
+		g_MapItemOrgins1[g_MapItemNum1][1] = str_to_num(iOrigin[1])
+		g_MapItemOrgins1[g_MapItemNum1][2] = str_to_num(iOrigin[2])
 	}
 	
 	return PLUGIN_CONTINUE
@@ -327,9 +373,51 @@ Load_Origins_Akara(CurMap[])
 		parse(Text, iOrigin[0], 15, iOrigin[1], 15, iOrigin[2], 15)
 		
 		g_MapItemNum2++
-		g_MapItemOrgins2[g_MapItemNum][0] = str_to_num(iOrigin[0])
-		g_MapItemOrgins2[g_MapItemNum][1] = str_to_num(iOrigin[1])
-		g_MapItemOrgins2[g_MapItemNum][2] = str_to_num(iOrigin[2])
+		g_MapItemOrgins2[g_MapItemNum2][0] = str_to_num(iOrigin[0])
+		g_MapItemOrgins2[g_MapItemNum2][1] = str_to_num(iOrigin[1])
+		g_MapItemOrgins2[g_MapItemNum2][2] = str_to_num(iOrigin[2])
+	}
+	
+	return PLUGIN_CONTINUE
+}
+
+Load_Origins_Profession(CurMap[])
+{
+	new MapFile[64]
+	format(MapFile, 63, "%s/%s_profession.cfg", g_ItemOriginDir, CurMap)
+
+	if(!file_exists(MapFile))
+		return PLUGIN_CONTINUE;
+
+	g_MapItemNum3 = 0
+	for(new i = 1; i <= MAX_MAPITEMS; ++i) 
+	{
+		g_MapItemOrgins3[i][0] = 0
+		g_MapItemOrgins3[i][1] = 0
+		g_MapItemOrgins3[i][2] = 0
+	}
+	
+	new Text[64], Line = 0, Len = 0;
+
+	while(read_file(MapFile, Line++, Text, 63, Len))
+	{
+		if((Text[0]==';') || !Len) {
+		 	continue
+		}
+		
+		if(g_MapItemNum3 >= MAX_MAPITEMS) 
+		{
+			log_amx("達到地圖道具最大數量,請增加MAX_MAPITEMS.")
+			break
+		}
+		
+		new iOrigin[3][16];
+		parse(Text, iOrigin[0], 15, iOrigin[1], 15, iOrigin[2], 15)
+		
+		g_MapItemNum3++
+		g_MapItemOrgins3[g_MapItemNum3][0] = str_to_num(iOrigin[0])
+		g_MapItemOrgins3[g_MapItemNum3][1] = str_to_num(iOrigin[1])
+		g_MapItemOrgins3[g_MapItemNum3][2] = str_to_num(iOrigin[2])
 	}
 	
 	return PLUGIN_CONTINUE
@@ -369,6 +457,19 @@ public Spawn_Items_Akara()
 				continue
 		}
 		Create_Akara(g_MapItemOrgins2[i]);
+	}
+}
+
+public Spawn_Items_Profession()
+{
+	for(new i = 1; i <= MAX_MAPITEMS; ++i)
+	{
+		if((g_MapItemOrgins3[i][0] == 0) 
+		&& (g_MapItemOrgins3[i][1] == 0) 
+		&& g_MapItemOrgins3[i][2] == 0) { 
+				continue
+		}
+		Create_Profession(g_MapItemOrgins3[i]);
 	}
 }
 
@@ -430,6 +531,27 @@ RemoveMapItems_Akara()
 	}
 }
 
+RemoveMapItems_Profession()
+{
+	new MapFile[64], CurMap[32];
+	get_mapname(CurMap, 31);
+	format(MapFile, 63, "%s/%s_profession.cfg", g_ItemOriginDir, CurMap);
+
+	if (file_exists(MapFile))
+	{
+		delete_file(MapFile)
+	}
+
+	g_MapItemNum3 = 0
+
+	for (new i = 1; i <= MAX_MAPITEMS; ++i)
+	{
+		g_MapItemOrgins3[i][0] = 0
+		g_MapItemOrgins3[i][1] = 0
+		g_MapItemOrgins3[i][2] = 0
+	}
+}
+
 public Remove_All_Inventory_Ents()
 {
 	new inv_ent = find_ent_by_class(-1, "Inventory")
@@ -458,6 +580,16 @@ public Remove_All_Akara_Ents()
 	{
 		remove_entity(akara_ent)
 		akara_ent = find_ent_by_class(akara_ent, "Akara")
+	}
+}
+public Remove_All_Profession_Ents()
+{
+	new hachama_ent = find_ent_by_class(-1, "Hachama")
+	
+	while ( hachama_ent ) 
+	{
+		remove_entity(hachama_ent)
+		hachama_ent = find_ent_by_class(hachama_ent, "Hachama")
 	}
 }
 

@@ -114,17 +114,18 @@ public Monster_Killed(this, idattacker, shouldgib)
 	{
 		if( equal( MonsterMdl, Monster_Models[monsters] ) ) 
 		{
+			new exp = Monster_Xp[monsters]*get_exp_scale()
 			if ( Monster_Xp[monsters] > 0 )
-				set_p_xp( idattacker, get_p_xp(idattacker) + Monster_Xp[monsters]);
+				set_p_xp( idattacker, get_p_xp(idattacker) + exp);
 
 			new coin;
 			if ( Monster_Coins[monsters] > 0 && is_user_alive(idattacker) ) {
 
-				coin = Monster_Coins[monsters] + (get_p_level(idattacker) / 4);
+				coin = Monster_Coins[monsters];
 				set_p_gold( idattacker, get_p_gold(idattacker) + coin );
 				// drop_coins( this, COINS_CLASSNAME, Monster_Coins[monsters] + (get_p_level(idattacker) / 4) );
 			}
-			client_print( idattacker, print_center, "你殺了 %s, +%d經驗, +%d金錢", Monster_Names[monsters], Monster_Xp[monsters], coin);
+			client_print( idattacker, print_center, "你殺了 %s, +%d經驗, +%d金錢", Monster_Names[monsters], exp, coin);
 		}
 	}
 

@@ -559,10 +559,9 @@ public main_skill_menu(id)
 		return;
 
 	new szInfo[60];
-	formatex(szInfo, 59, "職業: \r%s", HEROES[g_PlayerHero[id][g_CurrentChar[id]]])
+	formatex(szInfo, 59, "職業: \r%s  \w技能點: \r%d", HEROES[g_PlayerHero[id][g_CurrentChar[id]]], g_PlayerSkPoints[id][g_CurrentChar[id]])
 
-	new menu = menu_create(szInfo , "skill_menu");
-
+	new menu = menu_create(szInfo, "skill_menu");
 	new szTempid[32];
 
 	for (new skill_id = 0; skill_id <= g_skillcounter; skill_id++)
@@ -570,7 +569,7 @@ public main_skill_menu(id)
 		if ( g_PlayerHero[id][g_CurrentChar[id]] == g_skillhero[skill_id] )
 		{
 			new szItems[90];
-			formatex(szItems, 89, "%s \d( \y%d \d) %s - 需要等級 %s%d", g_skillname[g_PlayerHero[id][g_CurrentChar[id]]][skill_id], g_iSkills[id][g_CurrentChar[id]][skill_id], (g_skilldisplay[skill_id] ? "" : "\w[ \yPassive \w]\d" ),
+			formatex(szItems, 89, "%s \d( \y%d \d) %s - 需要等級 %s%d", g_skillname[g_PlayerHero[id][g_CurrentChar[id]]][skill_id], g_iSkills[id][g_CurrentChar[id]][skill_id], (g_skilldisplay[skill_id] ? "" : "\w[ \y被動 \w]\d" ),
 			(g_PlayerLevel[id][g_CurrentChar[id]] < g_skilllevel[g_PlayerHero[id][g_CurrentChar[id]]][skill_id] ? "\r" : "\y"), g_skilllevel[g_PlayerHero[id][g_CurrentChar[id]]][skill_id] )
 
 			num_to_str(skill_id, szTempid, 31);
@@ -634,10 +633,12 @@ public Open_MapItemConfig(id)
 		new menu = menu_create("NPC選單" , "map_item_menu");
 		menu_additem(menu ,"創造倉庫 ", "1" , 0); 
 		menu_additem(menu ,"創造武器商人", "2" , 0); 
-		menu_additem(menu ,"創造藥水商人", "3" , 0); 
-		menu_additem(menu ,"刪除所有倉庫", "4" , 0); 
-		menu_additem(menu ,"刪除所有武器商人", "5" , 0); 
-		menu_additem(menu ,"刪除所有藥水商人", "6" , 0); 
+		menu_additem(menu ,"創造藥水商人", "3" , 0);
+		menu_additem(menu ,"創造轉職官", "4" , 0);
+		menu_additem(menu ,"刪除所有倉庫", "5" , 0); 
+		menu_additem(menu ,"刪除所有武器商人", "6" , 0); 
+		menu_additem(menu ,"刪除所有藥水商人", "7" , 0); 
+		menu_additem(menu ,"刪除所有轉職人", "8" , 0); 
 		
 		menu_setprop(menu , MPROP_EXIT , MEXIT_ALL);
 		menu_display(id , menu , 0); 
@@ -720,23 +721,47 @@ public map_item_menu(id , menu , item)
 			Open_MapItemConfig(id)
 			client_print(id, print_chat, "藥水商人以創造!")
 		}
-		case 4: 
+		case 4:
+		{
+			if(g_MapItemNum >= MAX_MAPITEMS)
+			{
+				client_print(id, print_chat, "達到地圖最大限制!")
+				return PLUGIN_HANDLED
+			}
+			
+			new Origin[3]
+			get_user_origin(id, Origin, 3)
+
+			Create_Profession(Origin)
+			Save_Origin_Profession(MapName, Origin)
+			Load_Origins_Profession(MapName)
+
+			Open_MapItemConfig(id)
+			client_print(id, print_chat, "轉職官以創造!")
+		}
+		case 5: 
 		{
 			RemoveMapItems()
 			Remove_All_Inventory_Ents();
 			client_print(id, print_chat, "所有倉庫已刪除!")
 		}
-		case 5: 
+		case 6: 
 		{
 			RemoveMapItems_Charsi()
 			Remove_All_Charsi_Ents();
 			client_print(id, print_chat, "所有武器商人已刪除!")
 		}
-		case 6: 
+		case 7: 
 		{
 			RemoveMapItems_Akara()
 			Remove_All_Akara_Ents();
 			client_print(id, print_chat, "所有藥水商人已刪除!")
+		}
+		case 8: 
+		{
+			RemoveMapItems_Profession()
+			Remove_All_Profession_Ents()
+			client_print(id, print_chat, "所有轉職官已刪除!")
 		}
 	}
 	
@@ -2337,3 +2362,37 @@ public force_player_not_joined(id)
 		
 	return PLUGIN_HANDLED;
 }
+
+// 初心者轉職選單
+public display_second_hero_menu(id)
+{
+	if ( !g_iLogged[id] ) return;
+
+	new menu = menu_create("選擇路線 (需要等級30以上)" , "second_hero_menu");
+	menu_additem(menu ,"學習法術", "1" , 0); 
+	menu_additem(menu ,"學習戰鬥", "2" , 0);
+	menu_setprop(menu , MPROP_EXIT , MEXIT_ALL);
+	menu_display(id , menu , 0);
+}
+public second_hero_menu(id , menu , item) 
+{ 
+	if(item == MENU_EXIT) 
+	{ 
+		menu_destroy(menu); 
+		return PLUGIN_HANDLED;
+	} 
+	new data[6], iName[64];
+	new access, callback;
+	menu_item_getinfo(menu, item, access, data,5, iName, 63, callback);
+
+	new key = str_to_num(data);
+
+	switch(key)
+	{
+		case 1: select_spells(id);
+		case 2: select_combat(id);
+	}
+	
+	menu_destroy(menu); 
+	return PLUGIN_HANDLED;
+} 

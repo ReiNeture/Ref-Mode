@@ -249,17 +249,17 @@ public HUD_Info_Task(id)
 	if ( is_user_alive(id) )
 	{
 		set_hudmessage(255, 255, 150, 0.02, 0.12, 0, 0.0, 0.3, 0.0, 0.0)
-		ShowSyncHudMsg(id, g_SyncHudCreate , "[職業: %s] [等級: %d] [經驗值: %d / %d]^n[能量: %d / %d]^n[血量: %d / %d]^n[錢: %d / %d]", HEROES[g_PlayerHero[id][g_CurrentChar[id]]], g_PlayerLevel[id][g_CurrentChar[id]],
+		ShowSyncHudMsg(id, g_SyncHudCreate , "[職業: %s] [等級: %d] [經驗值: %d / %d]^n[能量: %d / %d]^n[血量: %d / %d]^n[錢: %d / %d]^n[經驗倍率: %d]", HEROES[g_PlayerHero[id][g_CurrentChar[id]]], g_PlayerLevel[id][g_CurrentChar[id]],
 		g_PlayerXp[id][g_CurrentChar[id]], LEVELS[g_PlayerLevel[id][g_CurrentChar[id]]],  g_CurrentMana[id], HEROES_ENERGY_PERSTAT[g_PlayerHero[id][g_CurrentChar[id]]] * g_Energy[id][g_CurrentChar[id]], get_user_health(id), 
 		g_MaxHealth[id], 
-		g_Coins[id][g_CurrentChar[id]], MAX_PLAYER_MONEY[g_PlayerLevel[id][g_CurrentChar[id]]] )
+		g_Coins[id][g_CurrentChar[id]], MAX_PLAYER_MONEY[g_PlayerLevel[id][g_CurrentChar[id]]], get_pcvar_num(d2_exp_scale) )
 	}
 	else
 	{
 		set_hudmessage(255, 255, 150, 0.02, 0.12, 0, 0.0, 0.3, 0.0, 0.0)
-		ShowSyncHudMsg(id, g_SyncHudCreate , "[職業: %s] [等級: %d] [經驗值: %d / %d]^n[錢: %d / %d]", HEROES[g_PlayerHero[id][g_CurrentChar[id]]], g_PlayerLevel[id][g_CurrentChar[id]],
+		ShowSyncHudMsg(id, g_SyncHudCreate , "[職業: %s] [等級: %d] [經驗值: %d / %d]^n[錢: %d / %d]^n[經驗倍率: %d]", HEROES[g_PlayerHero[id][g_CurrentChar[id]]], g_PlayerLevel[id][g_CurrentChar[id]],
 		g_PlayerXp[id][g_CurrentChar[id]], LEVELS[g_PlayerLevel[id][g_CurrentChar[id]]], 
-		g_Coins[id][g_CurrentChar[id]], MAX_PLAYER_MONEY[g_PlayerLevel[id][g_CurrentChar[id]]] )
+		g_Coins[id][g_CurrentChar[id]], MAX_PLAYER_MONEY[g_PlayerLevel[id][g_CurrentChar[id]]], get_pcvar_num(d2_exp_scale) )
 
 	}
 

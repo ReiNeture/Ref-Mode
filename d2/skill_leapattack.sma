@@ -7,8 +7,8 @@ new PLUGIN_NAME[] = "跳躍攻擊"
 new PLUGIN_AUTHOR[] = "xbatista"
 new PLUGIN_VERSION[] = "1.0"
 
-new Skill_Level = 18;
-new Mana_Leap = 8;
+new Skill_Level = 61;
+new Mana_Leap = 5;
 
 new const Float:BarLeapDmg[MAX_P_SKILLS] =  // 野蠻人跳躍攻擊的傷害.
 {
@@ -30,7 +30,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "跳躍後著地並對敵人造成傷害.", BARBARIAN, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "跳躍後著地並對敵人造成傷害.", COMBAT, Skill_Level, DISPLAY)
 
 	register_forward(FM_PlayerPreThink, "fwd_PreThink")
 	register_event("DeathMsg", "ev_DeathMsg", "a")

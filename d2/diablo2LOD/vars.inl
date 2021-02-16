@@ -2,6 +2,7 @@
 
 new d2_xp_kill, d2_max_random_value, d2_stat_points_levelup, d2_high_level_xp, d2_high_level, d2_enable_respawn, d2_spawn_cooldown, d2_spawn_protection, d2_spawn_protection_time, d2_block_kill_command, d2_minlevel_coins, d2_minlevel_items, d2_chance_to_drop, d2_chance_to_dropp, d2_minlevel_potions, d2_show_damage, d2_show_damage_received, d2_3rdperson, d2_bolts_value, d2_advert, d2_advert_time, d2_save_type, d2_save_by, d2_block_attack2, d2_cl_corpsestay;
 new mysqlx_host, mysqlx_user, mysqlx_db, mysqlx_pass;
+new d2_exp_scale
 
 new g_Nvault, g_Nvault2, g_Nvault3;
 new Handle:g_DBTuple, Handle:g_DBConn;
@@ -23,6 +24,7 @@ new g_PlayerCharActive[33][MAX_CHARS + 1];
 new g_PlayerChars[33];
 new g_CurrentChar[33];
 new g_PlayerHero[33][MAX_CHARS + 1];
+new g_PlayerSecondHero[33][MAX_CHARS + 1];
 new g_PlayerLevel[33][MAX_CHARS + 1];
 new g_PlayerXp[33][MAX_CHARS + 1];
 new g_PlayerSkPoints[33][MAX_CHARS + 1];
@@ -101,3 +103,6 @@ new g_MapItemOrgins1[MAX_MAPITEMS+1][3];
 // 藥水商人.
 new g_MapItemNum2;
 new g_MapItemOrgins2[MAX_MAPITEMS+1][3];
+// 轉職人.
+new g_MapItemNum3;
+new g_MapItemOrgins3[MAX_MAPITEMS + 1][3];

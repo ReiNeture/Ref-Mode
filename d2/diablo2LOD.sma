@@ -128,6 +128,7 @@ public plugin_init()
 	set_task( 1.0, "Spawn_Items");
 	set_task( 1.0, "Spawn_Items_Charsi")
 	set_task( 1.0, "Spawn_Items_Akara")
+	set_task( 1.0, "Spawn_Items_Profession")
 
 	g_FakeEnt = create_entity( "info_target" );
 }
@@ -161,9 +162,11 @@ public plugin_natives()
 	register_native("get_p_item_count", "native_get_p_item_count", 1);
 	register_native("get_p_item_is_worn", "native_get_p_item_is_worn", 1);
 	register_native("get_p_maxhealth", "native_get_p_maxhealth", 1);
+	register_native("get_p_maxmana", "native_get_p_maxmana", 1);
 	register_native("set_p_maxhealth", "native_set_p_maxhealth", 1);
 	register_native("IsPlayerNearByMonster", "native_get_p_near_monster", 1);
 	register_native("drop_coins", "Native_Create_Coins");
+	register_native("get_exp_scale", "native_get_exp_scale");
 }
 
 public client_connect(id)
@@ -250,6 +253,7 @@ public plugin_precache()
 	engfunc(EngFunc_PrecacheModel, g_w_inventory);
 	engfunc(EngFunc_PrecacheModel, g_w_charsi);
 	engfunc(EngFunc_PrecacheModel, g_w_akara);
+	engfunc(EngFunc_PrecacheModel, g_w_profession);
 	engfunc(EngFunc_PrecacheModel, g_brassknuckles);
 
 	engfunc(EngFunc_PrecacheModel, g_w_crossbow);
@@ -323,6 +327,7 @@ public plugin_cfg()
 		Load_Origins(CurMap);
 		Load_Origins_Charsi(CurMap);
 		Load_Origins_Akara(CurMap);
+		Load_Origins_Profession(CurMap);
 	}
 
 	// 開啟Vault讀取程序.
@@ -499,6 +504,10 @@ public native_get_p_maxhealth(id)
 {
 	return g_MaxHealth[id];
 }
+public native_get_p_maxmana(id)
+{
+	return HEROES_ENERGY_PERSTAT[g_PlayerHero[id][g_CurrentChar[id]]] * g_Energy[id][g_CurrentChar[id]];
+}
 public native_set_p_maxhealth(id, value)
 {
 	g_MaxHealth[id] = value;
@@ -526,4 +535,9 @@ public bool:native_get_p_near_monster(id)
 	}
 
 	return false;
+}
+
+public native_get_exp_scale()
+{
+	return get_pcvar_num(d2_exp_scale)
 }

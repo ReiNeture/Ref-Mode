@@ -2,13 +2,14 @@
 #include <d2lod>
 #include <fakemeta>
 #include <engine>
+#include <hamsandwich>
 
-new PLUGIN_NAME[] = "火球"
+new PLUGIN_NAME[] = "魔靈彈"
 new PLUGIN_AUTHOR[] = "xbatista"
 new PLUGIN_VERSION[] = "1.0"
 
-new Skill_Level = 1;
-new Mana_FireBolt = 5;
+new Skill_Level = 43;
+new Mana_FireBolt = 7;
 
 new const SorcFireCast[] = "d2lod/firecast.wav";
 new const WerewolfSpr[] = "sprites/xfire2.spr";
@@ -16,7 +17,7 @@ new const FireCast[] = "sprites/rjet1.spr";
 
 new const Float:FireBoltDamage[MAX_P_SKILLS] =  // 術士火球傷害值.
 {
-	8.0, 10.0, 15.0, 18.0, 22.0, 25.0, 30.0, 33.0, 35.0, 38.0, 44.0, 50.0, 	55.0, 58.0, 62.0, 65.0, 70.0, 75.0, 80.0, 90.0
+	28.0, 30.0, 35.0, 38.0, 42.0, 45.0, 50.0, 53.0, 55.0, 58.0, 64.0, 70.0, 	75.0, 78.0, 82.0, 85.0, 90.0, 95.0, 100.0, 150.0
 };
 
 new g_SkillId;
@@ -28,7 +29,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "丟出一顆火球", SORCERESS, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "丟出一顆火球", SPELLS, Skill_Level, DISPLAY)
 
 	register_forward(FM_Touch, "Entity_Touched");
 }
@@ -50,7 +51,7 @@ public d2_skill_fired(id)
 	if ( g_iCurSkill[id] == g_SkillId )
 	{
 		static Float:cdown;
-		cdown = 1.0;
+		cdown = 0.1;
 
 		if (get_gametime() - g_LastPressedSkill[id] <= cdown) 
 		{
@@ -78,8 +79,7 @@ public d2_skill_fired(id)
 
 public Entity_Touched(ent, victim)
 {
-	if ( !pev_valid(ent) )
-		return;
+	if ( !pev_valid(ent) ) return;
 	
 	new classname[32]
 	pev( ent, pev_classname, classname, 31)
@@ -88,11 +88,17 @@ public Entity_Touched(ent, victim)
 	
 	if(equal(classname,"FireBolt")) 
 	{
-		if ( is_user_alive(victim) && victim != attacker && !IsPlayerNearByMonster(victim) && !is_p_protected(victim) && get_p_skill( attacker, g_SkillId ) > 0 )
-		{
-			dmg_kill_player(victim, attacker, FireBoltDamage[get_p_skill( attacker, g_SkillId ) - 1], "firebolt");
-		}	
+		new Float:Damage = FireBoltDamage[get_p_skill( attacker, g_SkillId ) - 1];
+		if( is_user_alive(victim) ) {
 
+			if ( victim != attacker && !IsPlayerNearByMonster(victim) && !is_p_protected(victim) && get_p_skill( attacker, g_SkillId ) > 0 )
+				dmg_kill_player(victim, attacker, Damage, "FireBolt");
+
+		} else {
+
+			if( get_p_skill( attacker, g_SkillId ) > 0 )
+				ExecuteHam(Ham_TakeDamage, victim, victim, attacker, Damage, DMG_ENERGYBEAM);
+		}	
 		set_pev( ent, pev_flags, FL_KILLME);
 	}
 }
@@ -150,8 +156,8 @@ public Set_Sprite_FireBolt(id, const sprite[], Float:framerate, Float:scale, con
 	DispatchSpawn(sprite_ent);
 	entity_set_int( sprite_ent, EV_INT_spawnflags, SF_SPRITE_STARTON)
 
-	entity_set_int( sprite_ent, EV_INT_movetype, MOVETYPE_FLY)
 	entity_set_int( sprite_ent, EV_INT_solid, SOLID_BBOX)
+	entity_set_int( sprite_ent, EV_INT_movetype, MOVETYPE_FLYMISSILE)
 
 	new Float:fAim[3],Float:fAngles[3],Float:fOrigin[3];
 

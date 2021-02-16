@@ -8,16 +8,16 @@ new PLUGIN_NAME[] = "速度激發"
 new PLUGIN_AUTHOR[] = "xbatista"
 new PLUGIN_VERSION[] = "1.0"
 
-new Skill_Level = 6;
-new Mana_Speed = 15;
+new Skill_Level = 33;
+new Mana_Speed = 7;
 
 new const Float:AssBrstDur[MAX_P_SKILLS] =  // 刺客速度激發持續時間.
 {
-	20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 	140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 210.0
+	20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 	170.0, 200.0, 230.0, 240.0, 250.0, 300.0, 301.0, 400.0
 };
 new const Float:AssBrstSpeed[MAX_P_SKILLS] =  // 刺客速度激發的速度值.
 {
-	23.0, 29.0, 34.0, 39.0, 42.0, 45.0, 50.0, 53.0, 57.0, 60.0, 63.0, 66.0, 	69.0, 72.0, 75.0, 78.0, 80.0, 83.0, 85.0, 90.0
+	43.0, 49.0, 54.0, 59.0, 62.0, 65.0, 70.0, 73.0, 77.0, 80.0, 83.0, 86.0, 	89.0, 92.0, 95.0, 98.0, 100.0, 103.0, 105.0, 117.0
 };
 new const Float:AssBrstAtSpeed[MAX_P_SKILLS] =  // 刺客速度激發的攻擊冷卻時間.
 {
@@ -58,8 +58,8 @@ new g_iMaxPlayers;
 public plugin_init() 
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
-
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "增加攻擊速度跟移動速度.", ASSASSIN, Skill_Level, DISPLAY)
+	// 87 112 注意
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "增加攻擊速度跟移動速度.", 99, Skill_Level, DISPLAY)
 
 	register_forward(FM_PlayerPreThink, "fwd_PreThink")
 	RegisterHam(Ham_Spawn, "player", "fwd_PlayerSpawn", 1);
@@ -84,7 +84,7 @@ public fwd_PreThink(id)
 	if ( !is_user_alive(id) || is_freezetime() )
 		return;
 
-	if ( g_IsBurstOfSpeed[id] && get_p_hero(id) == ASSASSIN && get_p_skill( id, g_SkillId ) > 0 )
+	if ( g_IsBurstOfSpeed[id] && get_p_hero(id) == 99 && get_p_skill( id, g_SkillId ) > 0 )
 	{
 		set_user_maxspeed(id, get_current_speed(id) + ( ( get_current_speed(id) / 100 ) * AssBrstSpeed[ get_p_skill( id, g_SkillId ) - 1 ] ) );
 	}
@@ -109,7 +109,7 @@ public fwd_AttackSpeed ( const Entity )
 	
 	if ( ( 1 <= id <= g_iMaxPlayers ) ) 
 	{
-		if ( get_p_skill( id, g_SkillId ) > 0 && g_IsBurstOfSpeed[id] && get_p_hero(id) == ASSASSIN ) 
+		if ( get_p_skill( id, g_SkillId ) > 0 && g_IsBurstOfSpeed[id] && get_p_hero(id) == 99 ) 
 		{ 
 			set_pdata_float( Entity, m_flPrimaryAttack, AssBrstAtSpeed[ get_p_skill( id, g_SkillId ) - 1 ], 4 ); 
 		} 

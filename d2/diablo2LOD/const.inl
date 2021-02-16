@@ -4,13 +4,13 @@
 [如果你不知道這裡的意思,就不要動他!!!]
 =================================================================================*/
 #define MAX_LEVELS 100
-#define MAX_HEROES 8
+#define MAX_HEROES 3
 #define MAX_MAPITEMS 500
 #define MAX_ITEMS 50
 #define MAX_POTIONS 9
 #define WORN_TYPES 2
 #define	MAX_SKILLS 20
-#define MAX_PLUGIN_SKILLS 40 // 技能數量最大限制.
+#define MAX_PLUGIN_SKILLS 41 // 技能數量最大限制.
 #define MAX_SKILL_NAME_SIZE 64
 #define MAX_SKILL_DESC_SIZE 128
 #define MAX_MODEL_LENGTH 32
@@ -155,11 +155,6 @@ new const Custom_Models[MAX_HEROES][] =
 {
 	"black_knight",
 	"black_knight",
-	"black_knight",
-	"black_knight",
-	"black_knight",
-	"black_knight",
-	"black_knight",
 	"black_knight"
 }
 
@@ -170,6 +165,7 @@ new const g_w_item[] = "models/skeleton.mdl";
 new const g_w_inventory[] = "models/d2lod/w_inventory.mdl";
 new const g_w_charsi[] = "models/d2lod/charsi2.mdl";
 new const g_w_akara[] = "models/d2lod/akara.mdl";
+new const g_w_profession[] = "models/ref/haachama.mdl";
 
 new const g_brassknuckles[] = "models/d2lod/v_knuckles.mdl";
 
@@ -188,6 +184,19 @@ new const Diablo2_Fake_Player_Name[] =  "Diablo II LOD - Fake Player";
 
 enum
 {
+	NEWBIE = 0,
+	SPELLS,
+	COMBAT
+};
+
+new const HEROES[MAX_HEROES][] =
+{
+	"初心者",
+	"吹雪",
+	"百花"
+}
+
+/*
 	AMAZON = 0,
 	ASSASSIN,
 	NECROMANCER,
@@ -195,11 +204,7 @@ enum
 	PALADIN,
 	DRUID,
 	SORCERESS,
-	NEWBIE
-};
 
-new const HEROES[MAX_HEROES][] = 
-{
     "亞馬遜",
     "刺客",
     "法師",
@@ -207,14 +212,10 @@ new const HEROES[MAX_HEROES][] =
     "聖劍士",
     "德魯伊",
     "術士",
-	"初心者"
-} 
-
-
+*/
 /*================================================================================
 [結束定義職業名稱.]
 =================================================================================*/
-
 
 /*================================================================================
 [藥水設定.]
@@ -228,48 +229,26 @@ new const Potion_Names[MAX_POTIONS][] = {
 	"大型能量藥水",
 	"小型混合藥水",
 	"中型混合藥水",
-	"大型混合藥水"
-}
+	"大型混合藥水"}
 
-new const Potion_Cost[MAX_POTIONS] = {
-	35,
-	65,
-	125,
-	30,
-	50,
-	120,
-	55,
-	80,
-	150
-}
+new const Potion_Cost[MAX_POTIONS] = {35, 65, 125, 30, 50, 120, 55, 80, 150}
 
-new const Potion_Multi[MAX_POTIONS] = {
-	30,
-	80,
-	150,
-	30,
-	80,
-	160,
-	2,
-	1,
-	2
-}
+new const Potion_Multi[MAX_POTIONS] = {30, 80, 150, 30, 80, 160, 2, 1, 2}
 /*================================================================================
 [結束藥水設定.]
 =================================================================================*/
 
-
 /*================================================================================
 [可編譯的數值.]
 =================================================================================*/
-new const Float:HEROES_REGAIN_MANA[MAX_HEROES] = { 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0 }; // 各職業能量的回覆時間(秒)
+new const Float: HEROES_REGAIN_MANA[MAX_HEROES] = {4.0, 0.0, 4.0 }; // 各職業能量回復時間(秒)
 
-new const HEROES_DEFENCE_DEXTERITY[MAX_HEROES] = { 1, 1, 1, 1, 1, 1, 1, 1 }; // 各職業的1點護甲增加多少防禦力.
+new const HEROES_DEFENCE_DEXTERITY[MAX_HEROES] = { 1, 1, 1}; // 各職業的1點護甲增加多少防禦力.
 
-new const Float: HEROES_STRENGTH_PERSTAT[MAX_HEROES] = { 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6 }; // 各職業的1點力量增加多少傷害.
-new const HEROES_DEXTERITY_PERSTAT[MAX_HEROES] = { 3, 4, 2, 4, 3, 3, 2 }; // 各職業的1點敏捷增加多少迴避率.
-new const HEROES_VITALITY_PERSTAT[MAX_HEROES] = { 3, 3, 3, 3, 3, 3, 3, 3 }; // 各職業的1點體力增加多少血量最大值.
-new const HEROES_ENERGY_PERSTAT[MAX_HEROES] = { 5, 5, 5, 5, 5, 5, 5, 5}; // 各職業的1點能量增加多少最大能量值.
+new const Float: HEROES_STRENGTH_PERSTAT[MAX_HEROES] = { 0.6, 0.6, 100.0 }; // 各職業的1點力量增加多少傷害.
+new const HEROES_DEXTERITY_PERSTAT[MAX_HEROES] = { 1, 1, 1 }; // 各職業的1點敏捷增加多少迴避率.
+new const HEROES_VITALITY_PERSTAT[MAX_HEROES] = { 3, 3, 3 }; // 各職業的1點體力增加多少血量最大值.
+new const HEROES_ENERGY_PERSTAT[MAX_HEROES] = { 5, 5, 5}; // 各職業的1點能量增加多少最大能量值.
 
 new const LEVELS[MAX_LEVELS] = { 
 100, 200, 300, 400, 700, 900, 1100, 1400, 1700, 2000,

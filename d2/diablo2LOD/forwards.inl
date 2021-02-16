@@ -51,7 +51,8 @@ public fwd_PlayerSpawn(id)
 		strip_user_weapons(id);
 		give_item(id, "weapon_knife");
 
-		set_task(HEROES_REGAIN_MANA[g_PlayerHero[id][g_CurrentChar[id]]], "Mana_Regenerate", id + TASKID_MANAREGEN, _, _, "b");
+		if (HEROES_REGAIN_MANA[g_PlayerHero[id][g_CurrentChar[id]]] > 0.0 )
+			set_task(HEROES_REGAIN_MANA[g_PlayerHero[id][g_CurrentChar[id]]], "Mana_Regenerate", id + TASKID_MANAREGEN, _, _, "b");
 
 		g_MaxHealth[id] = 100 + (HEROES_VITALITY_PERSTAT[g_PlayerHero[id][g_CurrentChar[id]]] * g_Vitality[id][g_CurrentChar[id]]);
 
@@ -384,6 +385,11 @@ public fwd_CmdStart(client, uc_handle, seed)
 			else if ( equal(classname, "Akara") )
 			{
 				main_akara_menu(client)
+				return FMRES_IGNORED;
+			}
+			else if (equal(classname, "Hachama"))
+			{
+				display_second_hero_menu(client)
 				return FMRES_IGNORED;
 			}
 		}

@@ -14,6 +14,11 @@ native MAX_ITEMS_ACTIVE();
 // 職業類型.
 enum
 {
+	NEWBIE = 0,
+	SPELLS,
+	COMBAT
+}
+/*
 	AMAZON = 0,
 	ASSASSIN,
 	NECROMANCER,
@@ -22,7 +27,7 @@ enum
 	DRUID,
 	SORCERESS,
 	NEWBIE
-}
+*/
 
 // 登入值.
 enum
@@ -85,6 +90,8 @@ native get_player_logged(id);
 
 // 獲得玩家的最大血量值.
 native get_p_maxhealth(id);
+
+native get_p_maxmana(id);
 
 // 設定玩家的最大血量值.
 native set_p_maxhealth(id, value);
@@ -154,6 +161,9 @@ native is_freezetime();
 
 // 檢查玩家是否靠近怪物
 native bool:IsPlayerNearByMonster(id);
+
+// 取得經驗倍率
+native get_exp_scale();
 
 // 對玩家造成傷害,第一個參數是受害者,第二個參數是攻擊者,第三個參數是傷害,第四個參數是攻擊類型.
 native dmg_kill_player(id, attacker, Float:damage, weaponDescription[])

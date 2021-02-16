@@ -7,14 +7,9 @@ new PLUGIN_VERSION[] = "1.0"
 
 new const HEROES[][] = 
 {
-    "亞馬遜",
-    "刺客",
-    "法師",
-    "野蠻人",
-    "聖劍士",
-    "德魯伊",
-    "術士",
-	"初心者"
+	"初心者",
+	"吹雪",
+	"百花"
 } 
 
 public plugin_init() 

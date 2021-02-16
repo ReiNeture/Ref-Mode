@@ -26,8 +26,8 @@ new g_AbsorbDamage[33];
 public plugin_init() 
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
-
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "吸收敵人傷害.", NECROMANCER, Skill_Level, DISPLAY)
+	// 104 143 注意
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "吸收敵人傷害.", 99, Skill_Level, DISPLAY)
 
 	register_event("DeathMsg", "ev_DeathMsg", "a")
 }
@@ -101,7 +101,7 @@ public d2_logged(id, log_type)
 
 public d2_takedamage(victim, attacker, Float:iDamage[1])
 {
-	if ( !IsPlayerNearByMonster(victim) && get_p_hero(victim) == NECROMANCER && get_p_skill( victim, g_SkillId ) > 0 && g_AbsorbDamage[victim] > 0 )
+	if ( !IsPlayerNearByMonster(victim) && get_p_hero(victim) == 99 && get_p_skill( victim, g_SkillId ) > 0 && g_AbsorbDamage[victim] > 0 )
 	{
 		Set_Player_BoneArmorDmg(victim, g_AbsorbDamage[victim] - floatround(iDamage[0]));
 		
@@ -140,7 +140,7 @@ public End_Sprite_Task(sprite_ent)
 }
 public Reset_BoneArmor(id)
 {
-	if ( get_p_hero(id) == NECROMANCER )
+	if ( get_p_hero(id) == 99 )
 	{
 		new sprite_ent = find_ent_by_class(-1, "BoneArmor")
 	

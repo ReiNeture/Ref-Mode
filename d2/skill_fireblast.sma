@@ -3,12 +3,12 @@
 #include <fakemeta>
 #include <engine>
 
-new PLUGIN_NAME[] = "炸彈投擲"
+new PLUGIN_NAME[] = "浪費魔力"
 new PLUGIN_AUTHOR[] = "xbatista"
 new PLUGIN_VERSION[] = "1.0"
 
-new Skill_Level = 1;
-new Mana_FireBlast = 4;
+new Skill_Level = 30;
+new Mana_FireBlast = 50;
 
 new const Float:AssBlastDmg[MAX_P_SKILLS] =  // 刺客炸彈傷害.
 {
@@ -29,7 +29,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "丟出一顆炸彈.", ASSASSIN, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "丟出一顆魔法產生的炸彈.", SPELLS, Skill_Level, DISPLAY)
 
 	register_forward(FM_Touch, "Entity_Touched");
 
