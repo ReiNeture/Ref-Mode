@@ -20,7 +20,8 @@ enum
 	BARBARIAN,
 	PALADIN,
 	DRUID,
-	SORCERESS
+	SORCERESS,
+	NEWBIE
 }
 
 // 登入值.

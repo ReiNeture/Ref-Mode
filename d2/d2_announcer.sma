@@ -13,7 +13,8 @@ new const HEROES[][] =
     "野蠻人",
     "聖劍士",
     "德魯伊",
-    "術士"
+    "術士",
+	"初心者"
 } 
 
 public plugin_init() 

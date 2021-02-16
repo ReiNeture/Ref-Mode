@@ -33,7 +33,8 @@ public hero_menu_connect(id , menu , item)
 	{
 		case 0:
 		{
-			main_hero_menu(id);
+			// main_hero_menu(id);
+			view_newbie_menu(id);
 		}
 		case 1:
 		{
@@ -61,7 +62,59 @@ public hero_menu_connect(id , menu , item)
 	
 	menu_destroy(menu); 
 	return PLUGIN_HANDLED;
-} 
+}
+
+public view_newbie_menu(id)
+{
+	new szMsg[60], szItems[512];
+	formatex(szMsg, 59, "創造新角色 : ");
+
+	new menu = menu_create(szMsg, "newbie_menu");
+
+	formatex(szItems, charsmax(szItems), "%s", HEROES[NEWBIE]);
+	menu_additem(menu, szItems, "1", 0);
+
+	menu_display(id, menu, 0);
+}
+
+public newbie_menu(id , menu , item) 
+{
+	if ( !is_user_connected(id) || g_PlayerChars[id] >= MAX_CHARS )
+	{
+		client_printcolor( id, "/y你的角色太多了 (/ctr%d/y) !", MAX_CHARS )
+		main_hero_menu_connect(id)
+		return PLUGIN_HANDLED;
+	}
+
+	if(item == MENU_EXIT) 
+	{ 
+		menu_destroy(menu); 
+		return PLUGIN_HANDLED;
+	}
+
+	new data[6], iName[64];
+	new access, callback;
+	menu_item_getinfo(menu, item, access, data, 5, iName, 63, callback);
+
+	new key = str_to_num(data), Val;
+
+	if( key == 1 ) {
+		g_PlayerChars[id]++;
+		for (new hero_id = 0; hero_id < g_PlayerChars[id]; hero_id++)
+			if ( !g_PlayerCharActive[id][hero_id] )
+				Val = hero_id;
+		
+		g_PlayerCharActive[id][Val] = CHAR_ACTIVE;
+		g_PlayerHero[id][Val] = NEWBIE;
+		client_printcolor( id, "/y角色 /g%s /y以創造, 角色數量 : /ctr%d", HEROES[NEWBIE], g_PlayerChars[id]);
+	}
+
+	main_hero_menu_connect(id)
+	menu_destroy(menu); 
+	return PLUGIN_HANDLED;
+}
+
+// 原版建立角色選單
 public main_hero_menu(id)
 {
 	new szMsg[60], szTempid[32], szItems[512];
@@ -103,6 +156,7 @@ public hero_menu(id , menu , item)
 
 	g_PlayerChars[id]++;
 	
+	// 判斷第N個角色是否有創建腳色
 	for (new hero_id = 0; hero_id < g_PlayerChars[id]; hero_id++)
 	{
 		if ( !g_PlayerCharActive[id][hero_id] )
@@ -111,8 +165,10 @@ public hero_menu(id , menu , item)
 		}
 	}
 	
+	// 設定為以建立狀態
 	g_PlayerCharActive[id][Val] = CHAR_ACTIVE;
 	
+	// 儲存玩家第N個角色的職業
 	g_PlayerHero[id][Val] = key;
 	
 	client_printcolor( id, "/y角色 /g%s /y以創造, 角色數量 : /ctr%d", HEROES[key], g_PlayerChars[id]);
