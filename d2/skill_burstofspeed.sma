@@ -59,7 +59,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 	// 87 112 注意
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "增加攻擊速度跟移動速度.", 99, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "增加攻擊速度跟移動速度.", NONE, Skill_Level, DISPLAY)
 
 	register_forward(FM_PlayerPreThink, "fwd_PreThink")
 	RegisterHam(Ham_Spawn, "player", "fwd_PlayerSpawn", 1);

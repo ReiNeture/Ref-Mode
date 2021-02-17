@@ -19,8 +19,8 @@ new g_iCurSkill[33];
 public plugin_init() 
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
-
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "有機率造成重大傷害.", AMAZON, Skill_Level, NOT_DISPLAY)
+	// 45 52
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "有機率造成重大傷害.", NONE, Skill_Level, NOT_DISPLAY)
 }
 
 public d2_skill_selected(id, skill_id)
@@ -42,14 +42,14 @@ public d2_logged(id, log_type)
 }
 public d2_takedamage(victim, attacker, Float:iDamage[1])
 {
-	if ( !IsPlayerNearByMonster(victim) && get_p_hero(attacker) == AMAZON && get_p_skill( attacker, g_SkillId ) > 0 && random_num( 0, 100 ) < AmazonCrit[ get_p_skill( attacker, g_SkillId ) - 1 ] )
+	if ( !IsPlayerNearByMonster(victim) && get_p_hero(attacker) == NONE && get_p_skill( attacker, g_SkillId ) > 0 && random_num( 0, 100 ) < AmazonCrit[ get_p_skill( attacker, g_SkillId ) - 1 ] )
 	{
 		iDamage[0] *= 2.0;
 	}
 }
 public d2_ranged_takedamage(victim, attacker, Float:iDamage[1])
 {
-	if ( !IsPlayerNearByMonster(victim) && get_p_hero(attacker) == AMAZON && get_p_skill( attacker, g_SkillId ) > 0 && random_num( 0, 100 ) < AmazonCrit[ get_p_skill( attacker, g_SkillId ) - 1 ] )
+	if ( !IsPlayerNearByMonster(victim) && get_p_hero(attacker) == NONE && get_p_skill( attacker, g_SkillId ) > 0 && random_num( 0, 100 ) < AmazonCrit[ get_p_skill( attacker, g_SkillId ) - 1 ] )
 	{
 		iDamage[0] *= 2.0;
 	}

@@ -20,8 +20,8 @@ new g_iCurSkill[33];
 public plugin_init() 
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
-
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "移動中被攻擊時,有一定機率可以迴避掉.", AMAZON, Skill_Level, NOT_DISPLAY)
+	// 46 53
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "移動中被攻擊時,有一定機率可以迴避掉.", NONE, Skill_Level, NOT_DISPLAY)
 }
 
 public d2_skill_selected(id, skill_id)
@@ -43,14 +43,14 @@ public d2_logged(id, log_type)
 }
 public d2_takedamage(victim, attacker, Float:iDamage[1])
 {
-	if ( is_user_alive(victim) && get_p_hero(victim) == AMAZON && get_p_skill( victim, g_SkillId ) > 0 && random_num( 0, 100 ) < AmazonEvade[ get_p_skill( victim, g_SkillId ) - 1 ] && IsPlayerMoving(victim) )
+	if ( is_user_alive(victim) && get_p_hero(victim) == NONE && get_p_skill( victim, g_SkillId ) > 0 && random_num( 0, 100 ) < AmazonEvade[ get_p_skill( victim, g_SkillId ) - 1 ] && IsPlayerMoving(victim) )
 	{
 		iDamage[0] = 0.0;
 	}
 }
 public d2_ranged_takedamage(victim, attacker, Float:iDamage[1])
 {
-	if ( is_user_alive(victim) && get_p_hero(victim) == AMAZON && get_p_skill( victim, g_SkillId ) > 0 && random_num( 0, 100 ) < AmazonEvade[ get_p_skill( victim, g_SkillId ) - 1 ] && IsPlayerMoving(victim) )
+	if ( is_user_alive(victim) && get_p_hero(victim) == NONE && get_p_skill( victim, g_SkillId ) > 0 && random_num( 0, 100 ) < AmazonEvade[ get_p_skill( victim, g_SkillId ) - 1 ] && IsPlayerMoving(victim) )
 	{
 		iDamage[0] = 0.0;
 	}

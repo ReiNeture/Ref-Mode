@@ -22,7 +22,7 @@ new const Float:BarWarCDmg[MAX_P_SKILLS] =  // 野蠻人怒吼傷害.
 	20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 65.0, 70.0, 80.0, 	90.0, 100.0, 105.0, 110.0, 115.0, 120.0, 125.0, 150.0
 };
 
-new const BarbarianWarCry[] = "d2lod/warcry.wav";
+new const NONEWarCry[] = "d2lod/warcry.wav";
 new const g_SpriteWarCry[] = "sprites/shockwave.spr";
 
 #define TASKID_STUN 19444
@@ -38,7 +38,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "對敵人造成傷害並凍結敵人.", BARBARIAN, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "對敵人造成傷害並凍結敵人.", NONE, Skill_Level, DISPLAY)
 
 	register_event("DeathMsg", "ev_DeathMsg", "a")
 
@@ -52,7 +52,7 @@ public ev_DeathMsg()
 public plugin_precache()
 {
 	g_spriteShockwave = precache_model( g_SpriteWarCry );
-	precache_sound( BarbarianWarCry );
+	precache_sound( NONEWarCry );
 }
 
 public client_disconnect(id)
@@ -83,7 +83,7 @@ public d2_skill_fired(id)
 
 		if ( get_p_skill( id, g_SkillId ) > 0 && get_p_mana(id) >= BarManaWarC[ get_p_skill( id, g_SkillId ) - 1 ] )
 		{
-			emit_sound(id, CHAN_ITEM, BarbarianWarCry, 1.0, ATTN_NORM, 0, PITCH_NORM);
+			emit_sound(id, CHAN_ITEM, NONEWarCry, 1.0, ATTN_NORM, 0, PITCH_NORM);
 
 			set_p_mana(id, get_p_mana(id) - BarManaWarC[ get_p_skill( id, g_SkillId ) - 1 ] );
 

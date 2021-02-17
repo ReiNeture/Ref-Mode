@@ -389,7 +389,11 @@ public fwd_CmdStart(client, uc_handle, seed)
 			}
 			else if (equal(classname, "Hachama"))
 			{
-				display_second_hero_menu(client)
+				switch( g_PlayerHero[client][g_CurrentChar[client]] ) {
+					case NEWBIE: display_second_hero_menu(client);
+					case SPELLS: display_fubuki_menu(client);
+					case COMBAT: display_baihua_menu(client);
+				}
 				return FMRES_IGNORED;
 			}
 		}

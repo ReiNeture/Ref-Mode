@@ -31,16 +31,16 @@ new const Monster_Models[MAX_MONSTERS][] =
 }
 new const Monster_Xp[MAX_MONSTERS] =
 {
-	150,
+	1700,
 	600,
+	10000,
+	120,
+	0,
 	100,
-	120,
-	0,
-	50,
 	0,
 	120,
 	0,
-	80,
+	800,
 	0,
 	0,
 	0,

@@ -84,10 +84,10 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill("狼人化", "變成狼人.", DRUID, Skill_Level_Werewolf, DISPLAY)
-	g_SkillId2 = register_d2_skill("狼人化增強", "增強狼人化的能力數值.", DRUID, Skill_Level_Lycanthropy, NOT_DISPLAY)
-	g_SkillId3 = register_d2_skill("吸收", "可以吸取敵人的血/能量.", DRUID, Skill_Level_Hunger, DISPLAY)
-	g_SkillId4 = register_d2_skill("火爪", "攻擊時有額外傷害.", DRUID, Skill_Level_FireClaws, DISPLAY)
+	g_SkillId = register_d2_skill("狼人化", "變成狼人.", NONE, Skill_Level_Werewolf, DISPLAY)
+	g_SkillId2 = register_d2_skill("狼人化增強", "增強狼人化的能力數值.", NONE, Skill_Level_Lycanthropy, NOT_DISPLAY)
+	g_SkillId3 = register_d2_skill("吸收", "可以吸取敵人的血/能量.", NONE, Skill_Level_Hunger, DISPLAY)
+	g_SkillId4 = register_d2_skill("火爪", "攻擊時有額外傷害.", NONE, Skill_Level_FireClaws, DISPLAY)
 
 
 	RegisterHam( Ham_Weapon_PrimaryAttack, "weapon_knife", "fwd_AttackSpeed" , 1 );
@@ -199,7 +199,7 @@ public fwd_AttackSpeed ( const Entity )
 	
 	if ( ( 1 <= id <= g_iMaxPlayers ) ) 
 	{
-		if ( get_p_skill( id, g_SkillId ) > 0 && g_IsWereWolf[id] && get_p_hero(id) == DRUID ) 
+		if ( get_p_skill( id, g_SkillId ) > 0 && g_IsWereWolf[id] && get_p_hero(id) == NONE ) 
 		{ 
 			set_pdata_float( Entity, m_flPrimaryAttack, Werewolf_Attack_Speed[ get_p_skill( id, g_SkillId ) - 1 ], 4 ); 
 		} 
@@ -223,7 +223,7 @@ public d2_takedamage(victim, attacker, Float:iDamage[1])
 {
 	if ( g_iCurSkill[attacker] == g_SkillId3 )
 	{
-		if ( !IsPlayerNearByMonster(victim) && g_IsWereWolf[attacker] && get_p_skill( attacker, g_SkillId3 ) > 0 && get_p_hero(attacker) == DRUID && get_p_mana(attacker) >= Mana_Hunger )
+		if ( !IsPlayerNearByMonster(victim) && g_IsWereWolf[attacker] && get_p_skill( attacker, g_SkillId3 ) > 0 && get_p_hero(attacker) == NONE && get_p_mana(attacker) >= Mana_Hunger )
 		{
 			new Counted_Data = get_user_health(attacker) + (get_user_health(victim) * Werewolf_LifeSteal[ get_p_skill( attacker, g_SkillId3 ) - 1 ] / 100);
 
@@ -243,7 +243,7 @@ public d2_takedamage(victim, attacker, Float:iDamage[1])
 	}
 	else if ( g_iCurSkill[attacker] == g_SkillId4 )
 	{
-		if ( !IsPlayerNearByMonster(victim) && g_IsWereWolf[attacker] && get_p_skill( attacker, g_SkillId4 ) > 0 && get_p_hero(attacker) == DRUID && get_p_mana(attacker) >= Mana_FireClaws )
+		if ( !IsPlayerNearByMonster(victim) && g_IsWereWolf[attacker] && get_p_skill( attacker, g_SkillId4 ) > 0 && get_p_hero(attacker) == NONE && get_p_mana(attacker) >= Mana_FireClaws )
 		{
 			Set_Sprite_Task(victim, WerewolfSprFireClaws, 1.4, 1, 0.7, "FireClaws");
 
@@ -284,7 +284,7 @@ public Reset_WereWolf(id)
 {
 	id -= TASKID_WEREWOLF;
 
-	if ( g_IsWereWolf[id] && get_p_hero(id) == DRUID )
+	if ( g_IsWereWolf[id] && get_p_hero(id) == NONE )
 	{
 		g_IsWereWolf[id] = false;
 

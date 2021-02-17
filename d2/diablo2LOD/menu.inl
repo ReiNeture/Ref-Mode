@@ -427,14 +427,30 @@ public main_hero_skill_menu(id)
 
 	for (new skill_id = 0; skill_id <= g_skillcounter; skill_id++)
 	{
-		if ( g_iSkills[id][g_CurrentChar[id]][skill_id] > 0 && g_PlayerHero[id][g_CurrentChar[id]] == g_skillhero[skill_id] && g_skilldisplay[skill_id] )
+		if ( g_iSkills[id][g_CurrentChar[id]][skill_id] > 0 && g_skilldisplay[skill_id] )
 		{
-			new szItems[60];
-			formatex(szItems, 59, "%s", g_skillname[g_PlayerHero[id][g_CurrentChar[id]]][skill_id])
+			if (g_PlayerHero[id][g_CurrentChar[id]] == g_skillhero[skill_id]) {
+				new szItems[60];
+				formatex(szItems, 59, "%s", g_skillname[g_PlayerHero[id][g_CurrentChar[id]]][skill_id])
+				num_to_str(skill_id, szTempid, 31);
+				menu_additem(menu, szItems, szTempid, 0);
+			}
 
-			num_to_str(skill_id, szTempid, 31);
+			if ( (g_PlayerHero[id][g_CurrentChar[id]] == MAGIC || g_PlayerHero[id][g_CurrentChar[id]] == ELEMENT) && g_skillhero[skill_id] == SPELLS)
+			{
+				new szItems[60];
+				formatex(szItems, 59, "%s", g_skillname[SPELLS][skill_id])
+				num_to_str(skill_id, szTempid, 31);
+				menu_additem(menu, szItems, szTempid, 0);
+			}
 
-			menu_additem(menu, szItems, szTempid, 0);
+			if (g_PlayerHero[id][g_CurrentChar[id]] == HAYATO || g_PlayerHero[id][g_CurrentChar[id]] == MAKO && g_skillhero[skill_id] == COMBAT)
+			{
+				new szItems[60];
+				formatex(szItems, 59, "%s", g_skillname[COMBAT][skill_id])
+				num_to_str(skill_id, szTempid, 31);
+				menu_additem(menu, szItems, szTempid, 0);
+			}
 		}
 	}
 
@@ -573,8 +589,25 @@ public main_skill_menu(id)
 			(g_PlayerLevel[id][g_CurrentChar[id]] < g_skilllevel[g_PlayerHero[id][g_CurrentChar[id]]][skill_id] ? "\r" : "\y"), g_skilllevel[g_PlayerHero[id][g_CurrentChar[id]]][skill_id] )
 
 			num_to_str(skill_id, szTempid, 31);
-
 			menu_additem(menu, szItems, szTempid, 0);
+		}
+
+		if ( (g_PlayerHero[id][g_CurrentChar[id]] == MAGIC || g_PlayerHero[id][g_CurrentChar[id]] == ELEMENT) && g_skillhero[skill_id] == SPELLS) {
+			new szItems[90];
+			formatex(szItems, 89, "%s \d( \y%d \d) %s - 需要等級 %s%d", g_skillname[SPELLS][skill_id], g_iSkills[id][g_CurrentChar[id]][skill_id], (g_skilldisplay[skill_id] ? "" : "\w[ \y被動 \w]\d" ),
+			(g_PlayerLevel[id][g_CurrentChar[id]] < g_skilllevel[SPELLS][skill_id] ? "\r" : "\y"), g_skilllevel[SPELLS][skill_id] )
+
+			num_to_str(skill_id, szTempid, 31);
+			menu_additem(menu, szItems, szTempid, 0);	
+		}
+
+		if ( (g_PlayerHero[id][g_CurrentChar[id]] == MAKO || g_PlayerHero[id][g_CurrentChar[id]] == HAYATO) && g_skillhero[skill_id] == COMBAT) {
+			new szItems[90];
+			formatex(szItems, 89, "%s \d( \y%d \d) %s - 需要等級 %s%d", g_skillname[COMBAT][skill_id], g_iSkills[id][g_CurrentChar[id]][skill_id], (g_skilldisplay[skill_id] ? "" : "\w[ \y被動 \w]\d" ),
+			(g_PlayerLevel[id][g_CurrentChar[id]] < g_skilllevel[COMBAT][skill_id] ? "\r" : "\y"), g_skilllevel[COMBAT][skill_id] )
+
+			num_to_str(skill_id, szTempid, 31);
+			menu_additem(menu, szItems, szTempid, 0);	
 		}
 	}
 
@@ -2391,6 +2424,77 @@ public second_hero_menu(id , menu , item)
 	{
 		case 1: select_spells(id);
 		case 2: select_combat(id);
+	}
+	
+	menu_destroy(menu); 
+	return PLUGIN_HANDLED;
+} 
+
+// 後路線轉職選單
+// 百花轉職路線
+public display_baihua_menu(id)
+{
+	if ( !g_iLogged[id] ) return;
+
+	new menu = menu_create("百花進階轉職路線 (需要等級70以上)", "baihua_menu");
+	menu_additem(menu, "隼人", "1", 0);
+	menu_additem(menu, "漂流者", "2", 0);
+
+	menu_setprop(menu , MPROP_EXIT , MEXIT_ALL);
+	menu_display(id , menu , 0);
+}
+public baihua_menu(id , menu , item) 
+{ 
+	if(item == MENU_EXIT) 
+	{ 
+		menu_destroy(menu); 
+		return PLUGIN_HANDLED;
+	} 
+	new data[6], iName[64];
+	new access, callback;
+	menu_item_getinfo(menu, item, access, data,5, iName, 63, callback);
+
+	new key = str_to_num(data);
+
+	switch(key)
+	{
+		case 1: select_hayato(id);
+		case 2: select_mako(id);
+	}
+	
+	menu_destroy(menu); 
+	return PLUGIN_HANDLED;
+}
+
+// 吹雪轉職路線
+public display_fubuki_menu(id)
+{
+	if ( !g_iLogged[id] ) return;
+
+	new menu = menu_create("吹雪進階轉職路線 (需要等級70以上)", "fubuki_menu");
+	menu_additem(menu, "元素師", "1", 0);
+	menu_additem(menu, "魔導士", "2", 0);
+
+	menu_setprop(menu , MPROP_EXIT , MEXIT_ALL);
+	menu_display(id , menu , 0);
+}
+public fubuki_menu(id , menu , item) 
+{ 
+	if(item == MENU_EXIT) 
+	{ 
+		menu_destroy(menu); 
+		return PLUGIN_HANDLED;
+	} 
+	new data[6], iName[64];
+	new access, callback;
+	menu_item_getinfo(menu, item, access, data,5, iName, 63, callback);
+
+	new key = str_to_num(data);
+
+	switch(key)
+	{
+		case 1: select_element(id);
+		case 2: select_magician(id);
 	}
 	
 	menu_destroy(menu); 

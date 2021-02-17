@@ -27,7 +27,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 	// 104 143 注意
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "吸收敵人傷害.", 99, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "吸收敵人傷害.", NONE, Skill_Level, DISPLAY)
 
 	register_event("DeathMsg", "ev_DeathMsg", "a")
 }

@@ -14,9 +14,14 @@ native MAX_ITEMS_ACTIVE();
 // 職業類型.
 enum
 {
-	NEWBIE = 0,
+	NONESS = 0,
+	NEWBIE,
 	SPELLS,
-	COMBAT
+	COMBAT,
+	ELEMENT,
+	MAGIC,
+	MAKO,
+	HAYATO
 }
 /*
 	AMAZON = 0,
@@ -91,7 +96,10 @@ native get_player_logged(id);
 // 獲得玩家的最大血量值.
 native get_p_maxhealth(id);
 
+// 最大魔力值
 native get_p_maxmana(id);
+// 魔力能力點
+native get_p_manaskill(id);
 
 // 設定玩家的最大血量值.
 native set_p_maxhealth(id, value);

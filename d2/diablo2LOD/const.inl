@@ -4,7 +4,7 @@
 [如果你不知道這裡的意思,就不要動他!!!]
 =================================================================================*/
 #define MAX_LEVELS 100
-#define MAX_HEROES 3
+#define MAX_HEROES 8
 #define MAX_MAPITEMS 500
 #define MAX_ITEMS 50
 #define MAX_POTIONS 9
@@ -155,6 +155,11 @@ new const Custom_Models[MAX_HEROES][] =
 {
 	"black_knight",
 	"black_knight",
+	"black_knight",
+	"black_knight",
+	"black_knight",
+	"black_knight",
+	"black_knight",
 	"black_knight"
 }
 
@@ -184,16 +189,26 @@ new const Diablo2_Fake_Player_Name[] =  "Diablo II LOD - Fake Player";
 
 enum
 {
-	NEWBIE = 0,
+	NONESS = 0,
+	NEWBIE,
 	SPELLS,
-	COMBAT
+	COMBAT,
+	ELEMENT,
+	MAGIC,
+	MAKO,
+	HAYATO
 };
 
 new const HEROES[MAX_HEROES][] =
 {
+	"幻象",
 	"初心者",
 	"吹雪",
-	"百花"
+	"百花",
+	"元素師",
+	"魔導士",
+	"漂流者",
+	"隼人"
 }
 
 /*
@@ -241,14 +256,14 @@ new const Potion_Multi[MAX_POTIONS] = {30, 80, 150, 30, 80, 160, 2, 1, 2}
 /*================================================================================
 [可編譯的數值.]
 =================================================================================*/
-new const Float: HEROES_REGAIN_MANA[MAX_HEROES] = {4.0, 0.0, 4.0 }; // 各職業能量回復時間(秒)
+new const Float: HEROES_REGAIN_MANA[MAX_HEROES] = {4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0 }; // 各職業能量回復時間(秒)
 
-new const HEROES_DEFENCE_DEXTERITY[MAX_HEROES] = { 1, 1, 1}; // 各職業的1點護甲增加多少防禦力.
+new const HEROES_DEFENCE_DEXTERITY[MAX_HEROES] = {1, 1, 1, 1, 1, 1, 1}; // 各職業的1點護甲增加多少防禦力.
 
-new const Float: HEROES_STRENGTH_PERSTAT[MAX_HEROES] = { 0.6, 0.6, 100.0 }; // 各職業的1點力量增加多少傷害.
+new const Float: HEROES_STRENGTH_PERSTAT[MAX_HEROES] = { 0.6, 0.6, 0.6,0.6, 0.6, 0.6, 0.6 }; // 各職業的1點力量增加多少傷害.
 new const HEROES_DEXTERITY_PERSTAT[MAX_HEROES] = { 1, 1, 1 }; // 各職業的1點敏捷增加多少迴避率.
 new const HEROES_VITALITY_PERSTAT[MAX_HEROES] = { 3, 3, 3 }; // 各職業的1點體力增加多少血量最大值.
-new const HEROES_ENERGY_PERSTAT[MAX_HEROES] = { 5, 5, 5}; // 各職業的1點能量增加多少最大能量值.
+new const HEROES_ENERGY_PERSTAT[MAX_HEROES] = {5, 5, 5, 5, 5, 5,5}; // 各職業的1點能量增加多少最大能量值.
 
 new const LEVELS[MAX_LEVELS] = { 
 100, 200, 300, 400, 700, 900, 1100, 1400, 1700, 2000,

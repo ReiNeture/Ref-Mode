@@ -44,7 +44,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "釋放寒氣,冷凍敵人.", PALADIN, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "釋放寒氣,冷凍敵人.", NONE, Skill_Level, DISPLAY)
 
 	RegisterHam(Ham_Spawn, "player", "fwd_PlayerSpawn", 1);
 
@@ -102,7 +102,7 @@ public fwd_PreThink(id)
 
 	if (Time - cooldown > g_LastHolyFreeze[id])
 	{
-		if ( get_p_hero(id) == PALADIN )
+		if ( get_p_hero(id) == NONE )
 		{
 			entity_get_vector( id, EV_VEC_origin, Porigin)
 
@@ -161,7 +161,7 @@ public d2_skill_selected(id, skill_id)
 {
 	g_iCurSkill[id] = skill_id;
 
-	if ( get_p_hero(id) == PALADIN )
+	if ( get_p_hero(id) == NONE )
 	{
 		if ( skill_id == g_SkillId )
 		{
@@ -204,7 +204,7 @@ public d2_logged(id, log_type)
 
 public Reset_HolyFreeze(id)
 {
-	if ( get_p_hero(id) == PALADIN )
+	if ( get_p_hero(id) == NONE )
 	{
 		new sprite_ent = find_ent_by_class(-1, "HolyFreeze")
 	

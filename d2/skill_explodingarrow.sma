@@ -32,8 +32,8 @@ new g_iMaxPlayers;
 public plugin_init() 
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
-
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "將爆炸屬性付在弓箭上.", AMAZON, Skill_Level, DISPLAY)
+	//71 82
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "將爆炸屬性付在弓箭上.", NONE, Skill_Level, DISPLAY)
 
 	g_iMaxPlayers = get_maxplayers();
 }
@@ -68,7 +68,7 @@ public d2_logged(id, log_type)
 
 public d2_ranged_actshoot( id, entity )
 {
-	if ( get_p_hero(id) == AMAZON && get_p_skill( id, g_SkillId ) > 0 && g_iCurSkill[id] == g_SkillId
+	if ( get_p_hero(id) == NONE && get_p_skill( id, g_SkillId ) > 0 && g_iCurSkill[id] == g_SkillId
 	&& get_p_mana(id) >= ManaExplodingArrow[ get_p_skill( id, g_SkillId ) - 1 ] )
 	{
 		g_ShootWithFireArrow[id] = true;
@@ -79,7 +79,7 @@ public d2_ranged_actshoot( id, entity )
 
 public d2_ranged_takedamage(victim, attacker, Float:iDamage[1])
 {
-	if ( get_p_hero(attacker) == AMAZON && get_p_skill( attacker, g_SkillId ) > 0 && g_ShootWithFireArrow[attacker] )
+	if ( get_p_hero(attacker) == NONE && get_p_skill( attacker, g_SkillId ) > 0 && g_ShootWithFireArrow[attacker] )
 	{
 		new Float: Torigin[3], Float: Distance, Float: Damage;
 

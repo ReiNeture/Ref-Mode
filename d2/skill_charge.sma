@@ -32,8 +32,8 @@ new bool:IsChargeDelay[33];
 public plugin_init() 
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
-
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "向前衝撞並在瞬間增加攻擊力.", PALADIN, Skill_Level, DISPLAY)
+	// 121
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "向前衝撞並在瞬間增加攻擊力.", NONE, Skill_Level, DISPLAY)
 
 	RegisterHam(Ham_Spawn, "player", "fwd_PlayerSpawn", 1);
 }
@@ -118,7 +118,7 @@ public d2_logged(id, log_type)
 }
 public d2_takedamage(victim, attacker, Float:iDamage[1])
 {
-	if ( !IsPlayerNearByMonster(victim) && IsChargeDelay[attacker] && get_p_skill( attacker, g_SkillId ) > 0 && get_p_hero(attacker) == PALADIN && g_iCurSkill[attacker] == g_SkillId )
+	if ( !IsPlayerNearByMonster(victim) && IsChargeDelay[attacker] && get_p_skill( attacker, g_SkillId ) > 0 && get_p_hero(attacker) == NONE && g_iCurSkill[attacker] == g_SkillId )
 	{
 		iDamage[0] += (iDamage[0] * PalChDmg[ get_p_skill( attacker, g_SkillId ) - 1 ] / 100.0);
 	}

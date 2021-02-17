@@ -23,7 +23,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "讓你的刀有毒性.", COMBAT, Skill_Level, NOT_DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "讓你的刀有毒性.", NONE, Skill_Level, NOT_DISPLAY)
 }
 
 public client_disconnect(id)

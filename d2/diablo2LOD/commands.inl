@@ -209,8 +209,8 @@ public skill_handle(id)
 
 	for (new skill_id = 0; skill_id <= g_skillcounter; skill_id++)
 	{
-		if ( g_PlayerHero[id][g_CurrentChar[id]] == g_skillhero[skill_id] )
-			ExecuteForward( g_SkillFired, g_iReturn, id);
+		// if ( g_PlayerHero[id][g_CurrentChar[id]] == g_skillhero[skill_id] )
+		ExecuteForward( g_SkillFired, g_iReturn, id);
 	}
 
 	return PLUGIN_HANDLED;

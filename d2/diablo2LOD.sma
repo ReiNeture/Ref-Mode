@@ -167,6 +167,7 @@ public plugin_natives()
 	register_native("IsPlayerNearByMonster", "native_get_p_near_monster", 1);
 	register_native("drop_coins", "Native_Create_Coins");
 	register_native("get_exp_scale", "native_get_exp_scale");
+	register_native("get_p_manaskill", "native_get_p_manaskill", 1);
 }
 
 public client_connect(id)
@@ -516,6 +517,11 @@ public native_set_p_maxhealth(id, value)
 	{
 		g_MaxHealth[id] = 0;
 	}
+}
+
+public native_get_p_manaskill(id)
+{
+	return g_Energy[id][g_CurrentChar[id]]
 }
 // 檢查玩家是否靠近怪物.
 public bool:native_get_p_near_monster(id)

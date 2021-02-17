@@ -40,13 +40,12 @@ public d2_skill_selected(id, skill_id)
 
 public fwd_PreThink(id)
 {
-	if ( !is_user_alive(id) || is_freezetime()
-	|| get_p_hero(id) != COMBAT )
-		return;
+	if ( !is_user_alive(id) || is_freezetime() ) return;
+	
+	if( get_p_hero(id) == COMBAT || get_p_hero(id) == HAYATO || get_p_hero(id) == MAKO ) {
 
-	if ( get_p_skill( id, g_SkillId ) > 0 )
-	{
-		set_user_maxspeed(id, get_current_speed(id) + ( ( get_current_speed(id) / 100 ) * BarSpeed[ get_p_skill( id, g_SkillId ) - 1 ] ) );
+		if ( get_p_skill( id, g_SkillId ) > 0 )
+			set_user_maxspeed(id, get_current_speed(id) + ( ( get_current_speed(id) / 100 ) * BarSpeed[ get_p_skill( id, g_SkillId ) - 1 ] ) );
 	}
 }
 public d2_skill_fired(id)

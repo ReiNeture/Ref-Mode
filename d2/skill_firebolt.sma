@@ -38,7 +38,7 @@ public plugin_precache()
 {
 	precache_sound( SorcFireCast );
 	precache_model( WerewolfSpr );
-	precache_model( FireCast );
+	precache_model( FireCast ); 
 }
 
 public d2_skill_selected(id, skill_id)
@@ -87,8 +87,11 @@ public Entity_Touched(ent, victim)
 	new attacker = entity_get_edict(ent, EV_ENT_owner);
 	
 	if(equal(classname,"FireBolt")) 
-	{
-		new Float:Damage = FireBoltDamage[get_p_skill( attacker, g_SkillId ) - 1];
+	{ 
+		new rate = 1;
+		if(get_p_manaskill(attacker) >= 50) rate = get_p_manaskill(attacker)/50;
+
+		new Float:Damage = FireBoltDamage[get_p_skill( attacker, g_SkillId ) - 1] * float(rate)
 		if( is_user_alive(victim) ) {
 
 			if ( victim != attacker && !IsPlayerNearByMonster(victim) && !is_p_protected(victim) && get_p_skill( attacker, g_SkillId ) > 0 )
@@ -145,7 +148,7 @@ public Set_Sprite_FireBolt(id, const sprite[], Float:framerate, Float:scale, con
 
 	entity_set_edict( sprite_ent, EV_ENT_owner, id)
 
-	entity_set_size( sprite_ent, Float:{-2.1, -2.1, -2.1}, Float:{2.1, 2.1, 2.1})
+	entity_set_size( sprite_ent, Float:{-1.1, -1.1, -1.1}, Float:{1.1, 1.1, 1.1})
 
 	entity_set_int( sprite_ent, EV_INT_rendermode, kRenderTransAdd)
 	entity_set_float( sprite_ent, EV_FL_renderamt, 200.0 )
@@ -161,7 +164,7 @@ public Set_Sprite_FireBolt(id, const sprite[], Float:framerate, Float:scale, con
 
 	new Float:fAim[3],Float:fAngles[3],Float:fOrigin[3];
 
-	velocity_by_aim(id,64,fAim)
+	velocity_by_aim(id,32,fAim)
 	vector_to_angle(fAim,fAngles)
 	entity_get_vector( id, EV_VEC_origin, fOrigin)
 	
@@ -173,7 +176,7 @@ public Set_Sprite_FireBolt(id, const sprite[], Float:framerate, Float:scale, con
 	entity_set_vector( sprite_ent, EV_VEC_angles, fAngles)
 	
 	new Float:fVel[3]
-	velocity_by_aim(id, 500, fVel)	
+	velocity_by_aim(id, 900, fVel)	
 
 	entity_set_vector( sprite_ent, EV_VEC_velocity, fVel)
 }

@@ -11,7 +11,7 @@ new Skill_Level = 31;
 
 new const AmazonEvade[MAX_P_SKILLS] =  // 每0.5秒回復輛
 {
-	1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 8, 12
+	1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 8, 10
 };
 
 new g_SkillId;
@@ -49,7 +49,7 @@ public fwd_PreThink(id)
 	if ( !is_user_alive(id) ) return FMRES_IGNORED;
 
 	if( halflife_time() >= g_manatime[id] ) {
-		if ( IsPlayerMoving(id) && get_p_hero(id) == SPELLS && get_p_skill( id, g_SkillId ) > 0 && get_p_mana(id) < get_p_maxmana(id))
+		if ( IsPlayerMoving(id) && (get_p_hero(id) == SPELLS ||get_p_hero(id) == ELEMENT||get_p_hero(id) == MAGIC)  && get_p_skill( id, g_SkillId ) > 0 && get_p_mana(id) < get_p_maxmana(id))
 		{
 			new add = get_p_mana(id) + AmazonEvade[ get_p_skill(id, g_SkillId ) - 1 ]
 			set_p_mana(id, add);

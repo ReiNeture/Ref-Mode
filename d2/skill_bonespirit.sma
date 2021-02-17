@@ -29,7 +29,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "創造一個靈魂,追蹤並且攻擊敵人.", 99, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "創造一個靈魂,追蹤並且攻擊敵人.", NONE, Skill_Level, DISPLAY)
 
 	register_forward(FM_Touch, "Entity_Touched");
 }

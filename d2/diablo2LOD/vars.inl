@@ -23,8 +23,12 @@ new g_FakeEnt;
 new g_PlayerCharActive[33][MAX_CHARS + 1];
 new g_PlayerChars[33];
 new g_CurrentChar[33];
+
+// 0-1轉職業
 new g_PlayerHero[33][MAX_CHARS + 1];
+// 2轉職業
 new g_PlayerSecondHero[33][MAX_CHARS + 1];
+
 new g_PlayerLevel[33][MAX_CHARS + 1];
 new g_PlayerXp[33][MAX_CHARS + 1];
 new g_PlayerSkPoints[33][MAX_CHARS + 1];
