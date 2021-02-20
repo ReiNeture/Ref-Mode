@@ -13,7 +13,8 @@ new Mana_FireBolt = 7;
 
 new const SorcFireCast[] = "d2lod/firecast.wav";
 new const WerewolfSpr[] = "sprites/xfire2.spr";
-new const FireCast[] = "sprites/rjet1.spr";
+new const FireCast[] = "sprites/ion_laserflame.spr";
+// new const FireCast[] = "sprites/rjet1.spr";
 
 new const Float:FireBoltDamage[MAX_P_SKILLS] =  // 術士火球傷害值.
 {
@@ -29,7 +30,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "丟出一顆火球", SPELLS, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "傷害隨魔力能力提升", SPELLS, Skill_Level, DISPLAY)
 
 	register_forward(FM_Touch, "Entity_Touched");
 }

@@ -11,7 +11,7 @@ new Skill_Level = 31;
 
 new const AmazonEvade[MAX_P_SKILLS] =  // 每0.5秒回復輛
 {
-	1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 8, 10
+	1, 2, 2, 3, 3, 3, 5, 5, 5, 6, 6, 6, 8, 8, 9, 9, 11, 12, 13, 15
 };
 
 new g_SkillId;
@@ -23,7 +23,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 	register_forward(FM_PlayerPreThink, "fwd_PreThink")
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "移動時快速回復魔力.", SPELLS, Skill_Level, NOT_DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "移動時快速回魔", SPELLS, Skill_Level, NOT_DISPLAY)
 }
 
 public d2_skill_selected(id, skill_id)

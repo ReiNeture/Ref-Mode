@@ -15,8 +15,8 @@ new const g_SpriteExplode[] = "sprites/explosion1.spr";
 new const FireSpr[] = "sprites/flame.spr";
 
 #define RADIUS_DAMAGE 350.0
-#define END_BURN_TIME 3.5
-#define METEOR_WAIT_TIME 3.0
+#define END_BURN_TIME 2.0
+#define METEOR_WAIT_TIME 1.0
 
 new const SorcaManaMeteor[MAX_P_SKILLS] =  // 流星攻擊需要的能量.
 {
@@ -47,7 +47,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "降下流星雨攻擊你的敵人.", SORCERESS, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "降下流星雨攻擊你的敵人.", ELEMENT, Skill_Level, DISPLAY)
 
 	register_forward(FM_Touch, "Entity_Touched");
 
@@ -79,7 +79,7 @@ public d2_skill_fired(id)
 	if ( g_iCurSkill[id] == g_SkillId )
 	{
 		static Float:cdown;
-		cdown = 2.5;
+		cdown = 1.0;
 
 		if (get_gametime() - g_LastPressedSkill[id] <= cdown) 
 		{
@@ -101,7 +101,7 @@ public d2_skill_fired(id)
 			get_user_origin( id, AimOrigin, 3);
 
 
-			set_task( 0.7, "Task_Warn", id + TASKID_WARN, AimOrigin, sizeof AimOrigin, "b");
+			set_task( 0.5, "Task_Warn", id + TASKID_WARN, AimOrigin, sizeof AimOrigin, "b");
 			set_task( METEOR_WAIT_TIME, "Task_Meteor", id + TASKID_METEOR, AimOrigin, sizeof AimOrigin);
 		}
 	}
@@ -263,12 +263,12 @@ public Task_Meteor(AimOrigin[], id)
 
 	new RandomX, RandomY, RandomOrigin[3], EndOrigin[3];
 
-	AimOrigin[2] += 230;
+	AimOrigin[2] += 200;
 
-	for ( new i = 0; i < 6; i++)
+	for ( new i = 1; i <= 10; i++)
 	{
-		RandomX = random_num(-115,115)
-		RandomY = random_num(-115,115)
+		RandomX = random_num(-205,205)
+		RandomY = random_num(-205,205)
 
 		RandomOrigin[0] = AimOrigin[0] + 1 * RandomX;
 		RandomOrigin[1] = AimOrigin[1] + 1 * RandomY;

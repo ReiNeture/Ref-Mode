@@ -575,43 +575,41 @@ public main_skill_menu(id)
 		return;
 
 	new szInfo[60];
-	formatex(szInfo, 59, "職業: \r%s  \w技能點: \r%d", HEROES[g_PlayerHero[id][g_CurrentChar[id]]], g_PlayerSkPoints[id][g_CurrentChar[id]])
+	formatex(szInfo, 59, "職業: \r%s  \w技能點: \r%d  頁次:", HEROES[g_PlayerHero[id][g_CurrentChar[id]]], g_PlayerSkPoints[id][g_CurrentChar[id]])
 
 	new menu = menu_create(szInfo, "skill_menu");
 	new szTempid[32];
 
 	for (new skill_id = 0; skill_id <= g_skillcounter; skill_id++)
 	{
+		new szItems[200];
 		if ( g_PlayerHero[id][g_CurrentChar[id]] == g_skillhero[skill_id] )
 		{
-			new szItems[90];
-			formatex(szItems, 89, "%s \d( \y%d \d) %s - 需要等級 %s%d", g_skillname[g_PlayerHero[id][g_CurrentChar[id]]][skill_id], g_iSkills[id][g_CurrentChar[id]][skill_id], (g_skilldisplay[skill_id] ? "" : "\w[ \y被動 \w]\d" ),
-			(g_PlayerLevel[id][g_CurrentChar[id]] < g_skilllevel[g_PlayerHero[id][g_CurrentChar[id]]][skill_id] ? "\r" : "\y"), g_skilllevel[g_PlayerHero[id][g_CurrentChar[id]]][skill_id] )
+			formatex(szItems, 199, "%s \d( \y%d \d) %s - 需要等級 %s%d^n\y%s^n", g_skillname[g_PlayerHero[id][g_CurrentChar[id]]][skill_id], g_iSkills[id][g_CurrentChar[id]][skill_id], (g_skilldisplay[skill_id] ? "" : "\w[ \y被動 \w]\d" ),
+			(g_PlayerLevel[id][g_CurrentChar[id]] < g_skilllevel[g_PlayerHero[id][g_CurrentChar[id]]][skill_id] ? "\r" : "\y"), g_skilllevel[g_PlayerHero[id][g_CurrentChar[id]]][skill_id], g_skilldesc[g_PlayerHero[id][g_CurrentChar[id]]][skill_id] )
 
 			num_to_str(skill_id, szTempid, 31);
 			menu_additem(menu, szItems, szTempid, 0);
 		}
 
 		if ( (g_PlayerHero[id][g_CurrentChar[id]] == MAGIC || g_PlayerHero[id][g_CurrentChar[id]] == ELEMENT) && g_skillhero[skill_id] == SPELLS) {
-			new szItems[90];
-			formatex(szItems, 89, "%s \d( \y%d \d) %s - 需要等級 %s%d", g_skillname[SPELLS][skill_id], g_iSkills[id][g_CurrentChar[id]][skill_id], (g_skilldisplay[skill_id] ? "" : "\w[ \y被動 \w]\d" ),
-			(g_PlayerLevel[id][g_CurrentChar[id]] < g_skilllevel[SPELLS][skill_id] ? "\r" : "\y"), g_skilllevel[SPELLS][skill_id] )
+			formatex(szItems, 199, "%s \d( \y%d \d) %s - 需要等級 %s%d^n\y%s^n", g_skillname[SPELLS][skill_id], g_iSkills[id][g_CurrentChar[id]][skill_id], (g_skilldisplay[skill_id] ? "" : "\w[ \y被動 \w]\d" ),
+			(g_PlayerLevel[id][g_CurrentChar[id]] < g_skilllevel[SPELLS][skill_id] ? "\r" : "\y"), g_skilllevel[SPELLS][skill_id], g_skilldesc[SPELLS][skill_id] )
 
 			num_to_str(skill_id, szTempid, 31);
 			menu_additem(menu, szItems, szTempid, 0);	
 		}
 
 		if ( (g_PlayerHero[id][g_CurrentChar[id]] == MAKO || g_PlayerHero[id][g_CurrentChar[id]] == HAYATO) && g_skillhero[skill_id] == COMBAT) {
-			new szItems[90];
-			formatex(szItems, 89, "%s \d( \y%d \d) %s - 需要等級 %s%d", g_skillname[COMBAT][skill_id], g_iSkills[id][g_CurrentChar[id]][skill_id], (g_skilldisplay[skill_id] ? "" : "\w[ \y被動 \w]\d" ),
-			(g_PlayerLevel[id][g_CurrentChar[id]] < g_skilllevel[COMBAT][skill_id] ? "\r" : "\y"), g_skilllevel[COMBAT][skill_id] )
+			formatex(szItems, 199, "%s \d( \y%d \d) %s - 需要等級 %s%d^n\y%s^n", g_skillname[COMBAT][skill_id], g_iSkills[id][g_CurrentChar[id]][skill_id], (g_skilldisplay[skill_id] ? "" : "\w[ \y被動 \w]\d" ),
+			(g_PlayerLevel[id][g_CurrentChar[id]] < g_skilllevel[COMBAT][skill_id] ? "\r" : "\y"), g_skilllevel[COMBAT][skill_id], g_skilldesc[COMBAT][skill_id])
 
 			num_to_str(skill_id, szTempid, 31);
 			menu_additem(menu, szItems, szTempid, 0);	
 		}
 	}
 
-	menu_setprop(menu, MPROP_PERPAGE , 6);
+	menu_setprop(menu, MPROP_PERPAGE, 4);
 	menu_setprop(menu , MPROP_EXIT , MEXIT_ALL);
 	menu_display(id , menu , 0); 
 }

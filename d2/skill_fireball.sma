@@ -3,21 +3,21 @@
 #include <fakemeta>
 #include <engine>
 
-new PLUGIN_NAME[] = "爆炸火球"
+new PLUGIN_NAME[] = "爆炸魔法"
 new PLUGIN_AUTHOR[] = "xbatista"
 new PLUGIN_VERSION[] = "1.0"
 
-new Skill_Level = 12;
+new Skill_Level = 85;
 
 new const SorcFireCast[] = "d2lod/firecast.wav";
 new const OnPFireSpr[] = "sprites/xfire2.spr";
 new const FireCast[] = "sprites/rjet1.spr";
 new const g_SpriteExplode[] = "sprites/explosion1.spr";
 
-new const SorcaManaFireBall[MAX_P_SKILLS] =  // 發射火球需要的能量.
-{
-	5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14, 14, 15, 15, 15, 15, 16, 17, 18, 19
-};
+// new const SorcaManaFireBall[MAX_P_SKILLS] =  // 發射火球需要的能量.
+// {
+// 	5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14, 14, 15, 15, 15, 15, 16, 17, 18, 19
+// };
 new const Float:FireBallDamage[MAX_P_SKILLS] =  // 術士的火球傷害.
 {
 	10.0, 20.0, 25.0, 30.0, 35.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 	110.0, 120.0, 125.0, 130.0, 140.0, 150.0, 155.0, 160.0
@@ -34,7 +34,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "發射一顆會爆炸的火球.", SORCERESS, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "花費全魔力射出爆炸球剩餘魔力越多傷害越高", ELEMENT, Skill_Level, DISPLAY)
 
 	register_forward(FM_Touch, "Entity_Touched");
 
@@ -70,13 +70,16 @@ public d2_skill_fired(id)
 			g_LastPressedSkill[id] = get_gametime()
 		}
 
-		if ( get_p_skill( id, g_SkillId ) > 0 && get_p_mana(id) >= SorcaManaFireBall[ get_p_skill( id, g_SkillId ) - 1 ] )
+		// if ( get_p_skill( id, g_SkillId ) > 0 && get_p_mana(id) >= SorcaManaFireBall[ get_p_skill( id, g_SkillId ) - 1 ] )
+		new p_mana = get_p_mana(id)
+		if ( get_p_skill( id, g_SkillId ) > 0 && p_mana > 0 )
 		{
 			emit_sound(id, CHAN_ITEM, SorcFireCast, 1.0, ATTN_NORM, 0, PITCH_NORM);
 
-			set_p_mana( id, get_p_mana(id) - SorcaManaFireBall[ get_p_skill( id, g_SkillId ) - 1 ]);
+			// set_p_mana( id, get_p_mana(id) - SorcaManaFireBall[ get_p_skill( id, g_SkillId ) - 1 ]);
+			set_p_mana( id, 0);
 
-			Set_Sprite_FireBolt(id, FireCast, 50.0, 0.7, "FireBall");
+			Set_Sprite_FireBolt(id, FireCast, 50.0, 0.7, p_mana, "FireBall");
 
 			Set_Sprite_Task(id, OnPFireSpr, 2.7, 1, 0.8, "Morph");
 		}
@@ -98,6 +101,7 @@ public Entity_Touched(ent, victim)
 	if(equal(classname,"FireBall")) 
 	{
 		new Float: Torigin[3], Float: Distance, Float: Damage;
+		new Float:mana;
 
 		new Float:fOrigin[3], iOrigin[3];
 		entity_get_vector( ent, EV_VEC_origin, fOrigin)	
@@ -124,14 +128,16 @@ public Entity_Touched(ent, victim)
 
 				Distance = get_distance_f(fOrigin, Torigin);
 
-				if ( Distance <= 175.0 && !IsPlayerNearByMonster(enemy) && !is_p_protected(enemy) && get_p_skill( attacker, g_SkillId ) > 0 )
+				if ( Distance <= 275.0 && !IsPlayerNearByMonster(enemy) && !is_p_protected(enemy) && get_p_skill( attacker, g_SkillId ) > 0 )
 				{
-					Damage = (((Distance / 175.0) * FireBallDamage[get_p_skill( attacker, g_SkillId ) - 1]) - FireBallDamage[get_p_skill( attacker, g_SkillId ) - 1]) * -1.0;
+					// Damage = (((Distance / 175.0) * FireBallDamage[get_p_skill( attacker, g_SkillId ) - 1]) - FireBallDamage[get_p_skill( attacker, g_SkillId ) - 1]) * -1.0;
+					mana = float( entity_get_int( ent, EV_INT_iuser1) )
+					Damage = (((Distance / 275.0) * FireBallDamage[get_p_skill( attacker, g_SkillId ) - 1]) + (mana*5))
+
+					Damage = (Damage > 4000.0 ? 4000.0 : Damage)
 
 					if (Damage > 0.0 && attacker != enemy)
-					{
 						dmg_kill_player(enemy, attacker, Damage, "fireball");
-					}
 				}
 			}
 		}
@@ -173,7 +179,7 @@ public End_Sprite_Task(sprite_ent)
 		remove_entity(sprite_ent);
 	}
 }
-public Set_Sprite_FireBolt(id, const sprite[], Float:framerate, Float:scale, const classname[])
+public Set_Sprite_FireBolt(id, const sprite[], Float:framerate, Float:scale, mana, const classname[])
 {
 	new sprite_ent = create_entity("env_sprite")
 
@@ -195,6 +201,7 @@ public Set_Sprite_FireBolt(id, const sprite[], Float:framerate, Float:scale, con
 
 	entity_set_int( sprite_ent, EV_INT_movetype, MOVETYPE_FLY)
 	entity_set_int( sprite_ent, EV_INT_solid, SOLID_BBOX)
+	entity_set_int( sprite_ent, EV_INT_iuser1, mana)
 
 	new Float:fAim[3],Float:fAngles[3],Float:fOrigin[3];
 
@@ -210,7 +217,7 @@ public Set_Sprite_FireBolt(id, const sprite[], Float:framerate, Float:scale, con
 	entity_set_vector( sprite_ent, EV_VEC_angles, fAngles)
 	
 	new Float:fVel[3]
-	velocity_by_aim(id, 500, fVel)	
+	velocity_by_aim(id, 700, fVel)	
 
 	entity_set_vector( sprite_ent, EV_VEC_velocity, fVel)
 }

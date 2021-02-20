@@ -256,14 +256,14 @@ new const Potion_Multi[MAX_POTIONS] = {30, 80, 150, 30, 80, 160, 2, 1, 2}
 /*================================================================================
 [可編譯的數值.]
 =================================================================================*/
-new const Float: HEROES_REGAIN_MANA[MAX_HEROES] = {4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0 }; // 各職業能量回復時間(秒)
+new const Float: HEROES_REGAIN_MANA[MAX_HEROES] = {4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0 }; // 各職業能量回復時間(秒)
 
-new const HEROES_DEFENCE_DEXTERITY[MAX_HEROES] = {1, 1, 1, 1, 1, 1, 1}; // 各職業的1點護甲增加多少防禦力.
+new const HEROES_DEFENCE_DEXTERITY[MAX_HEROES] = {1, 1, 1, 1, 1, 1, 1, 1}; // 各職業的1點護甲增加多少防禦力.
 
-new const Float: HEROES_STRENGTH_PERSTAT[MAX_HEROES] = { 0.6, 0.6, 0.6,0.6, 0.6, 0.6, 0.6 }; // 各職業的1點力量增加多少傷害.
-new const HEROES_DEXTERITY_PERSTAT[MAX_HEROES] = { 1, 1, 1 }; // 各職業的1點敏捷增加多少迴避率.
-new const HEROES_VITALITY_PERSTAT[MAX_HEROES] = { 3, 3, 3 }; // 各職業的1點體力增加多少血量最大值.
-new const HEROES_ENERGY_PERSTAT[MAX_HEROES] = {5, 5, 5, 5, 5, 5,5}; // 各職業的1點能量增加多少最大能量值.
+new const Float: HEROES_STRENGTH_PERSTAT[MAX_HEROES] = { 0.6, 0.6, 0.6,0.6, 0.6, 0.6, 0.6, 0.6 }; // 各職業的1點力量增加多少傷害.
+new const HEROES_DEXTERITY_PERSTAT[MAX_HEROES] = { 1, 1, 1,1,1,1,1,1 }; // 各職業的1點敏捷增加多少迴避率.
+new const HEROES_VITALITY_PERSTAT[MAX_HEROES] = { 3, 3, 3 ,3 , 3, 3, 3, 3}; // 各職業的1點體力增加多少血量最大值.
+new const HEROES_ENERGY_PERSTAT[MAX_HEROES] = {2, 2, 5, 2, 5, 5, 2, 2}; // 各職業的1點能量增加多少最大能量值.
 
 new const LEVELS[MAX_LEVELS] = { 
 100, 200, 300, 400, 700, 900, 1100, 1400, 1700, 2000,

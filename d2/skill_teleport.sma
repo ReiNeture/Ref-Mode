@@ -8,14 +8,14 @@ new PLUGIN_NAME[] = "傳送術"
 new PLUGIN_AUTHOR[] = "xbatista"
 new PLUGIN_VERSION[] = "1.0"
 
-new Skill_Level = 18;
+new Skill_Level = 77;
 
 new const SorcTeleportSnd[] = "d2lod/teleport.wav";
 new const TeleportSpr[] = "sprites/rifle_smoke3.spr";
 
 new const SorcaManaTeleport[MAX_P_SKILLS] =  // 傳送需要的魔力.
 {
-	30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 10
+	300, 240, 200, 180, 160, 140, 110, 100, 80, 70, 60, 50, 18, 17, 16, 15, 14, 13, 12, 1
 };
 
 new g_SkillId;
@@ -27,7 +27,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "傳送自己.", SORCERESS, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "向前傳送", ELEMENT, Skill_Level, DISPLAY)
 }
 
 public plugin_precache()
@@ -46,7 +46,7 @@ public d2_skill_fired(id)
 	if ( g_iCurSkill[id] == g_SkillId )
 	{
 		static Float:cdown;
-		cdown = 1.2;
+		cdown = 0.3;
 
 		if (get_gametime() - g_LastPressedSkill[id] <= cdown) 
 		{
@@ -65,7 +65,7 @@ public d2_skill_fired(id)
 
 			Set_Sprite_Task(id, TeleportSpr, 2.7, 1, 1.5, "Morph");
 
-			Set_Origin_Forward(id, 900)
+			Set_Origin_Forward(id, 1000)
 		}
 	}
 	

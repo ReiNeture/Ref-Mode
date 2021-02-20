@@ -98,7 +98,7 @@ public Set_Player_Xp(id, value)
 		{
 			g_PlayerLevel[id][g_CurrentChar[id]]++;
 			g_PlayerStPoints[id][g_CurrentChar[id]] += get_pcvar_num(d2_stat_points_levelup)
-			g_PlayerSkPoints[id][g_CurrentChar[id]]++;				
+			g_PlayerSkPoints[id][g_CurrentChar[id]] += 2;				
 
 			emit_sound(id, CHAN_ITEM, LevelUp, 1.0, ATTN_NORM, 0, PITCH_NORM);
 		}
@@ -218,7 +218,7 @@ public Mana_Regenerate(id)
 	if ( !is_user_alive(id) )
 		return;
 
-	Set_Player_Mana(id, g_CurrentMana[id] + 1);
+	Set_Player_Mana(id, g_CurrentMana[id] + 10);
 }
 
 public HUD_Say_Info_Task(id)
@@ -249,7 +249,7 @@ public HUD_Info_Task(id)
 	if ( is_user_alive(id) )
 	{
 		set_hudmessage(255, 255, 150, 0.02, 0.12, 0, 0.0, 0.3, 0.0, 0.0)
-		ShowSyncHudMsg(id, g_SyncHudCreate , "[職業: %s] [等級: %d] [經驗值: %d / %d]^n[能量: %d / %d]^n[血量: %d / %d]^n[錢: %d / %d]^n[經驗倍率: %d]", HEROES[g_PlayerHero[id][g_CurrentChar[id]]], g_PlayerLevel[id][g_CurrentChar[id]],
+		ShowSyncHudMsg(id, g_SyncHudCreate , "[職業: %s] [等級: %d] [經驗值: %d / %d]^n[魔力: %d / %d]^n[血量: %d / %d]^n[錢: %d / %d]^n[經驗倍率: %d]", HEROES[g_PlayerHero[id][g_CurrentChar[id]]], g_PlayerLevel[id][g_CurrentChar[id]],
 		g_PlayerXp[id][g_CurrentChar[id]], LEVELS[g_PlayerLevel[id][g_CurrentChar[id]]],  g_CurrentMana[id], HEROES_ENERGY_PERSTAT[g_PlayerHero[id][g_CurrentChar[id]]] * g_Energy[id][g_CurrentChar[id]], get_user_health(id), 
 		g_MaxHealth[id], 
 		g_Coins[id][g_CurrentChar[id]], MAX_PLAYER_MONEY[g_PlayerLevel[id][g_CurrentChar[id]]], get_pcvar_num(d2_exp_scale) )

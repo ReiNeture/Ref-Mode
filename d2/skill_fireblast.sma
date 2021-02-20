@@ -2,17 +2,18 @@
 #include <d2lod>
 #include <fakemeta>
 #include <engine>
+#include <hamsandwich>
 
-new PLUGIN_NAME[] = "浪費魔力"
+new PLUGIN_NAME[] = "魔法炸彈"
 new PLUGIN_AUTHOR[] = "xbatista"
 new PLUGIN_VERSION[] = "1.0"
 
-new Skill_Level = 30;
-new Mana_FireBlast = 50;
+new Skill_Level = 54;
+new Mana_FireBlast = 10;
 
 new const Float:AssBlastDmg[MAX_P_SKILLS] =  // 刺客炸彈傷害.
 {
-	4.0, 6.0, 9.0, 11.0, 14.0, 16.0, 19.0, 22.0, 27.0, 33.0, 38.0, 43.0, 	49.0, 55.0, 60.0, 77.0, 89.0, 100.0, 105.0, 110.0
+	58.0, 66.0, 68.0, 72.0, 78.0, 82.0, 88.0, 94.0, 104.0, 116.0, 126.0, 136.0, 148.0, 160.0, 190.0, 224.0, 248.0, 270.0, 280.0, 350.0
 };
 
 new const g_w_ass_blast[] = "models/w_hegrenade.mdl";
@@ -23,17 +24,17 @@ new g_SkillId;
 new Float:g_LastPressedSkill[33];
 new g_iCurSkill[33];
 new g_spriteBlast;
-new g_iMaxPlayers;
+// new g_iMaxPlayers;
 
 public plugin_init() 
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "丟出一顆魔法產生的炸彈.", SPELLS, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "會爆炸的炸彈", SPELLS, Skill_Level, DISPLAY)
 
 	register_forward(FM_Touch, "Entity_Touched");
 
-	g_iMaxPlayers = get_maxplayers();
+	// g_iMaxPlayers = get_maxplayers();
 }
 
 public plugin_precache()
@@ -57,38 +58,32 @@ public d2_skill_fired(id)
 	if ( g_iCurSkill[id] == g_SkillId )
 	{
 		static Float:cdown;
-		cdown = 2.0;
+		cdown = 0.3;
 
 		if (get_gametime() - g_LastPressedSkill[id] <= cdown) 
-		{
 			return PLUGIN_HANDLED;
-		}
 		else if ( get_gametime() - g_LastPressedSkill[id] >= cdown )
-		{
 			g_LastPressedSkill[id] = get_gametime()
-		}
 
 		if ( get_p_skill( id, g_SkillId ) > 0 && get_p_mana(id) >= Mana_FireBlast )
-				{
-					set_p_mana(id, get_p_mana(id) - Mana_FireBlast );
-
-					Throw_FireBlast(id);
-				}
+		{
+			set_p_mana(id, get_p_mana(id) - Mana_FireBlast );
+			Throw_FireBlast(id);
+		}
 	}
 	
 	return PLUGIN_CONTINUE;
 }
 public Entity_Touched(ent, victim)
 {
-	if ( !pev_valid(ent) )
-		return;
+	if ( !pev_valid(ent) ) return HAM_IGNORED;
 	
-	new classname[32]
+	new classname[32], victimname[32]
 	pev( ent, pev_classname, classname, 31)
 
 	new attacker = entity_get_edict(ent, EV_ENT_owner);
 	
-	if ( equal(classname,"FireBlast") )
+	if ( equal(classname, "FireBlast") )
 	{
 		new Float: Torigin[3], Float: Distance, Float: Damage;
 
@@ -109,28 +104,47 @@ public Entity_Touched(ent, victim)
 		write_byte(0); // 標記.
 		message_end();
 
-		for(new enemy = 1; enemy <= g_iMaxPlayers; enemy++) 
-		{
-			if ( is_user_alive(enemy) )
-			{
-				entity_get_vector( enemy, EV_VEC_origin, Torigin)
+		new victim = FM_NULLENT
+		while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 250.0)) != 0) {
 
-				Distance = get_distance_f(fOrigin, Torigin);
+			entity_get_vector( victim, EV_VEC_origin, Torigin)
+			Distance = get_distance_f(fOrigin, Torigin);
+			Damage = (((Distance / 300.0) * AssBlastDmg[get_p_skill( attacker, g_SkillId ) - 1]) - AssBlastDmg[get_p_skill( attacker, g_SkillId ) - 1]) * -1.0;
 
-				if ( Distance <= 250.0 && !IsPlayerNearByMonster(enemy) && !is_p_protected(enemy) && get_p_skill( attacker, g_SkillId ) > 0 )
-				{
-					Damage = (((Distance / 250.0) * AssBlastDmg[get_p_skill( attacker, g_SkillId ) - 1]) - AssBlastDmg[get_p_skill( attacker, g_SkillId ) - 1]) * -1.0;
+			if ( get_p_skill( attacker, g_SkillId ) <= 0 ) break;
+			if (Damage <= 0.0) continue;
 
-					if (Damage > 0.0)
-					{
-						dmg_kill_player(enemy, attacker, Damage, "fireblast");
-					}
-				}
+			if( is_user_alive(victim) && is_user_connected(victim) && !IsPlayerNearByMonster(victim) && !is_p_protected(victim) )
+				dmg_kill_player(victim, attacker, Damage, "fireblast");	
+			else {
+				pev( victim, pev_classname, victimname, 31)
+				if( !equal(victimname, "func_wall") ) continue;
+				ExecuteHam(Ham_TakeDamage, victim, victim, attacker, Damage, DMG_ENERGYBEAM);
 			}
 		}
 
 		set_pev( ent, pev_flags, FL_KILLME);
+		// for(new enemy = 1; enemy <= g_iMaxPlayers; enemy++) 
+		// {
+		// 	if ( is_user_alive(enemy) )
+		// 	{
+		// 		entity_get_vector( enemy, EV_VEC_origin, Torigin)
+
+		// 		Distance = get_distance_f(fOrigin, Torigin);
+
+		// 		if ( Distance <= 250.0 && !IsPlayerNearByMonster(enemy) && !is_p_protected(enemy) && get_p_skill( attacker, g_SkillId ) > 0 )
+		// 		{
+		// 			Damage = (((Distance / 250.0) * AssBlastDmg[get_p_skill( attacker, g_SkillId ) - 1]) - AssBlastDmg[get_p_skill( attacker, g_SkillId ) - 1]) * -1.0;
+
+		// 			if (Damage > 0.0)
+		// 			{
+		// 				dmg_kill_player(enemy, attacker, Damage, "fireblast");
+		// 			}
+		// 		}
+		// 	}
+		// }
 	}
+	return HAM_HANDLED;
 }
 
 public d2_logged(id, log_type)
