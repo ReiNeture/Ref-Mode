@@ -1,7 +1,5 @@
 #include <amxmodx>
 #include <amxmisc>
-#include <fakemeta>
-#include <hamsandwich>
 
 #define TEAM_SELECT_VGUI_MENU_ID 2
 #define PASSWORD_MAXCHAR 20
@@ -22,7 +20,7 @@ public plugin_init()
 	register_clcmd("ref_register", "controlRegister");
 	register_clcmd("ref_login", "controlLogin");
 
-	register_message(get_user_msgid("VGUIMenu"), "message_vgui_menu")
+	register_message(get_user_msgid("VGUIMenu"), "message_vgui_menu");
 }
 
 public plugin_natives()
@@ -33,16 +31,28 @@ public plugin_natives()
 
 public displayMainMenu(id)
 {
-	new szMsg[60];
-	formatex(szMsg, 59, "湊あくあ 総長: ")
-	new menu = menu_create(szMsg , "handleMainMenu");
+	new szMsg[32];
+	formatex(szMsg, charsmax(szMsg), "湊あくあ 総長: ");
+	new menu = menu_create(szMsg , "handlSelectControl");
 
 	menu_additem(menu, "登入", "0", 0);
 	menu_additem(menu, "註冊", "1", 0);
+	menu_setprop(menu, MPROP_EXIT, MEXIT_ALL);
 	menu_display(id, menu, 0); 
 }
 
-public handleMainMenu(id , menu , item) 
+confirmPasswordMenu(id)
+{
+	new szMsg[60];
+	formatex(szMsg, charsmax(szMsg), "\w湊あくあ 総長: \y確認你的註冊密碼為 \r%s \y?", TempPassword[id]);
+	new menu = menu_create(szMsg , "handlSelectControl");
+
+	menu_additem(menu, "確定", "2", 0);
+	menu_additem(menu, "取消", "3", 0);
+	menu_display(id, menu, 20); 
+}
+
+public handlSelectControl(id , menu , item) 
 { 	
 	if(item == MENU_EXIT) { 
 		menu_destroy(menu); 
@@ -58,8 +68,9 @@ public handleMainMenu(id , menu , item)
 	{
 		case 0: toLogin(id);
 		case 1: toRegister(id);
+		case 2: finishConfirm(id);
+		case 3: displayMainMenu(id);
     }
-
 	menu_destroy(menu); 
 	return PLUGIN_HANDLED;
 }
@@ -106,7 +117,6 @@ public controlLogin(id)
 			client_printcolor(id, "/y[/g密碼輸入錯誤/y]");
 			displayMainMenu(id);
 		}
-
 	}
 }
 
@@ -143,50 +153,6 @@ checkInputVaild(id, const args[])
 	return true;
 }
 
-writePasswordToFile(const name[], const args[])
-{
-	new files = fopen(filename, "a");
-	new data[128];
-	formatex(data, charsmax(data), "^"%s^" ^"%s^"^n", name, args);
-
-	new temp = fputs(files, data);
-	fclose(files);
-	return temp;
-}
-
-confirmPasswordMenu(id)
-{
-	new szMsg[60];
-	formatex(szMsg, charsmax(szMsg), "\w湊あくあ 総長: \y確認你的註冊密碼為 \r%s \y?", TempPassword[id]);
-	new menu = menu_create(szMsg , "handleconfirmPasswordMenu");
-
-	menu_additem(menu, "確定", "0", 0);
-	menu_additem(menu, "取消", "1", 0);
-	menu_setprop(menu, MPROP_EXIT, MEXIT_ALL);
-	menu_display(id, menu, 0); 
-}
-
-public handleconfirmPasswordMenu(id , menu , item) 
-{ 
-	if(item == MENU_EXIT) { 
-		menu_destroy(menu); 
-		return PLUGIN_HANDLED;
-	} 
-	
-	new data[6], iName[64];
-	new access, callback;
-	menu_item_getinfo(menu, item, access, data, 5, iName, 63, callback);
-	new key = str_to_num(data);
-
-	switch(key) {
-		case 0: finishConfirm(id);
-		case 1: displayMainMenu(id);
-    }
-
-	menu_destroy(menu); 
-	return PLUGIN_HANDLED;
-}
-
 public finishConfirm(id)
 {
 	new name[64];
@@ -199,6 +165,17 @@ public finishConfirm(id)
 		client_printcolor(id, "/y[/g註冊成功 你的密碼是 /ctr %s/y]", password[id]);
 		client_printcolor(id, "/y[/g註冊成功 你的密碼是 /ctr %s/y]", password[id]);
 	}
+}
+
+writePasswordToFile(const name[], const args[])
+{
+	new files = fopen(filename, "a");
+	new data[128];
+	formatex(data, charsmax(data), "^"%s^" ^"%s^"^n", name, args);
+
+	new temp = fputs(files, data);
+	fclose(files);
+	return temp;
 }
 
 public getPasswordByPlayerName(id)
@@ -229,17 +206,14 @@ public getPasswordByPlayerName(id)
 	fclose(files);
 }
 
-checkRegisterStatus(id)
-{
-    return Registed[id];
-}
+/************************************* PUBLIC FORWARD *************************************/
 
 public client_putinserver(id)
 {
 	Logied[id] = false;
 	Registed[id] = false;
-	set_task(0.2, "getPasswordByPlayerName", id);
-	set_task(0.2, "displayMainMenu", id);
+	set_task(0.1, "getPasswordByPlayerName", id);
+	set_task(0.1, "displayMainMenu", id);
 }
 
 public message_vgui_menu(msgid, dest, id) {
@@ -251,7 +225,7 @@ public message_vgui_menu(msgid, dest, id) {
 	param_menu[0] = msgid;
 	set_task(0.1, "Task_VGUI", id, param_menu, sizeof param_menu);
 
-	return PLUGIN_CONTINUE;
+	return PLUGIN_HANDLED;
 }
 
 public Task_VGUI(param_menu[], id)
@@ -267,10 +241,21 @@ public Task_VGUI(param_menu[], id)
 	set_msg_block(param_menu[0], Msg_Block);
 }
 
-public native_get_login_status(id)
-{
+/************************************* NATIVE & CHECK FUNC *************************************/
+
+checkRegisterStatus(id) {
+    return Registed[id];
+}
+
+checkLoginStatus(id) {
 	return Logied[id];
 }
+
+public native_get_login_status(id) {
+	return checkLoginStatus(id);
+}
+
+/****************************************** STOCK ******************************************/
 
 stock client_printcolor(const id, const input[], any:...)
 {
