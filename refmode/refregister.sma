@@ -49,7 +49,7 @@ confirmPasswordMenu(id)
 
 	menu_additem(menu, "確定", "2", 0);
 	menu_additem(menu, "取消", "3", 0);
-	menu_display(id, menu, 20); 
+	menu_display(id, menu, 30); 
 }
 
 public handlSelectControl(id , menu , item) 
