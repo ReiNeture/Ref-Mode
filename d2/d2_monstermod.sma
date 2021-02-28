@@ -8,7 +8,7 @@ new PLUGIN_NAME[] = "Diablo II LOD 怪物補助插件"
 new PLUGIN_AUTHOR[] = "xbatista"
 new PLUGIN_VERSION[] = "1.0"
 
-#define MAX_MONSTERS 14
+#define MAX_MONSTERS 15
 
 #define COINS_CLASSNAME "CoinsMonster"
 
@@ -27,7 +27,8 @@ new const Monster_Models[MAX_MONSTERS][] =
 	"models/hgrunt.mdl",
 	"models/tentacle.mdl",
 	"models/babygarg.mdl",
-	"models/bigrat.mdl"
+	"models/bigrat.mdl",
+	"models/gonome.mdl"
 }
 new const Monster_Xp[MAX_MONSTERS] =
 {
@@ -44,7 +45,8 @@ new const Monster_Xp[MAX_MONSTERS] =
 	0,
 	0,
 	0,
-	0
+	0,
+	7500
 }
 new const Monster_Coins[MAX_MONSTERS] =
 {
@@ -61,7 +63,8 @@ new const Monster_Coins[MAX_MONSTERS] =
 	0,
 	0,
 	0,
-	0
+	0,
+	125
 }
 new const Monster_Names[MAX_MONSTERS][] =
 {
@@ -78,16 +81,19 @@ new const Monster_Names[MAX_MONSTERS][] =
 	"人類戰士",
 	"鷹爪",
 	"小型巨人 (王)",
-	"老鼠"
+	"老鼠",
+	"殭屍王"
 }
 
 new g_iMaxPlayers;
+new Float:times[33];
 
 public plugin_init() 
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
 	RegisterHam(Ham_Killed, "func_wall", "Monster_Killed");
+	RegisterHam(Ham_Player_PreThink, "player", "fw_Monster_PreThink");
 
 	register_touch( COINS_CLASSNAME, "player", "Coins_Pickup")
 
@@ -130,6 +136,32 @@ public Monster_Killed(this, idattacker, shouldgib)
 	}
 
 	return HAM_IGNORED;
+}
+
+public fw_Monster_PreThink(this, idattacker)
+{
+	if(!is_valid_ent(this) || halflife_time() < times[this] ) return HAM_IGNORED
+
+	times[this] = halflife_time() + 0.07;
+	new iTarget, iTemp, szMonsterModel[33], szClassname[33]; //, szCheckModel[33]
+
+	get_user_aiming(this, iTarget, iTemp);
+	entity_get_string(iTarget, EV_SZ_model, szMonsterModel, sizeof(szMonsterModel));
+	entity_get_string(iTarget, EV_SZ_classname, szClassname, sizeof(szClassname));
+
+	for(new i = 0; i < MAX_MONSTERS; i++)
+	{
+		// format(szCheckModel, sizeof(szCheckModel), "models/%s.mdl", Monster_Models[i])
+		if(equal(szClassname, "func_wall"))
+		{
+			if(equal(szMonsterModel, Monster_Models[i]))
+			{
+				set_hudmessage(0, 191, 255, 0.10, 0.55, 0, 0.0, 0.2, 0.0, 0.0, 4)
+				show_hudmessage(this, "怪物: %s^n血量: %d^n經驗: %d", Monster_Names[i], floatround(entity_get_float(iTarget, EV_FL_health)), Monster_Xp[i] * get_exp_scale())
+			}
+		}
+	}
+	return HAM_HANDLED
 }
 
 // Touch, coins

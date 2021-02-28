@@ -123,6 +123,7 @@ public plugin_init()
 	if( Count <= 1 )
 		g_iFakeplayer = -1;
 
+	// 加入假BOT
 	set_task( 2.0, "AddFakeClient" );
 
 	set_task( 1.0, "Spawn_Items");
@@ -213,6 +214,7 @@ public client_disconnect(id)
 	g_Player_Info[id] = false;
 	g_iLogged[id] = false;
 
+	// 加入假BOT
 	if( g_iFakeplayer == id ) 
 	{
 		g_iFakeplayer = 0;

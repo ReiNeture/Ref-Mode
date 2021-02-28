@@ -3,8 +3,10 @@
 #include <hamsandwich>
 #include <cstrike>
 
-native test_tr(id);      // 財寶
-native open_refmenu(id); // 內部特選
+native get_music_menu(id);
+native get_login_status(id);
+native show_login_menu(id);
+native open_refmenu(id);
 native ref_get_level(id);
 native get_hax_menu(id);
 
@@ -60,6 +62,7 @@ public plugin_init()
 
 	register_event("DeathMsg", "eventPlayerDeath", "a");
 	register_event("DeathMsg", "eventPlayerDeath", "bg");
+	// register_event("ResetHUD", "event_hud_reset", "be")
 	register_event("CurWeapon", "event_curweapon", "be", "1=1");
 
 	register_menucmd(register_menuid("MainMenu"), KEYSMENU, "handleMainMenu");
@@ -82,9 +85,9 @@ public plugin_init()
 
 public plugin_precache()
 {
-	for (new i=0; i < sizeof(SoundFiles); i++) {
+	for (new i=0; i < sizeof(SoundFiles); i++) 
 		engfunc(EngFunc_PrecacheSound, SoundFiles[i]);
-	}
+
 	chick = engfunc(EngFunc_PrecacheModel, "models/chick.mdl");
 	createAllMenu();
 }
@@ -98,8 +101,9 @@ public createAllMenu()
 	add(mainmenu, size, "\r1. \w選擇免費武器^n\y(Choose free weapons)^n^n");
 	add(mainmenu, size, "\r2. \w基礎特殊選單: 等級需求100^n\y(Basic special menu: Level required 100)^n^n");
 	add(mainmenu, size, "\r3. \w進階特殊選單: 等級需求200^n\y(Advanced special menu: Level required 200)^n^n");
-	add(mainmenu, size, "\r4. \w雞雞的祝福 (Chicken blessing)^n^n");
-	add(mainmenu, size, "\r5. \w重生^n\y(Respawn)^n^n^n");
+	add(mainmenu, size, "\r4. \w雞雞的祝福 \y(Chicken blessing)^n^n");
+	add(mainmenu, size, "\r5. \w音樂盒 <煩請開啟音樂> \y(Mp3 Player)^n^n");
+	add(mainmenu, size, "\r6. \w重生 \y(Respawn)^n^n");
 
 	size = sizeof(freemenu);
 	add(freemenu, size, "\w重生再次選取 (When respawn selecting again) ^n^n");
@@ -154,9 +158,14 @@ public handleChickenMenu(id, key)
 
 public createMainMenu(id)
 {
-	show_menu(id, KEYSMENU, mainmenu, -1, "MainMenu");
+	if( get_login_status(id) )
+		show_menu(id, KEYSMENU, mainmenu, -1, "MainMenu");
+	else
+		show_login_menu(id);
+
 	return PLUGIN_HANDLED;
 }
+
 public handleMainMenu(id, key)
 {
 	switch(key)
@@ -175,7 +184,8 @@ public handleMainMenu(id, key)
 				client_print(id, print_chat, "等級不足 (Level required 200)");
 		}
 		case 3: createChickenMenu(id);
-		case 4: DeathPost(id);
+		case 4: get_music_menu(id);
+		case 5: DeathPost(id);
 		default: return PLUGIN_HANDLED;
 	}
 	return PLUGIN_HANDLED;
@@ -339,11 +349,11 @@ public Item_PostFrame_Post(iEnt)
 } 
 public SetModel_Post(entity, const model[])
 {
-    if (!pev_valid(entity)) return FMRES_IGNORED;
-    
-    new classname[32];
-    pev(entity, pev_classname, classname, charsmax(classname));
-    
+	if (!pev_valid(entity)) return FMRES_IGNORED;
+
+	new classname[32];
+	pev(entity, pev_classname, classname, charsmax(classname));
+
 	if (equal(classname, "weaponbox"))
 		set_pev(entity, pev_nextthink, get_gametime());
 	return FMRES_HANDLED;
@@ -361,18 +371,23 @@ public event_curweapon(id)
 
 	return PLUGIN_HANDLED;
 }
+
 public client_putinserver(id)
 {
 	if(!is_user_connected(id)) return PLUGIN_CONTINUE;
 
-	set_task(1.0, "checkIsAlivePost", id);
-
+	set_task(5.0, "checkIsAlivePost", id+5498, _, _, "b");
 	return PLUGIN_HANDLED;
 }
 public checkIsAlivePost(id)
 {
-	if(!is_user_connected(id)) return;
-	if(!is_user_alive(id)) DeathPost(id);
+	id -= 5498;
+	if(!is_user_connected(id)) remove_task(id+5498);
+
+	if( get_login_status(id) ) {
+		DeathPost(id);
+		remove_task(id+5498);
+	}
 }
 public eventPlayerDeath()
 {

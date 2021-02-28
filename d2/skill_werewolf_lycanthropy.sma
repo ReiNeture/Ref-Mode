@@ -54,7 +54,7 @@ new const Werewolf_Lycanthropy_Hp[MAX_P_SKILLS] =  // 狼人化後的血量最�
 };
 new const Werewolf_LifeSteal[MAX_P_SKILLS] =  // 狼人吸血/能量的數值.
 {
-	2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22
+	1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 9, 10
 };
 new const Float:Werewolf_DmgFireClaws[MAX_P_SKILLS] =  // 德魯伊火爪的傷害百分比.
 {
@@ -127,6 +127,22 @@ public fwd_PlayerDamagedMonster(victim, inflictor, attacker, Float:damage, damag
 	if ( !(1 <= attacker <= g_iMaxPlayers) )
 		return HAM_IGNORED;
 
+	if ( g_iCurSkill[attacker] == g_SkillId3 )
+	{
+		static Float:last_time[33];
+		if(halflife_time() - last_time[attacker] >= 0.5) {
+			if ( get_p_skill( attacker, g_SkillId3 ) > 0 && get_p_hero(attacker) == MAKO && get_p_mana(attacker) >= Mana_Hunger )
+			{
+				new Counted_Data = get_user_health(attacker) + ((get_p_maxhealth(attacker) - get_user_health(attacker)) * Werewolf_LifeSteal[ get_p_skill( attacker, g_SkillId3 ) - 1 ] / 100);
+
+				set_user_health( attacker, Counted_Data );
+
+				set_p_mana(attacker, get_p_mana(attacker) - Mana_WereWolf + random_num(4, 8) );
+
+				last_time[attacker] = halflife_time();
+			}
+		}
+	}
 	client_print(attacker, print_chat, "%f", damage)
 	return HAM_HANDLED;
 }
@@ -227,7 +243,7 @@ public d2_logged(id, log_type)
 }
 
 
-public d2_takedamage(victim, attacker, Float:iDamage[1])
+/*public d2_takedamage(victim, attacker, Float:iDamage[1])
 {
 	if ( g_iCurSkill[attacker] == g_SkillId3 )
 	{
@@ -258,7 +274,7 @@ public d2_takedamage(victim, attacker, Float:iDamage[1])
 			iDamage[0] = (iDamage[0] + Werewolf_DmgFireClaws[ get_p_skill( attacker, g_SkillId4 ) - 1 ]);
 		}
 	}
-}
+}*/
 public Set_Sprite_Task(id, const sprite[], Float:scale, istask, Float:task_time, const classname[])
 {
 	new sprite_ent = create_entity("env_sprite")

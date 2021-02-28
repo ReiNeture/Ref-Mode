@@ -2,29 +2,30 @@
 #include <d2lod>
 #include <fakemeta>
 #include <engine>
+#include <hamsandwich>
 
 new PLUGIN_NAME[] = "流星攻擊"
 new PLUGIN_AUTHOR[] = "xbatista"
 new PLUGIN_VERSION[] = "1.0"
 
-new Skill_Level = 30;
+new Skill_Level = 90;
 
 new const SorcMeteorCast[] = "d2lod/meteorlaunch.wav";
 new const SorcMeteorMdl[] = "models/d2lod/head.mdl";
 new const g_SpriteExplode[] = "sprites/explosion1.spr";
 new const FireSpr[] = "sprites/flame.spr";
 
-#define RADIUS_DAMAGE 350.0
+#define RADIUS_DAMAGE 450.0
 #define END_BURN_TIME 2.0
-#define METEOR_WAIT_TIME 1.0
+#define METEOR_WAIT_TIME 1.5
 
 new const SorcaManaMeteor[MAX_P_SKILLS] =  // 流星攻擊需要的能量.
 {
-	17, 17, 18, 19, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39, 40, 41, 42, 43, 44, 45
+	60, 60, 60, 60, 60, 80, 80, 100, 100, 120, 120, 150, 150, 170, 170, 170, 180, 190, 190, 205
 };
 new const Float:MeteorDamage[MAX_P_SKILLS] =  // 術士流星攻擊的傷害.
 {
-	50.0, 60.0, 70.0, 80.0, 90.0, 95.0, 100.0, 105.0, 110.0, 115.0, 120.0, 125.0, 	130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0
+	250.0, 260.0, 270.0, 280.0, 290.0, 295.0, 300.0, 305.0, 310.0, 315.0, 320.0, 325.0, 330.0, 340.0, 350.0, 360.0, 370.0, 380.0, 390.0, 400.0
 };
 new const Float:MeteorDamageBurn[MAX_P_SKILLS] =  // 術士火焰的傷害.
 {
@@ -47,7 +48,7 @@ public plugin_init()
 {
 	register_plugin(PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHOR)
 
-	g_SkillId = register_d2_skill(PLUGIN_NAME, "降下流星雨攻擊你的敵人.", ELEMENT, Skill_Level, DISPLAY)
+	g_SkillId = register_d2_skill(PLUGIN_NAME, "降下流星雨攻擊你的敵人", ELEMENT, Skill_Level, DISPLAY)
 
 	register_forward(FM_Touch, "Entity_Touched");
 
@@ -79,7 +80,7 @@ public d2_skill_fired(id)
 	if ( g_iCurSkill[id] == g_SkillId )
 	{
 		static Float:cdown;
-		cdown = 1.0;
+		cdown = 1.3;
 
 		if (get_gametime() - g_LastPressedSkill[id] <= cdown) 
 		{
@@ -148,27 +149,50 @@ public Entity_Touched(ent, victim)
 		set_task( 0.2, "Task_Burn", TASKID_BURN, Param, sizeof Param, "b");
 		set_task( END_BURN_TIME, "Burn_End");
 
-		for(new enemy = 1; enemy <= g_iMaxPlayers; enemy++) 
-		{
-			if ( is_user_alive(enemy) )
-			{
-				entity_get_vector( enemy, EV_VEC_origin, Torigin)
 
-				Distance = get_distance_f(fOrigin, Torigin);
+		new victim = FM_NULLENT
+		while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, RADIUS_DAMAGE)) != 0) {
 
-				if ( Distance <= RADIUS_DAMAGE && !IsPlayerNearByMonster(enemy) && !is_p_protected(enemy) && get_p_skill( attacker, g_SkillId ) > 0 )
-				{
-					Damage = (((Distance / RADIUS_DAMAGE) * MeteorDamage[get_p_skill( attacker, g_SkillId ) - 1]) - MeteorDamage[get_p_skill( attacker, g_SkillId ) - 1]) * -1.0;
+			static victimname[32];
+			pev( victim, pev_classname, victimname, 31)
 
-					if (Damage > 0.0 && attacker != enemy)
-					{
-						dmg_kill_player(enemy, attacker, Damage, "meteor");
-					}
-				}
-			}
+			// 判斷為可攻擊物件
+			if( !is_user_alive(victim) && !equal(victimname, "func_wall") ) continue;
+			
+			entity_get_vector( victim, EV_VEC_origin, Torigin)
+			Distance = get_distance_f(fOrigin, Torigin);
+			Damage = (((Distance / RADIUS_DAMAGE) * MeteorDamage[get_p_skill( attacker, g_SkillId ) - 1]) - MeteorDamage[get_p_skill( attacker, g_SkillId ) - 1]) * -1.0;
+
+			if ( get_p_skill( attacker, g_SkillId ) <= 0 ) break;
+			if (Damage <= 0.0) continue;
+
+			if( is_user_alive(victim) && is_user_connected(victim) && !IsPlayerNearByMonster(victim) && !is_p_protected(victim) )
+				dmg_kill_player(victim, attacker, Damage, "meteor");	
+			else
+				ExecuteHam(Ham_TakeDamage, victim, victim, attacker, Damage, DMG_ENERGYBEAM);
 		}
 
 		set_pev( ent, pev_flags, FL_KILLME);
+
+		// for(new enemy = 1; enemy <= g_iMaxPlayers; enemy++) 
+		// {
+		// 	if ( is_user_alive(enemy) )
+		// 	{
+		// 		entity_get_vector( enemy, EV_VEC_origin, Torigin)
+
+		// 		Distance = get_distance_f(fOrigin, Torigin);
+
+		// 		if ( Distance <= RADIUS_DAMAGE && !IsPlayerNearByMonster(enemy) && !is_p_protected(enemy) && get_p_skill( attacker, g_SkillId ) > 0 )
+		// 		{
+		// 			Damage = (((Distance / RADIUS_DAMAGE) * MeteorDamage[get_p_skill( attacker, g_SkillId ) - 1]) - MeteorDamage[get_p_skill( attacker, g_SkillId ) - 1]) * -1.0;
+
+		// 			if (Damage > 0.0 && attacker != enemy)
+		// 			{
+		// 				dmg_kill_player(enemy, attacker, Damage, "meteor");
+		// 			}
+		// 		}
+		// 	}
+		// }
 	}
 }
 public d2_takedamage(victim, attacker, Float:iDamage[1])
@@ -265,7 +289,7 @@ public Task_Meteor(AimOrigin[], id)
 
 	AimOrigin[2] += 200;
 
-	for ( new i = 1; i <= 10; i++)
+	for ( new i = 1; i <= 8; i++)
 	{
 		RandomX = random_num(-205,205)
 		RandomY = random_num(-205,205)
