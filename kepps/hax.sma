@@ -146,6 +146,17 @@ public respawn(id)
 	}
 }
 
+public client_putinserver(id)
+{
+	g_stealth[id] = false;
+	headshot[id] = false;
+	dmg_reflection[id] = false;
+	mahoujin[id] = false;
+	explosionbullet[id] = false;
+	fragementexplode[id] = false;
+	dodge[id] = false;
+}
+
 createMenu()
 {
 	new size = sizeof(akoMainMenu);
