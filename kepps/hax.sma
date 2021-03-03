@@ -606,7 +606,7 @@ public fw_PlayerSpawn_Post(id)
 		return PLUGIN_HANDLED;
 
 	if(g_stealth[id])
-		fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
+		fm_set_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 0);
 
 	return PLUGIN_HANDLED;
 }
