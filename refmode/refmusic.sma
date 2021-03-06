@@ -1,6 +1,5 @@
 #include <amxmodx>
 #include <amxmisc>
-#include <fakemeta>
 
 enum
 {
@@ -106,8 +105,9 @@ public plugin_init()
 
 public plugin_precache()
 {
-	for (new i=0; i < sizeof(MusicFiles); i++) 
-		engfunc(EngFunc_PrecacheSound, MusicFiles[i]);
+	for (new i=0; i < sizeof(MusicFiles); i++)
+		precache_sound(MusicFiles[i]);
+		// engfunc(EngFunc_PrecacheSound, MusicFiles[i]);
 }
 
 public plugin_natives()
@@ -123,11 +123,11 @@ MenuConstructor()
 	add(infaceMenu, size, "\w湊あくあ 総長: \y播放音樂的\r 音樂盒 \w|||^n^n");
 	add(infaceMenu, size, "\y1. \w音樂列表 ^n");
 	add(infaceMenu, size, "\y2. \w播放順序 ^n");
-	add(infaceMenu, size, "\y3. \w播放柱列 ^n^n");
+	// add(infaceMenu, size, "\y3. \w播放柱列 ^n^n");
 
 	gKeyInfaceMenu =   (B0 | B1 | B2 | B3 | B8);
 	gKeySelectMenu =   (B0 | B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 );
-	gKeyplaybackMenu = (B0 | B1 | B2 | B3);
+	gKeyplaybackMenu = (B0 | B1 | B2 | B3 );
 }
 
 /*=========================================== SHOW MENU ============================================*/
@@ -204,7 +204,7 @@ viewTrackList(id, szMenu[512])
 		if( i < MAX_TRACK )
 			formatex(szEntry, entrySize, "\y%d\w. %s%s^n", seqno, szColor, MusicTrackName[i]);
 		else
-			formatex(szEntry, entrySize, "--^n");
+			formatex(szEntry, entrySize, "\w--^n");
 		add(szMenu, menuSize, szEntry);
 	}
 	add(szMenu, menuSize, " ^n");

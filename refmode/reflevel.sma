@@ -43,7 +43,7 @@ public client_putinserver(id)
     if(!is_user_bot(id) ) {
         LoadData(id);
         set_task(0.2, "show_hud", id+1234);
-        set_task(120.0, "AutoSave", id+777, _, _, "b");
+        set_task(10.0, "AutoSave", _, _, _, "b");
     }
 
 }
@@ -111,10 +111,22 @@ LoadData(id)
 
 }
 
-public AutoSave(id)
+public AutoSave()
 {
-    id = id -777;
-    SaveData(id);
+    new i, iPlayers[32], iNum;
+    get_players(iPlayers, iNum, "c");
+
+    if (iNum >= 1)
+    {
+    	for (i = 0;i < iNum;i++)
+    	{
+    		if (is_user_connected(iPlayers[i]))
+    		{
+                SaveData(iPlayers[i]);
+    		}
+    	}
+    }
+    
 }
 
 public fw_PlayerKilled(victim, attacker, shouldgib)

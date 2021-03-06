@@ -89,6 +89,8 @@ public plugin_precache()
 		engfunc(EngFunc_PrecacheSound, SoundFiles[i]);
 
 	chick = engfunc(EngFunc_PrecacheModel, "models/chick.mdl");
+	engfunc(EngFunc_PrecacheModel, "models/player/zombie_nnn/zombie_nnn.mdl");
+	engfunc(EngFunc_PrecacheModel, "models/player/zombie_nnn/zombie_nnnT.mdl");
 	createAllMenu();
 }
 
@@ -328,8 +330,10 @@ public fw_PlayerSpawn_Post(id)
 	fm_strip_user_weapons(id);
 	fm_give_item(id, "weapon_knife");
 	
-	if ( is_user_bot(id) )
-		set_pev(id, pev_health, random_float(200.0, 500.0));
+	if ( is_user_bot(id) ) {
+		cs_set_user_model(id, "zombie_nnn"); 
+		set_pev(id, pev_health, random_float(700.0, 1000.0));
+	}
 
 	return HAM_HANDLED;
 }
@@ -376,6 +380,7 @@ public client_putinserver(id)
 {
 	if(!is_user_connected(id)) return PLUGIN_CONTINUE;
 
+	if( task_exists(id+5498) ) remove_task(id+5498);
 	set_task(5.0, "checkIsAlivePost", id+5498, _, _, "b");
 	return PLUGIN_HANDLED;
 }
@@ -396,11 +401,9 @@ public eventPlayerDeath()
 }
 public DeathPost(index)
 {
-	if( !is_user_alive(index)) {
-		set_pev(index, pev_deadflag, DEAD_RESPAWNABLE);
-		dllfunc(DLLFunc_Spawn, index);
-		set_pev(index, pev_iuser1, 0);
-	}
+	set_pev(index, pev_deadflag, DEAD_RESPAWNABLE);
+	dllfunc(DLLFunc_Spawn, index);
+	set_pev(index, pev_iuser1, 0);
 }
 
 stock get_user_weaponame(id, szWeapon[20])

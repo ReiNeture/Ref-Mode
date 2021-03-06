@@ -5,6 +5,7 @@
 #define PASSWORD_MAXCHAR 20
 
 new const filename[] = "addons/amxmodx/configs/refregister.ini";
+
 // new const regex[16][] = {',', ' ', '!', '@', '#', '$', '&', '*', '(', ')', '%', '<', '>', '_', '+', '-', '/'}
 
 new bool:Registed[33];
@@ -49,7 +50,7 @@ confirmPasswordMenu(id)
 
 	menu_additem(menu, "確定", "2", 0);
 	menu_additem(menu, "取消", "3", 0);
-	menu_display(id, menu, 30); 
+	menu_display(id, menu, 0); 
 }
 
 public handlSelectControl(id , menu , item) 
@@ -206,7 +207,7 @@ public getPasswordByPlayerName(id)
 	fclose(files);
 }
 
-/************************************* PUBLIC FORWARD *************************************/
+/************************************* PUBLIC FORWARD ********************************************/
 
 public client_putinserver(id)
 {
@@ -217,7 +218,7 @@ public client_putinserver(id)
 }
 
 public message_vgui_menu(msgid, dest, id) {
-	if (get_msg_arg_int(1) != TEAM_SELECT_VGUI_MENU_ID ) return PLUGIN_CONTINUE;
+	if (get_msg_arg_int(1) != TEAM_SELECT_VGUI_MENU_ID || !is_user_connected(id) ) return PLUGIN_CONTINUE;
 
 	if( !Logied[id] ) return PLUGIN_HANDLED;   // 阻擋未登入玩家進入時開啟隊伍選單
 	
@@ -230,8 +231,6 @@ public message_vgui_menu(msgid, dest, id) {
 
 public Task_VGUI(param_menu[], id)
 {
-	if ( !is_user_connected(id) ) return;
-	
 	// 登入後自動開啟隊伍選單 並強制選擇TR隊伍
 	static Msg_Block;
 	Msg_Block = get_msg_block( param_menu[0] );
@@ -256,7 +255,6 @@ public native_get_login_status(id) {
 }
 
 /****************************************** STOCK ******************************************/
-
 stock client_printcolor(const id, const input[], any:...)
 {
 	new count = 1, players[32];
@@ -282,3 +280,94 @@ stock client_printcolor(const id, const input[], any:...)
 		}
 	}
 }
+
+
+/*
+stock getPlayerFront(const id, Float:position[3])
+{
+	new Float:vOrigin[3], Float:velocity[3];
+	pev(id, pev_origin, vOrigin);
+	velocity_by_aim(id, 32, velocity);
+
+	position[0] = vOrigin[0] + velocity[0];
+	position[1] = vOrigin[1] + velocity[1];
+	position[2] = vOrigin[2] + velocity[2];
+}
+stock make_sprite(const id, const Float:vOrigin[3])
+{
+	new origin[3];
+	FVecIVec(vOrigin, origin);
+
+	message_begin(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, {0,0,0}, id);
+	write_byte(TE_SPRITE);
+	write_coord(origin[0]);
+	write_coord(origin[1]);
+	write_coord(origin[2]);
+	write_short(rami);
+	write_byte(5);
+	write_byte(255);
+	message_end();
+}
+*/
+
+/*
+public makeBlockEntity(id)
+{
+	if(!is_user_connected(id) || checkLoginStatus(id)) return;
+	
+	static Float:position[3];
+	getPlayerFront(id, position);
+	make_sprite(id, position);
+
+	set_task(0.05, "makeBlockEntity", id);
+}
+
+public makeBlockEntity(id)
+{
+	static entity;
+	entity = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"));
+
+	if (!pev_valid(entity) ) return FMRES_IGNORED;
+
+	set_pev(entity, pev_classname, "Rami");
+	set_pev(entity, pev_owner, id);
+	set_pev(entity, pev_movetype, MOVETYPE_NOCLIP);
+	set_pev(entity, pev_solid, SOLID_NOT);
+	set_pev(entity, pev_scale, 0.2);
+
+	new Float:vOrigin[3];
+	getPlayerFront(id, vOrigin);
+	engfunc(EngFunc_SetSize, entity, Float:{-5.0, -5.0, -5.0}, Float:{5.0, 5.0, 5.0});
+	engfunc(EngFunc_SetModel, entity, blockRami);
+	engfunc(EngFunc_SetOrigin, entity, vOrigin);
+
+	set_pev(entity, pev_nextthink, get_gametime() + 0.05);
+
+	return FMRES_HANDLED;
+}
+
+public forward_think(ent)
+{
+	if (!pev_valid(ent)) return FMRES_IGNORED;
+
+	static className[32];
+	pev(ent, pev_classname, className, 31);
+
+	if( !equal("Rami", className)) return FMRES_IGNORED;
+
+	static id;
+	id = pev(ent, pev_owner);
+
+	if(!is_user_connected(id) || checkLoginStatus(id)) {
+		engfunc(EngFunc_RemoveEntity, ent);
+		return FMRES_IGNORED;
+	}
+
+	new Float:vOrigin[3];
+	getPlayerFront(id, vOrigin);
+	engfunc(EngFunc_SetOrigin, ent, vOrigin);
+	set_pev(ent, pev_nextthink, get_gametime() + 0.05);
+
+	return FMRES_HANDLED;
+}
+*/

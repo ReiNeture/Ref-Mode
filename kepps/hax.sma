@@ -25,7 +25,7 @@ enum
 
 const BallMax = 3;
 const BallSpeed = 2000;
-const Float:BallDamage = 155.0;
+const Float:BallDamage = 55.0;
 const Float:BallRadiusExplode =	100.0;
 
 new const EntInfo[] = "env_sprite";
