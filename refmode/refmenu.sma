@@ -17,7 +17,7 @@ enum
 new gKeysSkillMenu;
 new gTreasureMenu[256];
 
-const gSkillMax = 5;
+const gSkillMax = 6;
 
 enum
 {
@@ -25,7 +25,8 @@ enum
 	SK_WATER,
 	SK_ROBOT,
 	SK_SHIELD,
-	SK_DRONE
+	SK_DRONE,
+	SK_RAT
 };
 
 new const gszSkillNames[gSkillMax][32] =
@@ -34,7 +35,8 @@ new const gszSkillNames[gSkillMax][32] =
     "夸寶的飲水機",
 	"自動機槍塔",
 	"能量護盾",
-	"無人機"
+	"無人機",
+	"鐵鼠"
 }
 
 new const gInfoTarget[] = "env_sprite";
@@ -42,6 +44,7 @@ new const gDickClassName[] = "my_dick";
 new const gAquaBodyClassName[] = "aqua_body";
 new const gRobotClassName[] = "robot_gun";
 new const gDroneClassName[] = "drone_plane";
+new const gRatClassName[] = "iron_rat";
 
 const MAXDICK = 30;             // 財寶同階召喚數量
 new gHaveDick[33][MAXDICK];     // 記錄所有財寶的索引
@@ -61,7 +64,8 @@ new const gTreasureModel[4][] =
 }
 
 new gCurrentWater[33], gCurrentRobot[33];
-new gCurrentDrone[33]
+new gCurrentDrone[33], gCurrentRat[33];
+new Float:gRadians[33];
 
 new const gszShellSound1[] = "ref/miss1.wav";                       // 護盾音效
 new const gszShellSound2[] = "ref/miss2.wav";                       // 護盾音效
@@ -75,13 +79,14 @@ new const gszCanonRobotModel[] = "models/ref/sentry3.mdl";          // 機搶塔
 new const gszBladeModel[] = "models/ref/blade06.mdl";               // 財寶劍
 new const gszDroneModel[] = "models/ref/cannonexdragon.mdl";        // 無人機
 
+new const gszRatModel[] = "sprites/ref/curuba2.spr";                // 鐵鼠模組
 new const gszSomkeSprite[] = "sprites/ref/steam1.spr";              // 車尾燈用
 new const gszWhiteSprite[] = "sprites/ref/whiteexp.spr";            // 爆炸白漿
 new const gszAquaSprite[] = "sprites/ref/aqua.spr";                 // 阿夸投影
 new const gszShieldSprite[] = "sprites/ref/vac.spr";                // 護盾特效
-// new const gszDroneFireSprite[] = "sprites/ref/laserflame.spr";      // 無人機攻擊
+new const gszRatTyrantSprite[] = "sprites/ref/muzzleflash59.spr";   // 碰觸鐵鼠特效
 
-new smoke, exp, aqua, shield;
+new smoke, exp, aqua, shield, rat;
 new gPlayerSelect[33];
 
 public plugin_init()
@@ -91,7 +96,7 @@ public plugin_init()
 	register_clcmd("tr", "showTreasureMenu");
 
 	RegisterHam(Ham_Touch, gInfoTarget, "fw_touch");
-	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack_player");
+	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 
 	register_event("DeathMsg", "eventPlayerDeath", "a");
@@ -101,6 +106,7 @@ public plugin_init()
 	register_think(gAquaBodyClassName, "aquaBodyThink");
 	register_think(gRobotClassName, "robotThink");
 	register_think(gDroneClassName, "droneThink");
+	register_think(gRatClassName, "ratThink");
 
 	createMenu();
 	register_menucmd(register_menuid("SkillMenu"),    gKeysSkillMenu, "handleSkillMenu");
@@ -120,11 +126,13 @@ public plugin_precache()
 	precache_model(gszCanonRobotModel);
 	precache_model(gszBladeModel);
 	precache_model(gszDroneModel);
+	precache_model(gszRatModel);
 
 	aqua = precache_model(gszAquaSprite);
 	smoke = precache_model(gszSomkeSprite);
 	exp = precache_model(gszWhiteSprite);
 	shield = precache_model(gszShieldSprite);
+	rat = precache_model(gszRatTyrantSprite);
 }
 
 createMenu()
@@ -176,6 +184,7 @@ public handleSkillMenu(id, num)
 		case SK_ROBOT: createRobot(id);
 		case SK_SHIELD: gPlayerSelect[id] = num;
 		case SK_DRONE: createDrone(id);
+		case SK_RAT: createRat(id);
     }
     showSkillMenu(id);
 }
@@ -203,15 +212,75 @@ public handleTreasureMenu(id, num)
 	}
 	showTreasureMenu(id);
 }
+/*============================================= Rat ====================================================*/
+createRat(id)
+{
+	if( gCurrentRat[id] ) deleteRat(id);
+
+	static entity;
+	entity = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, gInfoTarget));
+	if (!pev_valid(entity) ) return FMRES_IGNORED;
+
+	new Float:vOrigin[3];
+	pev(id, pev_origin, vOrigin);
+	vOrigin[0] += floatcos( 0.0 ) * 150.0;
+	vOrigin[1] += floatsin( 0.0 ) * 150.0;
+
+	set_pev(entity, pev_classname, gRatClassName);
+	set_pev(entity, pev_owner, id);
+	set_pev(entity, pev_movetype, MOVETYPE_NOCLIP);
+	set_pev(entity, pev_solid, SOLID_TRIGGER);
+	set_pev(entity, pev_rendermode, kRenderTransAdd);
+	set_pev(entity, pev_renderamt, 255.0);
+	set_pev(entity, pev_scale, 0.3);
+	
+	engfunc(EngFunc_SetSize, entity, Float:{-1.1, -1.1, -1.1}, Float:{1.1, 1.1, 1.1});
+	engfunc(EngFunc_SetModel, entity, gszRatModel);
+	engfunc(EngFunc_SetOrigin, entity, vOrigin);
+
+	gCurrentRat[id] = entity;
+	attachBeamFollow(entity, 100);
+	set_pev(entity, pev_nextthink, halflife_time() + 0.1);
+	return FMRES_HANDLED;
+}
+
+public ratThink(ent)
+{
+	if (!pev_valid(ent) ) return FMRES_IGNORED;
+
+	static id; id = pev(ent, pev_owner);
+	if(!is_user_connected(id) ) {
+		deleteRat(id);
+		return FMRES_HANDLED;
+	}
+
+	new Float:origin[3], Float:origin2[3], Float:velocity[3];
+	pev(id, pev_origin, origin);
+	pev(ent, pev_origin, origin2);
+
+	// 算出下個移動點的座標
+	gRadians[id] += 1.0;
+	origin[0] += floatcos( gRadians[id] ) * 150.0;
+	origin[1] += floatsin( gRadians[id] ) * 150.0;
+
+	get_speed_vector(origin2, origin, 1500.0, velocity);
+	set_pev(ent, pev_velocity, velocity);
+
+	set_pev(ent, pev_nextthink, halflife_time() + 0.07);
+	return FMRES_HANDLED;
+}
+
+deleteRat(id)
+{
+	engfunc(EngFunc_RemoveEntity, gCurrentRat[id]);
+	gCurrentRat[id] = 0;
+}
 /*============================================= Drone ==================================================*/
 createDrone(id)
 {
 	if( gCurrentDrone[id] )
 	{
-		engfunc(EngFunc_RemoveEntity, gCurrentDrone[id]);
-		// set_pev(id, pev_flags, pev(id, pev_flags) & ~FL_FROZEN);
-		engfunc(EngFunc_SetView, id, id);
-		gCurrentDrone[id] = 0;
+		deleteOldDrone(id, gCurrentDrone[id]);
 		return FMRES_IGNORED;
 	}
 
@@ -225,20 +294,19 @@ createDrone(id)
 	set_pev(entity, pev_classname, gDroneClassName);
 	set_pev(entity, pev_owner, id);
 	set_pev(entity, pev_movetype, MOVETYPE_FLY);
-	set_pev(entity, pev_solid, SOLID_SLIDEBOX);
+	set_pev(entity, pev_solid, SOLID_BBOX);
 	set_pev(entity, pev_sequence, 0);
 	set_pev(entity, pev_framerate, 1.8);
 	set_pev(entity, pev_animtime, 1.0);
 
 	gCurrentDrone[id] = entity;
-	engfunc(EngFunc_SetSize, entity, Float:{-5.1, -5.1, -5.1}, Float:{5.1, 5.1, 5.1} );
+	engfunc(EngFunc_SetSize, entity, Float:{-8.1, -8.1, -8.1}, Float:{8.1, 8.1, 8.1} );
 	engfunc(EngFunc_SetModel, entity, gszDroneModel);
 	engfunc(EngFunc_SetOrigin, entity, vOrigin);
 	engfunc(EngFunc_SetView, id, entity);
 	set_pev(entity, pev_nextthink, halflife_time() + 0.01);
 
 	// set_pev(id, pev_flags, pev(id, pev_flags) | FL_FROZEN);
-	attachBeamFollow(entity, 50);
 	makeScreenFade(id);
 	emit_sound(id, CHAN_WEAPON, gszHomuraSound, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 
@@ -258,12 +326,14 @@ public droneThink(entity)
 		return FMRES_HANDLED;
 	}
 
-	static Float:angles[3];
+	static Float:angles[3], Float:origin[3];
 	pev(id, pev_v_angle, angles);
+	pev(entity, pev_origin, origin);
 	set_pev(entity, pev_angles, angles);
 
+	create_dynamic_light(origin, 27, 255, 255, 255, 1);
 	set_pev(entity, pev_nextthink, halflife_time() + 0.01);
-	return FMRES_IGNORED;
+	return FMRES_HANDLED;
 }
 
 parseKeyforDrone(id, key)
@@ -301,9 +371,16 @@ doDroneLeft(ent) {
 	doHorizontalMove(ent, 250.0, ANGLEVECTOR_RIGHT, -1.0);
 }
 doDroneStop(ent) {
-	doHorizontalMove(ent, 0.1, ANGLEVECTOR_RIGHT, 1.0);
+	doHorizontalMove(ent, 0.1, ANGLEVECTOR_FORWARD, 1.0);
 }
 
+deleteOldDrone(id, ent)
+{
+	engfunc(EngFunc_RemoveEntity, ent);
+	// set_pev(id, pev_flags, pev(id, pev_flags) & ~FL_FROZEN);
+	engfunc(EngFunc_SetView, id, id);
+	gCurrentDrone[id] = 0;
+}
 /*============================================= MachineRobot ===========================================*/
 createRobot(id)
 {
@@ -384,7 +461,7 @@ doFire(entity)
 	if( near ) {
 		static Float:vOrigin[3], Float:eOrigin[3];
 
-		ExecuteHamB(Ham_TakeDamage, near, id, id, 35.0, DMG_SONIC);
+		ExecuteHamB(Ham_TakeDamage, near, id, id, 38.0, DMG_SONIC);
 		
 		pev(entity, pev_origin, vOrigin);		
 		pev(near, pev_origin, eOrigin);
@@ -465,7 +542,7 @@ createDick(id)
 
 		entity_set_string(ent, EV_SZ_classname, gDickClassName);
 		entity_set_model(ent, gTreasureModel[random_num(0,3)] );
-		entity_set_size(ent, Float:{-7.0, -7.0, -7.0}, Float:{7.0, 7.0, 7.0});
+		entity_set_size(ent, Float:{-7.0, -7.0, -7.0}, Float:{7.0, 7.0, 7.0} );
 		entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER); // SOLID_TRIGGER MOVETYPE_BOUNCE SOLID_BBOX  MOVETYPE_BOUNCEMISSILE MOVETYPE_FLYMISSILE
 		entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLYMISSILE);
 		entity_set_edict(ent, EV_ENT_owner, id);
@@ -687,7 +764,11 @@ public aquaBodyThink(ent)
 
 	doWaterHeal(ent);
 	emit_sound(ent, CHAN_STATIC, gszPortalSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
-	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 4.62);
+	new Float:origin[3];
+	pev(ent, pev_origin, origin);
+	create_dynamic_light(origin, 20, 255, 213, 225, 47);
+
+	entity_set_float(ent, EV_FL_nextthink, halflife_time() + 4.67);
 	return FMRES_HANDLED;
 }
 
@@ -703,9 +784,8 @@ doWaterHeal(ent)
 		if( !is_user_alive(healer) || get_user_team(healer) != get_user_team(owner)) continue;
 
 		new health = pev(healer, pev_health);
-		if( health < 2000.0) {
-			set_pev(healer, pev_health, 2000.0);
-
+		if( health < 5000.0) {
+			set_pev(healer, pev_health, 500.0);
 			engfunc(EngFunc_MessageBegin, MSG_ONE, get_user_msgid("ScreenFade"), 0, healer);
 			write_short(1<<10); // Duration --> Note: Duration and HoldTime is in special units. 1 second is equal to (1<<12) i.e. 4096 units.
 			write_short(1<<11); // Holdtime
@@ -737,12 +817,16 @@ public fw_touch(ent, ptr)
 {
 	if (!is_valid_ent(ent)) return FMRES_IGNORED;
 
-	new szClassName[32], ptrClassName[32];
+	static szClassName[32], ptrClassName[32];
 	entity_get_string(ent, EV_SZ_classname, szClassName, charsmax(szClassName));
 	entity_get_string(ptr, EV_SZ_classname, ptrClassName, charsmax(ptrClassName));
 
-	new Float:fOrigin[3];
+	static Float:fOrigin[3], Float:fOrigin2[3];
+	entity_get_vector(ent, EV_VEC_origin, fOrigin);
+	entity_get_vector(ptr, EV_VEC_origin, fOrigin2);
+
 	new id = entity_get_edict(ent, EV_ENT_owner);
+	new Float:gameTime = halflife_time();
 
 	if(equal(szClassName, gDickClassName) && !equal(ptrClassName, gDickClassName) && id != ptr ) {
 		if( entity_get_int(ent, EV_INT_iuser1) == 1 ) {
@@ -750,7 +834,6 @@ public fw_touch(ent, ptr)
 			// new times = entity_get_int(ent, EV_INT_iuser4);
 			// entity_set_int(ent, EV_INT_iuser4, (times+1));
 			
-			entity_get_vector(ent, EV_VEC_origin, fOrigin);
 			creat_exp_spr(fOrigin);
 			ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 2000.0, DMG_ENERGYBEAM);
 
@@ -760,14 +843,28 @@ public fw_touch(ent, ptr)
 		}
 	}
 
-	if(equal(szClassName, gDroneClassName) && id != ptr && equal(ptrClassName, "player") ) {
+	if(equal(szClassName, gDroneClassName) && id != ptr && equal(ptrClassName, "player") && is_user_connected(id) ) {
+
 		static Float:nextimes[33];
-		if( halflife_time() <= nextimes[id] ) return FMRES_IGNORED;
-		static Float:velocity[3]; pev(ent, pev_velocity, velocity);
+		if( gameTime <= nextimes[id] ) return FMRES_IGNORED;
+
+		static Float:velocity[3];
+		pev(ent, pev_velocity, velocity);
+
 		if( xs_vec_len(velocity) < 300.0 ) return FMRES_IGNORED;
 
-		ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 99999.0, DMG_TIMEBASED);
-		nextimes[id] = halflife_time() + 0.1;
+		ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 99999.0, DMG_ENERGYBEAM);
+		nextimes[id] = gameTime + 0.1;
+	}
+
+	if(equal(szClassName, gRatClassName) && id != ptr && equal(ptrClassName, "player") && is_user_connected(ptr) ) {
+
+		static Float:nextimes[33];
+		if( gameTime <= nextimes[ptr] ) return FMRES_IGNORED;
+
+		creat_exp_for_rat(fOrigin2);
+		ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 205.0, DMG_ENERGYBEAM);
+		nextimes[ptr] = gameTime + 0.2;
 	}
 
 	return FMRES_HANDLED;
@@ -800,13 +897,13 @@ public fw_cmdstart(id, uc_handle, seed)
 
 	return FMRES_IGNORED;
 }
-public fw_TraceAttack_player(this, id, Float:damage, Float:direction[3], tracehandle, damagebits)
+
+public fw_TraceAttack(this, id, Float:damage, Float:direction[3], tracehandle, damagebits)
 {
 	if ( !is_user_alive(this) || !is_user_connected(this)) return HAM_IGNORED;
 
 	if( gPlayerSelect[this] == SK_SHIELD) {
-
-		SetHamParamFloat(3, damage * 0.3);
+		SetHamParamFloat(3, damage * 0.2);
 
 		static Float:last_time;
 		if ( get_gametime() - last_time >= 0.2) 
@@ -826,11 +923,11 @@ public fw_TraceAttack_player(this, id, Float:damage, Float:direction[3], traceha
 			message_end();
 			last_time = get_gametime();
 		}
-
 		static wav[20];
 		formatex(wav, charsmax(wav), "ref/miss%d.wav", random_num(1, 3));
 		emit_sound(this, CHAN_WEAPON, wav, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 	}
+
 	return HAM_HANDLED;
 }
 
@@ -924,6 +1021,20 @@ stock creat_exp_spr(const Float:fOrigin[3])
 	message_end();
 }
 
+stock creat_exp_for_rat(const Float:fOrigin[3])
+{
+	engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
+	write_byte(TE_EXPLOSION);
+	engfunc(EngFunc_WriteCoord, fOrigin[0]);
+	engfunc(EngFunc_WriteCoord, fOrigin[1]);
+	engfunc(EngFunc_WriteCoord, fOrigin[2]);
+	write_short(rat);
+	write_byte(5);
+	write_byte(15);
+	write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NODLIGHTS);
+	message_end();
+}
+
 stock attachBeamFollow(ent, life)
 {
 	// message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
@@ -940,17 +1051,47 @@ stock attachBeamFollow(ent, life)
 	message_end();
 }
 
-stock makeScreenFade(id)
+stock makeScreenFade(id, const time=12, const r=255, const g=255, const b=255, const alpha=250)
 {
 	engfunc(EngFunc_MessageBegin, MSG_ONE, get_user_msgid("ScreenFade"), {0,0,0}, id);
-	write_short(1<<12); // Duration --> Note: Duration and HoldTime is in special units. 1 second is equal to (1<<12) i.e. 4096 units.
+	write_short(1<<time); // Duration --> Note: Duration and HoldTime is in special units. 1 second is equal to (1<<12) i.e. 4096 units.
 	write_short(1<<9); // Holdtime
 	write_short(0x0000); // 0x0001 Fade in
-	write_byte(255);
-	write_byte(255);
-	write_byte(255);
-	write_byte(250);  // Alpha
+	write_byte(r);
+	write_byte(g);
+	write_byte(b);
+	write_byte(alpha);  // Alpha
 	message_end();
+}
+
+stock create_dynamic_light(const Float:originF[3], radius, red, green, blue, life)
+{
+	// Dynamic light, effect world, minor entity effect
+	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, originF, 0);
+	write_byte(TE_DLIGHT) // TE id: 27
+	engfunc(EngFunc_WriteCoord, originF[0]) // x
+	engfunc(EngFunc_WriteCoord, originF[1]) // y
+	engfunc(EngFunc_WriteCoord, originF[2]) // z
+	write_byte(radius) // radius in 10's
+	write_byte(red) //red
+	write_byte(green) //green
+	write_byte(blue) //blue
+	write_byte(life) // life in 10's
+	write_byte(0) // decay rate in 10's
+	message_end()
+}
+
+stock fm_set_rendering(entity, fx = kRenderFxNone, r = 255, g = 255, b = 255, render = kRenderNormal, amount = 16)
+{
+	static Float:color[3]
+	color[0] = float(r)
+	color[1] = float(g)
+	color[2] = float(b)
+	
+	set_pev(entity, pev_renderfx, fx)
+	set_pev(entity, pev_rendercolor, color)
+	set_pev(entity, pev_rendermode, render)
+	set_pev(entity, pev_renderamt, float(amount))
 }
 
 stock get_speed_vector(const Float:origin1[3], const Float:origin2[3], Float:speed, Float:new_velocity[3])
