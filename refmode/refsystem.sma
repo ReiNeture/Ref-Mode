@@ -19,7 +19,7 @@ new const SoundFiles[6][] =
 	"ref/helmet_hit.wav",
 	"ref/knife_slash1.wav"
 }
-new const Float:ChickenAttackRate[4] = {1.0, 0.7, 0.5, 0.3};
+new const Float:ChickenAttackRate[4] = {1.0, 0.6, 0.4, 0.2};
 
 
 const NOCLIP_WPN_BS    = ((1<<2)|(1<<CSW_HEGRENADE)|(1<<CSW_SMOKEGRENADE)|(1<<CSW_FLASHBANG)|(1<<CSW_KNIFE)|(1<<CSW_C4))
@@ -47,7 +47,7 @@ new freemenu[256];
 new blessing[512]; 
 
 new bool:gChangedFree[33];
-new gChangedChicken[33];
+new gChangedChicken[33], gChangedChicken2[33];
 
 public plugin_init()
 {
@@ -121,38 +121,45 @@ public createAllMenu()
 
 	size = sizeof(blessing);
 	add(blessing, size, "\w雞雞的祝福 \y(Chicken blessing)^n^n");
-	add(blessing, size, "\y0. \w雞雞的被動(自動開啟) \y(Automatic switch on)^n");
+	add(blessing, size, "\y0. \r雞雞的被動(已自動開啟) \y(Automatic switch on)^n");
 	add(blessing, size, "\y擊殺敵人能補血上限400^n^n");
 	add(blessing, size, "\r開啟雞雞的祝福能夠增加換彈速^n\y(Increase weapon reload speed)^n^n");
 	add(blessing, size, "\r1. %s雞雞的祝福C(lv.30)^n\y(Chicken blessing level C)^n^n");
 	add(blessing, size, "\r2. %s雞雞的祝福B(lv.70)^n\y(Chicken blessing level B)^n^n");
-	add(blessing, size, "\r3. %s雞雞的祝福A(lv.150)^n\y(Chicken blessing level A)^n^n");
+	add(blessing, size, "\r3. %s雞雞的祝福A(lv.150)^n\y(Chicken blessing level A)^n^n^n");
+	add(blessing, size, "\r4. %s雞雞祝福NR(lv.60) \y(提高槍傷3趴)^n");
+	add(blessing, size, "\r5. %s雞雞祝福SR(lv.150) \y(提高槍傷5趴)^n");
 }
 
 public createChickenMenu(id)
 {
-	new col[3], col2[3], col3[3];
+	new col[3], col2[3], col3[3], col4[3], col5[3];
 	new szMenu[512];
 	
 	col = (gChangedChicken[id] == 1) ? "\r" : "\w";
 	col2 = (gChangedChicken[id] == 2) ? "\r" : "\w";
 	col3 = (gChangedChicken[id] == 3) ? "\r" : "\w";
 
-	format(szMenu, 512, blessing, col, col2, col3);
+	col4 = (gChangedChicken2[id] == 4) ? "\r" : "\w";
+	col5 = (gChangedChicken2[id] == 5) ? "\r" : "\w";
+
+	format(szMenu, 512, blessing, col, col2, col3, col4, col5);
 	show_menu(id, KEYSMENU, szMenu, -1, "ChickenMenu");
 	
 	return PLUGIN_HANDLED;
 }
 public handleChickenMenu(id, key)
 {
-	new const level[3] = {30, 70, 150};
+	new const level[5] = {30, 70, 150, 60, 150};
 
 	if( key>=0 && key<=2 && ref_get_level(id) >= level[key] )
 		gChangedChicken[id] = key+1;
+	else if( key>=3 && key<=4 && ref_get_level(id) >= level[key])
+		gChangedChicken2[id] = key+1;
 	else
-		client_print(id, print_chat, "雞雞長度不足 需要%d", level[key]);
+		createChickenMenu(id);
 
-	if(key==0 || key==1 || key==2)
+	if(key==0 || key==1 || key==2|| key==3|| key==4)
 		createChickenMenu(id);
 
 	return PLUGIN_HANDLED;
@@ -303,6 +310,8 @@ public fw_PlayerKilled(this, attack, shouldgib)
 }
 public fw_TraceAttack(this, id, Float:damage, Float:direction[3], tracehandle, damagebits)
 {
+	if(!is_user_connected(id) ) return HAM_IGNORED;
+
 	if( get_user_weapon(id) != CSW_KNIFE) {
 		new Float:end[3];
 		new start[3];
@@ -319,6 +328,11 @@ public fw_TraceAttack(this, id, Float:damage, Float:direction[3], tracehandle, d
 		write_coord(floatround(end[2]));
 		message_end();
 	}
+
+	if (gChangedChicken2[id] == 4) SetHamParamFloat(3, damage * 1.03);
+	if (gChangedChicken2[id] == 5) SetHamParamFloat(3, damage * 1.05);
+
+	return HAM_HANDLED;
 }
 public fw_PlayerSpawn_Post(id)
 {
@@ -332,7 +346,7 @@ public fw_PlayerSpawn_Post(id)
 	
 	if ( is_user_bot(id) ) {
 		cs_set_user_model(id, "zombie_nnn"); 
-		set_pev(id, pev_health, random_float(700.0, 1000.0));
+		set_pev(id, pev_health, random_float(2500.0, 3000.0));
 	}
 
 	return HAM_HANDLED;
@@ -378,12 +392,30 @@ public event_curweapon(id)
 
 public client_putinserver(id)
 {
-	if(!is_user_connected(id)) return PLUGIN_CONTINUE;
+	if(!is_user_connected(id) || is_user_bot(id) ) return PLUGIN_CONTINUE;
 
 	if( task_exists(id+5498) ) remove_task(id+5498);
+	set_task(1.0, "setChick", id);
 	set_task(5.0, "checkIsAlivePost", id+5498, _, _, "b");
+
 	return PLUGIN_HANDLED;
 }
+public setChick(id)
+{
+	new lv = ref_get_level(id);
+	if( lv >= 150 )
+		gChangedChicken[id] = 3;
+	else if( lv >= 70 )
+		gChangedChicken[id] = 2;
+	else if( lv >= 30)
+		gChangedChicken[id] = 1;
+
+	if( lv >= 150 )
+		gChangedChicken2[id] = 5;
+	else if( lv >= 60 )
+		gChangedChicken2[id] = 4;
+}
+
 public checkIsAlivePost(id)
 {
 	id -= 5498;

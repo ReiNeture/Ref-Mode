@@ -25,7 +25,7 @@ enum
 
 const BallMax = 3;
 const BallSpeed = 2000;
-const Float:BallDamage = 55.0;
+const Float:BallDamage = 45.0;
 const Float:BallRadiusExplode =	100.0;
 
 new const EntInfo[] = "env_sprite";
@@ -160,8 +160,8 @@ public client_putinserver(id)
 createMenu()
 {
 	new size = sizeof(akoMainMenu);
-	add(akoMainMenu, size, "\w大便雞雞尿尿 ^n^n");
-	add(akoMainMenu, size, "\r1. \waimbot: %s ^n");
+	add(akoMainMenu, size, "\w低能兒 ^n^n");
+	add(akoMainMenu, size, "\r1. \wAimbot: %s ^n");
 	add(akoMainMenu, size, "\r2. \w反射傷害: %s ^n");
 	add(akoMainMenu, size, "\r3. \w隱身: %s ^n");
 	add(akoMainMenu, size, "\r4. \w大跳: %s ^n");
@@ -510,7 +510,7 @@ public fragementexplodeTouch(ent, ptr)
 	pev(ptr, pev_classname, ptrClassName, charsmax(ptrClassName));
 
 	if(equal(entClassName, fragementClassname) && !equal(ptrClassName, fragementClassname) && id != ptr) {
-		ExecuteHamB(Ham_TakeDamage, ptr, ptr, id, 500.0, DMG_ENERGYBEAM);
+		ExecuteHamB(Ham_TakeDamage, ptr, ptr, id, 169.0, DMG_ENERGYBEAM);
 
 		engfunc(EngFunc_RemoveEntity, ent)
 	}
@@ -533,7 +533,7 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 			set_tr2(tracehandle, TR_iHitgroup, HIT_HEAD);
 
 	if(dodge[victim] && is_user_alive(victim) && is_user_connected(victim) && get_user_team(victim) == 1) {
-		if(random_num(1, 10) != 1) {
+		if(random_num(1, 5) == 1) {
 			new Float:fTime = halflife_time();
 
 			set_task(4.0, "speedboostRemove", victim);
@@ -568,17 +568,19 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 
 public fw_TraceAttack_bullet(victim, attacker, Float:damage, Float:direction[3], tracehandle, damage_type)
 {
+	if(!is_user_connected(attacker) ) return HAM_IGNORED;
+
 	if(explosionbullet[attacker] && get_user_weapon(attacker) != CSW_KNIFE) {
 		if(random_num(1, 2) == 1) {
 			victim  = FM_NULLENT;
 			new fOrigin[3];
 			get_tr2(tracehandle, TR_vecEndPos, fOrigin);
 
-			while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 75.0)) != 0) {
+			while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 100.0)) != 0) {
 				if(!is_user_alive(victim) || attacker == victim)
 					continue;
 
-				ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, 93.0, DMG_ENERGYBEAM);
+				ExecuteHamB(Ham_TakeDamage, victim, attacker, attacker, 105.0, DMG_ENERGYBEAM);
 			}
 
 			engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0);
@@ -594,6 +596,7 @@ public fw_TraceAttack_bullet(victim, attacker, Float:damage, Float:direction[3],
 
 		}
 	}
+	return HAM_IGNORED;
 }
 
 public fw_PlayerKilled(victim, attacker, shouldgib)
@@ -656,11 +659,11 @@ public fw_cmdstart(id)
 		static Float:last_time[33];
 		button = pev(id, pev_button);
 
-		if(halflife_time() - last_time[id] >= 0.3) {
+		if(halflife_time() - last_time[id] >= 0.1) {
 			if((button & IN_JUMP) && (button & IN_DUCK)) {
 				static Float:velocity[3];
-				velocity_by_aim(id, 700, velocity);
-				velocity[2] = 350.0;
+				velocity_by_aim(id, 750, velocity);
+				velocity[2] = 300.0;
 				set_pev(id, pev_velocity, velocity);
 				
 				last_time[id] = halflife_time();

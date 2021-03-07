@@ -137,21 +137,30 @@ public fw_PlayerKilled(victim, attacker, shouldgib)
     if(reflevel[attacker][LEVEL] <= 0)
         reflevel[attacker][LEVEL] = 1;
 
+    new exp = 1600 * get_cvar_num("refExpRate");
+
+    if( reflevel[attacker][LEVEL] < 100 ) {
+        exp *= 10;
+        client_print(attacker, print_center, "擊殺了 怪人 獲得 %d 經驗值 (100等以下經驗值10倍)", exp);
+    } else
+        client_print(attacker, print_center, "擊殺了 怪人 獲得 %d 經驗值", exp);
+
     if(get_user_team(victim) == 2){
-        reflevel[attacker][EXP] += 700 * get_cvar_num("refExpRate");
+        reflevel[attacker][EXP] += exp
         refzmkill[attacker]++;
     }
 
     new refexp = reflevel[attacker][LEVEL] * y14y;
-    if(reflevel[attacker][EXP] >= refexp) {
+    while(reflevel[attacker][EXP] >= refexp) {
         reflevel[attacker][EXP] -= refexp;
         reflevel[attacker][LEVEL]++;
+        refexp = reflevel[attacker][LEVEL] * y14y;
     }
 
-    refexp = reflevel[attacker][LEVEL] * y14y;
-    if(reflevel[attacker][EXP] >= refexp) {
-        reflevel[attacker][EXP] = refexp-1;
-    }
+    // refexp = reflevel[attacker][LEVEL] * y14y;
+    // if(reflevel[attacker][EXP] >= refexp) {
+    //     reflevel[attacker][EXP] = refexp-1;
+    // }
 
     return HAM_HANDLED;
 }
