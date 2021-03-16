@@ -990,7 +990,7 @@ public server_frame()
 				}
 			}
 			//or if entity is a grenade
-			else if (equal(szClassname, "grenade"))
+			else if (equal(szClassname, "grenade") || equal(szClassname, "aqua_body") || equal(szClassname, "drone_plane") || equal(szClassname, "my_dick") )
 			{
 				//get the end of the teleport
 				tele = entity_get_int(ent, EV_INT_iuser1);

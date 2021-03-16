@@ -9,6 +9,7 @@ new refzmkill[33];
 new const y14y = 100
 new sync;
 new vault;
+new bool:havedLoad[33];
 
 enum {
     LEVEL,
@@ -27,6 +28,7 @@ public plugin_init(){
 
     sync = CreateHudSyncObj();
     vault = nvault_open("reflevel");
+    set_task(20.0, "AutoSave", _, _, _, "b");
 }
 
 public plugin_natives()
@@ -38,23 +40,30 @@ public native_ref_get_level(id)
     return reflevel[id][LEVEL];
 }
 
+public client_connect(id)
+{
+    if( is_user_bot(id) ) return PLUGIN_CONTINUE;
+    
+    havedLoad[id] = false;
+    LoadData(id);
+
+    return PLUGIN_CONTINUE;
+}
+
 public client_putinserver(id)
 {
     if(!is_user_bot(id) ) {
-        LoadData(id);
         set_task(0.2, "show_hud", id+1234);
-        set_task(10.0, "AutoSave", _, _, _, "b");
     }
 
 }
 
-public client_disconnect(id)
+public client_disconnected(id)
 {
-    if(!is_user_bot(id))
+    if(!is_user_bot(id) && havedLoad[id]) {
         SaveData(id);
-
-    remove_task(id+1234);
-    remove_task(id+777);
+        remove_task(id+1234);
+    }
 }
 
 public show_hud(id)
@@ -70,7 +79,7 @@ public show_hud(id)
     static blue = 255;
 
     set_hudmessage(red, green, blue, -0.85, 0.15, 0, 0.0, 0.3, 0.0, 0.0, -1);
-    ShowSyncHudMsg(id, sync, "|炫光彩色雞雞|^n|血量: %d|^n|等級: %d|^n|經驗: %d / %d|^n|經驗倍率: %d|^n|擊殺數: %d|", get_user_health(id), reflevel[id][LEVEL], reflevel[id][EXP], reflevel[id][LEVEL] * y14y, get_cvar_num("refExpRate"), refzmkill[id]);
+    ShowSyncHudMsg(id, sync, "|血量: %d|^n|等級: %d|^n|經驗: %d / %d|^n|經驗倍率: %d|^n|Aqua Point: %d|", get_user_health(id), reflevel[id][LEVEL], reflevel[id][EXP], reflevel[id][LEVEL] * y14y, get_cvar_num("refExpRate"), refzmkill[id]);
     set_task(0.2, "show_hud", id+1234);
 
     return PLUGIN_HANDLED;
@@ -78,6 +87,7 @@ public show_hud(id)
 
 SaveData(id)
 {
+    client_print(id, print_console, "save data.");
     new name[32], vaultKey[64], vaultData[256];
 
     get_user_name(id, name, 31);
@@ -88,8 +98,9 @@ SaveData(id)
     nvault_set(vault, vaultKey, vaultData);
 }
 
-LoadData(id)
+public LoadData(id)
 {
+    client_print(id, print_console, "load data.");
     new name[32], vaultKey[64], vaultData[256];
 
     get_user_name(id, name, 31);
@@ -109,6 +120,7 @@ LoadData(id)
     reflevel[id][EXP] = str_to_num(exp);
     refzmkill[id] = str_to_num(kill);
 
+    havedLoad[id] = true;
 }
 
 public AutoSave()
@@ -137,7 +149,7 @@ public fw_PlayerKilled(victim, attacker, shouldgib)
     if(reflevel[attacker][LEVEL] <= 0)
         reflevel[attacker][LEVEL] = 1;
 
-    new exp = 1600 * get_cvar_num("refExpRate");
+    new exp = 800 * get_cvar_num("refExpRate");
 
     if( reflevel[attacker][LEVEL] < 100 ) {
         exp *= 10;

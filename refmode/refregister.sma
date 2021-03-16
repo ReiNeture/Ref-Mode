@@ -1,5 +1,6 @@
 #include <amxmodx>
 #include <amxmisc>
+#include <hamsandwich>
 
 #define TEAM_SELECT_VGUI_MENU_ID 2
 #define PASSWORD_MAXCHAR 20
@@ -21,6 +22,7 @@ public plugin_init()
 	register_clcmd("ref_register", "controlRegister");
 	register_clcmd("ref_login", "controlLogin");
 
+	register_message(get_user_msgid("ShowMenu"), "message_show_menu");
 	register_message(get_user_msgid("VGUIMenu"), "message_vgui_menu");
 }
 
@@ -113,6 +115,7 @@ public controlLogin(id)
 			Logied[id] = true;
 			client_cmd(id, "jointeam");
 			client_printcolor(id, "/y[/g你已成功登入/y]");
+			set_task(0.5, "respawnPlayer", id);
 
 		} else {
 			client_printcolor(id, "/y[/g密碼輸入錯誤/y]");
@@ -166,6 +169,7 @@ public finishConfirm(id)
 		client_printcolor(id, "/y[/g註冊成功 你的密碼是 /ctr %s/y]", password[id]);
 		client_printcolor(id, "/y[/g註冊成功 你的密碼是 /ctr %s/y]", password[id]);
 	}
+	displayMainMenu(id);
 }
 
 writePasswordToFile(const name[], const args[])
@@ -217,30 +221,56 @@ public client_putinserver(id)
 	set_task(0.1, "displayMainMenu", id);
 }
 
-public message_vgui_menu(msgid, dest, id) {
-	if (get_msg_arg_int(1) != TEAM_SELECT_VGUI_MENU_ID || !is_user_connected(id) ) return PLUGIN_CONTINUE;
+public message_show_menu(msgid, dest, id)
+{
+	static team_select[] = "#Team_Select";
+	static menu_text_code[sizeof team_select];
+	get_msg_arg_string(4, menu_text_code, sizeof menu_text_code - 1);
+
+	if (!equal(menu_text_code, team_select) ) return PLUGIN_CONTINUE;
 
 	if( !Logied[id] ) return PLUGIN_HANDLED;   // 阻擋未登入玩家進入時開啟隊伍選單
-	
-	static param_menu[1];
+
+	static param_menu[2];
 	param_menu[0] = msgid;
 	set_task(0.1, "Task_VGUI", id, param_menu, sizeof param_menu);
 
 	return PLUGIN_HANDLED;
 }
 
-public Task_VGUI(param_menu[], id)
+public message_vgui_menu(msgid, dest, id)
 {
+	if (get_msg_arg_int(1) != TEAM_SELECT_VGUI_MENU_ID ) return PLUGIN_CONTINUE;
+
+	if( !Logied[id] ) return PLUGIN_HANDLED;   // 阻擋未登入玩家進入時開啟隊伍選單
+	
+	static param_menu[2];
+	param_menu[0] = msgid;
+	set_task(0.1, "Task_VGUI", id, param_menu, sizeof param_menu);
+
+	return PLUGIN_HANDLED;
+}
+
+public Task_VGUI(const param_menu[], const id)
+{
+	if (get_user_team(id) ) return;
+
 	// 登入後自動開啟隊伍選單 並強制選擇TR隊伍
 	static Msg_Block;
+	static jointeam[] = "jointeam", joinclass[] = "joinclass";
 	Msg_Block = get_msg_block( param_menu[0] );
 	set_msg_block(param_menu[0], BLOCK_SET);
-	engclient_cmd(id, "jointeam", "1");
-	engclient_cmd(id, "joinclass", "1");
+	engclient_cmd(id, jointeam, "1");
+	engclient_cmd(id, joinclass, "1");
 	set_msg_block(param_menu[0], Msg_Block);
 }
 
 /************************************* NATIVE & CHECK FUNC *************************************/
+
+public respawnPlayer(id) {
+	if(is_user_alive(id) || !is_user_connected(id) ) return;
+	ExecuteHamB(Ham_CS_RoundRespawn, id);
+}
 
 checkRegisterStatus(id) {
     return Registed[id];

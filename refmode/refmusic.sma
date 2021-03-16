@@ -123,6 +123,7 @@ MenuConstructor()
 	add(infaceMenu, size, "\w湊あくあ 総長: \y播放音樂的\r 音樂盒 \w|||^n^n");
 	add(infaceMenu, size, "\y1. \w音樂列表 ^n");
 	add(infaceMenu, size, "\y2. \w播放順序 ^n");
+	add(infaceMenu, size, "^n");
 	// add(infaceMenu, size, "\y3. \w播放柱列 ^n^n");
 
 	gKeyInfaceMenu =   (B0 | B1 | B2 | B3 | B8);
@@ -382,7 +383,7 @@ resetInfo(id)
 	pages[id] = 0;
 }
 
-public client_disconnect(id)
+public client_disconnected(id)
 {
 	stopMusic(id);
 }

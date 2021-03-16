@@ -6,7 +6,6 @@
 #include <fun>
 #include <xs>
 #include <vector>
-#include <cstrike>
 
 new gKeysMainMenu;
 new gKeysBallMenu;
@@ -140,10 +139,10 @@ public native_hax(id)
 public respawn(id)
 {
 	ExecuteHam(Ham_CS_RoundRespawn, id);
-	if(cs_get_user_team(id) == CS_TEAM_SPECTATOR) {
-		fm_give_item(id, "weapon_knife");
-		fm_give_item(id, "weapon_usp");
-	}
+	// if(cs_get_user_team(id) == CS_TEAM_SPECTATOR) {
+	// 	fm_give_item(id, "weapon_knife");
+	// 	fm_give_item(id, "weapon_usp");
+	// }
 }
 
 public client_putinserver(id)

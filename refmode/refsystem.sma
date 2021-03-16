@@ -21,6 +21,10 @@ new const SoundFiles[6][] =
 }
 new const Float:ChickenAttackRate[4] = {1.0, 0.6, 0.4, 0.2};
 
+new const OFFSET_AMMO[31] =  // bpammo
+{
+	0, 385, 0, 378, 0, 381, 0, 382, 380, 0, 386, 383, 382, 380, 380, 380, 382, 386, 377, 386, 379, 381, 380, 386, 378, 0, 384, 380, 378, 0, 383
+}
 
 const NOCLIP_WPN_BS    = ((1<<2)|(1<<CSW_HEGRENADE)|(1<<CSW_SMOKEGRENADE)|(1<<CSW_FLASHBANG)|(1<<CSW_KNIFE)|(1<<CSW_C4))
 const SHOTGUNS_BS    = ((1<<CSW_M3)|(1<<CSW_XM1014))
@@ -125,10 +129,10 @@ public createAllMenu()
 	add(blessing, size, "\y擊殺敵人能補血上限400^n^n");
 	add(blessing, size, "\r開啟雞雞的祝福能夠增加換彈速^n\y(Increase weapon reload speed)^n^n");
 	add(blessing, size, "\r1. %s雞雞的祝福C(lv.30)^n\y(Chicken blessing level C)^n^n");
-	add(blessing, size, "\r2. %s雞雞的祝福B(lv.70)^n\y(Chicken blessing level B)^n^n");
-	add(blessing, size, "\r3. %s雞雞的祝福A(lv.150)^n\y(Chicken blessing level A)^n^n^n");
-	add(blessing, size, "\r4. %s雞雞祝福NR(lv.60) \y(提高槍傷3趴)^n");
-	add(blessing, size, "\r5. %s雞雞祝福SR(lv.150) \y(提高槍傷5趴)^n");
+	add(blessing, size, "\r2. %s雞雞的祝福B(lv.150)^n\y(Chicken blessing level B)^n^n");
+	add(blessing, size, "\r3. %s雞雞的祝福A(lv.250)^n\y(Chicken blessing level A)^n^n^n");
+	add(blessing, size, "\r4. %s雞雞祝福NR(lv.100) \y(提高槍傷3趴)^n");
+	add(blessing, size, "\r5. %s雞雞祝福SR(lv.260) \y(提高槍傷5趴)^n");
 }
 
 public createChickenMenu(id)
@@ -150,7 +154,7 @@ public createChickenMenu(id)
 }
 public handleChickenMenu(id, key)
 {
-	new const level[5] = {30, 70, 150, 60, 150};
+	new const level[5] = {30, 150, 250, 100, 260};
 
 	if( key>=0 && key<=2 && ref_get_level(id) >= level[key] )
 		gChangedChicken[id] = key+1;
@@ -167,6 +171,8 @@ public handleChickenMenu(id, key)
 
 public createMainMenu(id)
 {
+	if(is_user_bot(id) ) return PLUGIN_CONTINUE;
+
 	if( get_login_status(id) )
 		show_menu(id, KEYSMENU, mainmenu, -1, "MainMenu");
 	else
@@ -209,40 +215,44 @@ public createFreeWeaponMenu(id)
 public handleFreeWeaponMenu(id, key)
 {
 	gChangedFree[id] = true;
+	new wepId;
 	switch(key) {
 		case 0: {
 			fm_give_item(id, "weapon_ak47") ;
-			cs_set_user_bpammo(id, CSW_AK47, 90);
+			wepId = get_weaponid("weapon_ak47")
 		}
 		case 1: {
 			fm_give_item(id, "weapon_m4a1");
-			cs_set_user_bpammo(id, CSW_M4A1, 90);
+			wepId = get_weaponid("weapon_m4a1")
 		}
 		case 2: {
 			fm_give_item(id, "weapon_mp5navy");
-			cs_set_user_bpammo(id,CSW_MP5NAVY,90);
+			wepId = get_weaponid("weapon_mp5navy")
 		}
 		case 3: {
 			fm_give_item(id, "weapon_deagle");
-			cs_set_user_bpammo(id,CSW_DEAGLE,90);}
+			wepId = get_weaponid("weapon_deagle")
+		}
 		case 4: {
-			fm_give_item(id, "weapon_usp") ;
-			cs_set_user_bpammo(id,CSW_USP,90);
+			fm_give_item(id, "weapon_usp");
+			wepId = get_weaponid("weapon_usp")
 		}
 		case 5: { 
 			fm_give_item(id, "weapon_famas");
-			cs_set_user_bpammo(id,CSW_FAMAS,90);
+			wepId = get_weaponid("weapon_famas")
 		}
 		case 6: {
 			fm_give_item(id, "weapon_m249");
-			cs_set_user_bpammo(id,CSW_M249,120);
+			wepId = get_weaponid("weapon_m249")
 		}
 		case 7: {
 			fm_give_item(id, "weapon_aug");
-			cs_set_user_bpammo(id,CSW_AUG,90);
+			wepId = get_weaponid("weapon_aug")
 		}
 		default: { gChangedFree[id] = false;}
 	}
+
+	set_pdata_int(id, OFFSET_AMMO[wepId], 120, 5);
 	return PLUGIN_HANDLED;
 }
 
@@ -345,7 +355,7 @@ public fw_PlayerSpawn_Post(id)
 	fm_give_item(id, "weapon_knife");
 	
 	if ( is_user_bot(id) ) {
-		cs_set_user_model(id, "zombie_nnn"); 
+		cs_set_user_model(id, "zombie_nnn");
 		set_pev(id, pev_health, random_float(2500.0, 3000.0));
 	}
 
@@ -384,9 +394,8 @@ public event_curweapon(id)
 
 	if(weaponID==CSW_C4 || weaponID==CSW_KNIFE || weaponID==CSW_HEGRENADE || weaponID==CSW_SMOKEGRENADE || weaponID==CSW_FLASHBANG)
 		return PLUGIN_CONTINUE;
-		
-	cs_set_user_bpammo(id, weaponID, 120);
 
+	set_pdata_int(id, OFFSET_AMMO[weaponID], 120, 5);
 	return PLUGIN_HANDLED;
 }
 
@@ -394,38 +403,27 @@ public client_putinserver(id)
 {
 	if(!is_user_connected(id) || is_user_bot(id) ) return PLUGIN_CONTINUE;
 
-	if( task_exists(id+5498) ) remove_task(id+5498);
 	set_task(1.0, "setChick", id);
-	set_task(5.0, "checkIsAlivePost", id+5498, _, _, "b");
 
 	return PLUGIN_HANDLED;
 }
 public setChick(id)
 {
+
 	new lv = ref_get_level(id);
-	if( lv >= 150 )
+	if( lv >= 250 )
 		gChangedChicken[id] = 3;
-	else if( lv >= 70 )
+	else if( lv >= 150 )
 		gChangedChicken[id] = 2;
 	else if( lv >= 30)
 		gChangedChicken[id] = 1;
 
-	if( lv >= 150 )
+	if( lv >= 260 )
 		gChangedChicken2[id] = 5;
-	else if( lv >= 60 )
+	else if( lv >= 100 )
 		gChangedChicken2[id] = 4;
 }
 
-public checkIsAlivePost(id)
-{
-	id -= 5498;
-	if(!is_user_connected(id)) remove_task(id+5498);
-
-	if( get_login_status(id) ) {
-		DeathPost(id);
-		remove_task(id+5498);
-	}
-}
 public eventPlayerDeath()
 {
 	new index = read_data(2);
@@ -433,9 +431,12 @@ public eventPlayerDeath()
 }
 public DeathPost(index)
 {
-	set_pev(index, pev_deadflag, DEAD_RESPAWNABLE);
-	dllfunc(DLLFunc_Spawn, index);
-	set_pev(index, pev_iuser1, 0);
+	if(is_user_alive(index) ) return;
+
+	// set_pev(index, pev_deadflag, DEAD_RESPAWNABLE);
+	// dllfunc(DLLFunc_Spawn, index);
+	// set_pev(index, pev_iuser1, 0);
+	ExecuteHamB(Ham_CS_RoundRespawn, index);
 }
 
 stock get_user_weaponame(id, szWeapon[20])
