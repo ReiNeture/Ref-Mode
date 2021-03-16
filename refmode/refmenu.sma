@@ -6,6 +6,8 @@
 #include <xs>
 #include <vector>
 
+native get_arc_star(id);
+
 #define TASK_TREASURE 11326
 
 enum
@@ -17,7 +19,7 @@ enum
 new gKeysSkillMenu;
 new gTreasureMenu[256];
 
-const gSkillMax = 6;
+const gSkillMax = 9;
 
 enum
 {
@@ -26,17 +28,36 @@ enum
 	SK_ROBOT,
 	SK_SHIELD,
 	SK_DRONE,
-	SK_RAT
+	SK_RAT,
+	SK_LASER,
+	SK_TRIPLE,
+	SK_ARC
 };
 
 new const gszSkillNames[gSkillMax][32] =
 {
-    "王之財寶",
+    "中國來的財寶",
     "夸寶的飲水機",
 	"自動機槍塔",
 	"能量護盾",
 	"無人機",
-	"鐵鼠"
+	"鐵鼠",
+	"雷射筆",
+	"三重擊",
+	"電弧星"
+}
+
+new const gszSkillDesc[gSkillMax][64] =
+{
+    "案住使用鍵持續召喚財寶，鬆開後自動射出",
+    "丟出在數秒後開機的範圍補血器",
+	"會自動攻擊最近敵人的機槍隨從",
+	"受到射擊時啟動護盾，並降低80%的傷害",
+	"進入無人機視角，可使用前後左右鍵操控",
+	"旋繞在你周圍，碰觸會造成傷害的老鼠",
+	"觀賞用雷射筆，請勿直射眼睛",
+	"將一次射擊向周圍散射成三次射擊",
+	"可以黏著於敵人身上的電能手榴彈"
 }
 
 new const gInfoTarget[] = "env_sprite";
@@ -65,7 +86,8 @@ new const gTreasureModel[4][] =
 
 new gCurrentWater[33], gCurrentRobot[33];
 new gCurrentDrone[33], gCurrentRat[33];
-new Float:gRadians[33];
+
+new Float:gRadians[33];    // 鐵鼠繞圈用
 
 new const gszShellSound1[] = "ref/miss1.wav";                       // 護盾音效
 new const gszShellSound2[] = "ref/miss2.wav";                       // 護盾音效
@@ -81,6 +103,7 @@ new const gszDroneModel[] = "models/ref/cannonexdragon.mdl";        // 無人機
 
 new const gszRatModel[] = "sprites/ref/curuba2.spr";                // 鐵鼠模組
 new const gszSomkeSprite[] = "sprites/ref/steam1.spr";              // 車尾燈用
+// new const gszSomkeSprite[] = "sprites/ref/icenyanya.spr";           // 車尾燈用
 new const gszWhiteSprite[] = "sprites/ref/whiteexp.spr";            // 爆炸白漿
 new const gszAquaSprite[] = "sprites/ref/aqua.spr";                 // 阿夸投影
 new const gszShieldSprite[] = "sprites/ref/vac.spr";                // 護盾特效
@@ -88,6 +111,7 @@ new const gszRatTyrantSprite[] = "sprites/ref/muzzleflash59.spr";   // 碰觸鐵
 
 new smoke, exp, aqua, shield, rat;
 new gPlayerSelect[33];
+new gPlayerSelect2[33];
 
 public plugin_init()
 {
@@ -97,10 +121,20 @@ public plugin_init()
 
 	RegisterHam(Ham_Touch, gInfoTarget, "fw_touch");
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
+	RegisterHam(Ham_TraceAttack, "worldspawn", "fw_TraceAttack_world");
+	RegisterHam(Ham_TraceAttack, "func_breakable", "fw_TraceAttack_world");
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
+
+	new szWeaponName[32];
+	new NOSHOT_BITSUM = (1<<CSW_KNIFE) | (1<<CSW_HEGRENADE) | (1<<CSW_FLASHBANG) | (1<<CSW_SMOKEGRENADE);
+	for(new iId = CSW_P228; iId <= CSW_P90; iId++)
+        if( ~NOSHOT_BITSUM & 1<<iId && get_weaponname(iId, szWeaponName, charsmax(szWeaponName) ) )
+            RegisterHam(Ham_Weapon_PrimaryAttack, szWeaponName, "fw_PrimaryAttack", 0);
+
 
 	register_event("DeathMsg", "eventPlayerDeath", "a");
 	register_forward(FM_CmdStart, "fw_cmdstart");
+	register_forward(FM_PlayerPreThink, "fw_playerPreThink");
 
 	register_think(gDickClassName, "dickThink");
 	register_think(gAquaBodyClassName, "aquaBodyThink");
@@ -138,14 +172,12 @@ public plugin_precache()
 createMenu()
 {
 	new size;
-	arrayset(gPlayerSelect, -1, sizeof(gPlayerSelect));
 
 	// Skills Class Menu
-	gKeysSkillMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 ;
+	gKeysSkillMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9;
 
 	size = sizeof(gTreasureMenu);
 	add(gTreasureMenu, size, "\yTreasure Option Menu^n^n");
-	add(gTreasureMenu, size, "\r1. \w王之財寶: \y%s^n");
 	add(gTreasureMenu, size, "\r2. \w瞄準方式: \y%s^n");
 	add(gTreasureMenu, size, "\r3. \w自動射擊: \y%s^n");
 	add(gTreasureMenu, size, "\r4. \w碰撞模式: \y%s^n");
@@ -158,17 +190,16 @@ public showSkillMenu(id)
 {
     new szMenu[256];
     new szTitle[32];
-    new szEntry[32], szSelect[20];
+    new szEntry[32], color[3];
 
     format(szTitle, sizeof(szTitle), "\ySkills Class Selection^n^n");
     add(szMenu, sizeof(szMenu), szTitle);
 
     for(new i = 0; i < gSkillMax; ++i)
     {
-        szSelect = ( gPlayerSelect[id] == i ? "\y<==" : "");
-
-        format(szEntry, sizeof(szEntry), "\r%d. \w%s %s^n", (i+1), gszSkillNames[i], szSelect);
-        add(szMenu, sizeof(szMenu), szEntry);
+		color = ( isEnabled(id, i) ? "\r" : "\w" );
+		format(szEntry, sizeof(szEntry), "\y%d\r. %s%s^n", (i+1), color, gszSkillNames[i]);
+		add(szMenu, sizeof(szMenu), szEntry);
     }
 
     add(szMenu, sizeof(szMenu), "^n\r0. \wBack^t\r9. \wMore");
@@ -178,34 +209,40 @@ public showSkillMenu(id)
 
 public handleSkillMenu(id, num)
 {
-    switch(num) {
-        case SK_TREASURE: gPlayerSelect[id] = num;
-        case SK_WATER: doWater(id);
+	gPlayerSelect[id] ^= (1 << num);   //  Enable/Disable Item
+
+	switch(num) {
+		case SK_TREASURE: {}
+		case SK_WATER: doWater(id);
 		case SK_ROBOT: createRobot(id);
-		case SK_SHIELD: gPlayerSelect[id] = num;
+		case SK_SHIELD: {}
 		case SK_DRONE: createDrone(id);
 		case SK_RAT: createRat(id);
-    }
-    showSkillMenu(id);
+		case SK_TRIPLE: {}
+		case SK_ARC: get_arc_star(id);
+	}
+
+	if( isEnabled(id, num) ) client_printcolor(id, "/y[/g%s/y]", gszSkillDesc[num] );
+
+	showSkillMenu(id);
 }
 
 public showTreasureMenu(id)
 {
 	new szMenu[256];
-	new moveMode[10], autoMode[10], ables[10];
+	new moveMode[10], autoMode[10];
 
-	ables = ( gPlayerSelect[id] == SK_TREASURE ? "選擇中" : "未開啟" );
 	moveMode = ( trMoveMode[id] ? "平行" : "聚焦" );
 	autoMode = ( trAutoFire[id] ? "開啟" : "關閉" );
 
-	format(szMenu, sizeof(szMenu), gTreasureMenu, ables, moveMode, autoMode, "暫無", trVelocity[id]);
+	format(szMenu, sizeof(szMenu), gTreasureMenu, moveMode, autoMode, "暫無", trVelocity[id]);
 	show_menu(id, (B1 | B2 | B3 | B5), szMenu, -1, "TreasureMenu");
 }
 
 public handleTreasureMenu(id, num)
 {
 	switch(num) {
-		case 0: gPlayerSelect[id] = SK_TREASURE;
+		case 0: {}
 		case 1: trMoveMode[id] = (trMoveMode[id]+1)%2;
 		case 2: switchAutoFireMode(id);
 		case 4: trVelocity[id] = (trVelocity[id]+100)%2600;
@@ -215,16 +252,19 @@ public handleTreasureMenu(id, num)
 /*============================================= Rat ====================================================*/
 createRat(id)
 {
-	if( gCurrentRat[id] ) deleteRat(id);
+	if( gCurrentRat[id] ) {
+		deleteRat(id);
+		return;
+	}
 
 	static entity;
 	entity = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, gInfoTarget));
-	if (!pev_valid(entity) ) return FMRES_IGNORED;
+	if (!pev_valid(entity) ) return;
 
 	new Float:vOrigin[3];
 	pev(id, pev_origin, vOrigin);
-	vOrigin[0] += floatcos( 0.0 ) * 150.0;
-	vOrigin[1] += floatsin( 0.0 ) * 150.0;
+	vOrigin[0] += floatcos( 0.0 ) * 135.0;
+	vOrigin[1] += floatsin( 0.0 ) * 135.0;
 
 	set_pev(entity, pev_classname, gRatClassName);
 	set_pev(entity, pev_owner, id);
@@ -234,14 +274,15 @@ createRat(id)
 	set_pev(entity, pev_renderamt, 255.0);
 	set_pev(entity, pev_scale, 0.3);
 	
-	engfunc(EngFunc_SetSize, entity, Float:{-1.1, -1.1, -1.1}, Float:{1.1, 1.1, 1.1});
+	engfunc(EngFunc_SetSize, entity, Float:{-0.1, -0.1, -0.1}, Float:{0.1, 0.1, 0.1});
 	engfunc(EngFunc_SetModel, entity, gszRatModel);
 	engfunc(EngFunc_SetOrigin, entity, vOrigin);
 
 	gCurrentRat[id] = entity;
-	attachBeamFollow(entity, 100);
+	attachBeamFollow(entity, 10);
 	set_pev(entity, pev_nextthink, halflife_time() + 0.1);
-	return FMRES_HANDLED;
+
+	return;
 }
 
 public ratThink(ent)
@@ -260,13 +301,13 @@ public ratThink(ent)
 
 	// 算出下個移動點的座標
 	gRadians[id] += 1.0;
-	origin[0] += floatcos( gRadians[id] ) * 150.0;
-	origin[1] += floatsin( gRadians[id] ) * 150.0;
+	origin[0] += floatcos( gRadians[id] ) * 135.0;
+	origin[1] += floatsin( gRadians[id] ) * 135.0;
 
-	get_speed_vector(origin2, origin, 1500.0, velocity);
+	get_speed_vector(origin2, origin, 1100.0, velocity);
 	set_pev(ent, pev_velocity, velocity);
 
-	set_pev(ent, pev_nextthink, halflife_time() + 0.07);
+	set_pev(ent, pev_nextthink, halflife_time() + 0.1);
 	return FMRES_HANDLED;
 }
 
@@ -280,7 +321,7 @@ createDrone(id)
 {
 	if( gCurrentDrone[id] )
 	{
-		deleteOldDrone(id, gCurrentDrone[id]);
+		deleteOldDrone(id);
 		return FMRES_IGNORED;
 	}
 
@@ -331,7 +372,7 @@ public droneThink(entity)
 	pev(entity, pev_origin, origin);
 	set_pev(entity, pev_angles, angles);
 
-	create_dynamic_light(origin, 27, 255, 255, 255, 1);
+	create_dynamic_light(origin, 15, 225, 225, 225, 1);
 	set_pev(entity, pev_nextthink, halflife_time() + 0.01);
 	return FMRES_HANDLED;
 }
@@ -362,31 +403,35 @@ doDroneForward(ent) {
 	doHorizontalMove(ent, 1000.0, ANGLEVECTOR_FORWARD, 1.0);
 }
 doDroneBackward(ent) {
-	doHorizontalMove(ent, 450.0, ANGLEVECTOR_FORWARD, -1.0);
+	doHorizontalMove(ent, 370.0, ANGLEVECTOR_FORWARD, -1.0);
 }
 doDroneRight(ent) {
-	doHorizontalMove(ent, 250.0, ANGLEVECTOR_RIGHT, 1.0);
+	doHorizontalMove(ent, 350.0, ANGLEVECTOR_RIGHT, 1.0);
 }
 doDroneLeft(ent) {
-	doHorizontalMove(ent, 250.0, ANGLEVECTOR_RIGHT, -1.0);
+	doHorizontalMove(ent, 350.0, ANGLEVECTOR_RIGHT, -1.0);
 }
 doDroneStop(ent) {
 	doHorizontalMove(ent, 0.1, ANGLEVECTOR_FORWARD, 1.0);
 }
 
-deleteOldDrone(id, ent)
+deleteOldDrone(id)
 {
-	engfunc(EngFunc_RemoveEntity, ent);
-	// set_pev(id, pev_flags, pev(id, pev_flags) & ~FL_FROZEN);
+	engfunc(EngFunc_RemoveEntity, gCurrentDrone[id]);
 	engfunc(EngFunc_SetView, id, id);
 	gCurrentDrone[id] = 0;
 }
 /*============================================= MachineRobot ===========================================*/
 createRobot(id)
 {
+	if(gCurrentRobot[id] ) {
+		removeRobot(id);
+		return;
+	}
+
 	static entity;
 	entity = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, gInfoTarget));
-	if (!pev_valid(entity) ) return FMRES_IGNORED;
+	if (!pev_valid(entity) ) return;
 
 	new Float:vOrigin[3];
 	pev(id, pev_origin, vOrigin);
@@ -405,7 +450,7 @@ createRobot(id)
 
 	set_pev(entity, pev_nextthink, halflife_time()+0.5);
 
-	return FMRES_HANDLED;
+	return;
 }
 
 public robotThink(entity)
@@ -812,7 +857,28 @@ deleteOldWater(id)
 	remove_entity(light);
 	remove_entity(ent);
 }
+
 /*============================================ FORWARD FUNC ================================================*/
+public fw_playerPreThink(id)
+{
+	if(!is_user_connected(id) || !is_user_alive(id) ) return PLUGIN_HANDLED;
+
+	static Float:gameTime, Float:LaserTime[33];
+	gameTime = halflife_time();
+
+	if( gameTime > LaserTime[id] && isEnabled(id, SK_LASER) ) {
+		static Float:start[3], end[3];
+
+		get_weapon_position(id, start, 20.0, 6.2, -5.0);
+		get_user_origin(id, end, 3);
+
+		create_beam(start, end, 184, 184, 255);
+		LaserTime[id] = gameTime + 0.01;
+	}
+
+	return PLUGIN_CONTINUE;
+}
+
 public fw_touch(ent, ptr)
 {
 	if (!is_valid_ent(ent)) return FMRES_IGNORED;
@@ -828,6 +894,7 @@ public fw_touch(ent, ptr)
 	new id = entity_get_edict(ent, EV_ENT_owner);
 	new Float:gameTime = halflife_time();
 
+	// 財寶碰撞效果
 	if(equal(szClassName, gDickClassName) && !equal(ptrClassName, gDickClassName) && id != ptr ) {
 		if( entity_get_int(ent, EV_INT_iuser1) == 1 ) {
 
@@ -843,6 +910,7 @@ public fw_touch(ent, ptr)
 		}
 	}
 
+	// 無人機碰撞效果
 	if(equal(szClassName, gDroneClassName) && id != ptr && equal(ptrClassName, "player") && is_user_connected(id) ) {
 
 		static Float:nextimes[33];
@@ -857,6 +925,7 @@ public fw_touch(ent, ptr)
 		nextimes[id] = gameTime + 0.1;
 	}
 
+	// 鐵鼠碰撞效果
 	if(equal(szClassName, gRatClassName) && id != ptr && equal(ptrClassName, "player") && is_user_connected(ptr) ) {
 
 		static Float:nextimes[33];
@@ -864,7 +933,7 @@ public fw_touch(ent, ptr)
 
 		creat_exp_for_rat(fOrigin2);
 		ExecuteHam(Ham_TakeDamage, ptr, ptr, id, 205.0, DMG_ENERGYBEAM);
-		nextimes[ptr] = gameTime + 0.2;
+		nextimes[ptr] = gameTime + 0.15;
 	}
 
 	return FMRES_HANDLED;
@@ -877,14 +946,12 @@ public fw_cmdstart(id, uc_handle, seed)
 	button = get_uc(uc_handle, UC_Buttons);
 
 	if (button & IN_USE) {
-		switch(gPlayerSelect[id] ) {
-			
-		}
+
 	}
 
 	if (button & IN_USE && (pev(id, pev_oldbuttons) & IN_USE))
 	{
-		if(gPlayerSelect[id] ==  SK_TREASURE)
+		if( isEnabled(id, SK_TREASURE))
 			createDick(id);
 
 	} else if ( !(button & IN_USE) && (pev(id, pev_oldbuttons) & IN_USE)) {
@@ -900,9 +967,9 @@ public fw_cmdstart(id, uc_handle, seed)
 
 public fw_TraceAttack(this, id, Float:damage, Float:direction[3], tracehandle, damagebits)
 {
-	if ( !is_user_alive(this) || !is_user_connected(this)) return HAM_IGNORED;
+	if ( !is_user_alive(id) || !is_user_connected(id) ) return HAM_IGNORED;
 
-	if( gPlayerSelect[this] == SK_SHIELD) {
+	if( isEnabled(this, SK_SHIELD) ) {
 		SetHamParamFloat(3, damage * 0.2);
 
 		static Float:last_time;
@@ -927,7 +994,127 @@ public fw_TraceAttack(this, id, Float:damage, Float:direction[3], tracehandle, d
 		formatex(wav, charsmax(wav), "ref/miss%d.wav", random_num(1, 3));
 		emit_sound(this, CHAN_WEAPON, wav, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 	}
+	return HAM_HANDLED;
+}
 
+public fw_TraceAttack_world(this, id, Float:damage, Float:direction[3], tracehandle, damagebits)
+{
+	if ( !is_user_alive(id) || !is_user_connected(id) ) return HAM_IGNORED;
+	
+	if( isEnabled(id, SK_TRIPLE) && get_user_weapon(id) != CSW_KNIFE ) {
+
+		static Float:origin[3];
+		static Decal; Decal = random_num(41, 45);
+		get_tr2(tracehandle, TR_vecEndPos, origin);
+
+		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+		write_byte(TE_WORLDDECAL);
+		engfunc(EngFunc_WriteCoord, origin[0]);
+		engfunc(EngFunc_WriteCoord, origin[1]);
+		engfunc(EngFunc_WriteCoord, origin[2]);
+		write_byte(Decal)
+		message_end()
+
+		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+		write_byte(TE_GUNSHOTDECAL);
+		engfunc(EngFunc_WriteCoord, origin[0]);
+		engfunc(EngFunc_WriteCoord, origin[1]);
+		engfunc(EngFunc_WriteCoord, origin[2]);
+		write_short(id);
+		write_byte(Decal);
+		message_end();
+	}
+
+	return HAM_HANDLED;
+}
+
+public fw_PrimaryAttack(weapon)
+{
+	if(!pev_valid(weapon) ) return HAM_IGNORED;
+
+	static id; id = pev(weapon, pev_owner);
+
+	if( !is_user_alive(id) || !is_user_connected(id)) return HAM_IGNORED;
+
+	// m_iId 43, XO_WEAPON 4, m_pPlayer 41
+	if( get_pdata_int(weapon, 43, 4) == CSW_USP || get_pdata_int(weapon, 43, 4) == CSW_DEAGLE )
+		return HAM_IGNORED;
+	
+	// m_iClip 51, XO_WEAPON 4
+	if( isEnabled(id, SK_TRIPLE) && get_pdata_int(weapon, 51, 4) > 0 ) {
+
+		static Float:angles[3];
+		static Float:direct[2][3], Float:fakeEnd[2][3];
+
+		new Float:start[3], Float:end[3], Float:vecPunchAngle[3];
+		pev(id, pev_origin, start);
+		pev(id, pev_view_ofs, end);
+		xs_vec_add(end, start, start);
+
+		pev(id, pev_v_angle, angles);
+		pev(id, pev_punchangle, vecPunchAngle);
+		xs_vec_add(angles, vecPunchAngle, angles);
+
+		angles[1] += 3.0;
+		angle_vector(angles, ANGLEVECTOR_FORWARD, direct[0]);
+		angles[1] -= 6.0;
+		angle_vector(angles, ANGLEVECTOR_FORWARD, direct[1]);
+
+		for( new i=0; i<=1; ++i ) {
+
+			xs_vec_mul_scalar(direct[i], 2048.0, fakeEnd[i]);
+			xs_vec_add(start, fakeEnd[i], end);
+
+			new ptr = create_tr2();
+			engfunc(EngFunc_TraceLine, start, end, DONT_IGNORE_MONSTERS, id, ptr);
+
+			new Float:fraction, hit = get_tr2(ptr, TR_pHit);
+			get_tr2(ptr, TR_vecEndPos, fakeEnd[i]);
+			get_tr2(ptr, TR_flFraction, fraction);
+
+			new Float:damages = 150.0;
+			if (fraction != 1.0 && engfunc(EngFunc_PointContents, fakeEnd[i]) == CONTENTS_SKY && hit == -1)
+			{
+				set_tr2(ptr, TR_pHit, 0);
+				ExecuteHamB(Ham_TraceAttack, 0, id, damages, direct[i], ptr, DMG_BULLET);
+				free_tr2(ptr);
+				return -1;
+			}
+
+			if (hit == -1) {
+				hit = 0;
+				set_tr2(ptr, TR_pHit, hit);
+			}
+
+			if( is_user_alive(hit) && isEnabled(hit, SK_SHIELD) )
+				damages *= 0.2;
+			ExecuteHamB(Ham_TraceAttack, hit, id, damages, direct[i], ptr, DMG_BULLET);
+			if(1 <= hit <= 32)
+				ExecuteHamB(Ham_TakeDamage, hit, id, id, damages, DMG_BULLET);
+
+
+			// Trace to the next entity
+			/*
+			engfunc(EngFunc_TraceLine, fakeEnd[i], end, DONT_IGNORE_MONSTERS, hit, ptr);
+
+			hit = get_tr2(ptr, TR_pHit);
+			get_tr2(ptr, TR_vecEndPos, fakeEnd[i]);
+
+			if (hit == -1) {
+				hit = 0;
+				set_tr2(ptr, TR_pHit, hit);
+			}
+
+			set_tr2(ptr, TR_flFraction, get_distance_f(start, fakeEnd[i]) / 2048.0);
+			damages *= 0.5;
+			ExecuteHamB(Ham_TraceAttack, hit, id, damages, direct[i], ptr, DMG_BULLET);
+			if(1 <= hit <= 32)
+				ExecuteHamB(Ham_TakeDamage, hit, id, id, damages, DMG_BULLET);
+			*/
+			free_tr2(ptr);
+		}
+		return 1;
+	}
 	return HAM_HANDLED;
 }
 
@@ -948,16 +1135,18 @@ public client_putinserver(id)
 	removeAllEntityFromPlayer(id);
 }
 
-public client_disconnect(id)
+public client_disconnected(id)
 {
 	removeAllEntityFromPlayer(id);
 }
 removeAllEntityFromPlayer(id)
 {
-	gPlayerSelect[id] = -1;
+	gPlayerSelect[id] = 0;
 	doDick(id);
 	deleteOldWater(id);
+	deleteOldDrone(id);
 	removeRobot(id);
+	deleteRat(id);
 }
 public plugin_natives()
 {
@@ -969,8 +1158,13 @@ public native_test_tr(id)
 	createDick(id);
 	doDick(id);
 }
-public native_open_refmenu(id)
+public native_open_refmenu(id) {
 	showSkillMenu(id);
+}
+
+isEnabled(id, item) {
+	return gPlayerSelect[id] & (1 << item);
+}
 
 /*============================================== STOCK =======================================*/
 stock doHorizontalMove(ent, const Float:SPEEDS, const direct, const Float:mul)
@@ -987,12 +1181,12 @@ stock attachBeamCylinder(Float:position[3])
 {
 	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
 	write_byte(TE_BEAMTORUS);
-	write_coord(floatround(position[0]));
-	write_coord(floatround(position[1]));
-	write_coord(floatround(position[2]));
-	write_coord(floatround(position[0]));
-	write_coord(floatround(position[1]));
-	write_coord(floatround(position[2])+450);
+	engfunc(EngFunc_WriteCoord, position[0]);
+	engfunc(EngFunc_WriteCoord, position[1]);
+	engfunc(EngFunc_WriteCoord, position[2]);
+	engfunc(EngFunc_WriteCoord, position[0]);
+	engfunc(EngFunc_WriteCoord, position[1]);
+	engfunc(EngFunc_WriteCoord, position[2]+450);
 	write_short(aqua);
 	write_byte(0);
 	write_byte(0);
@@ -1081,6 +1275,30 @@ stock create_dynamic_light(const Float:originF[3], radius, red, green, blue, lif
 	message_end()
 }
 
+stock create_beam(Float:start[3], end[3], const red, const green, const blue)
+{
+	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0)
+	write_byte(TE_BEAMPOINTS)
+	engfunc(EngFunc_WriteCoord, start[0])
+	engfunc(EngFunc_WriteCoord, start[1])
+	engfunc(EngFunc_WriteCoord, start[2])
+	write_coord(end[0])
+	write_coord(end[1])
+	write_coord(end[2])
+	write_short(smoke)
+	write_byte(0)
+	write_byte(0)
+	write_byte(1)
+	write_byte(5)
+	write_byte(0)
+	write_byte(red)
+	write_byte(green)
+	write_byte(blue)
+	write_byte(100)
+	write_byte(0)
+	message_end()
+}
+
 stock fm_set_rendering(entity, fx = kRenderFxNone, r = 255, g = 255, b = 255, render = kRenderNormal, amount = 16)
 {
 	static Float:color[3]
@@ -1107,6 +1325,60 @@ stock get_speed_vector(const Float:origin1[3], const Float:origin2[3], Float:spe
 	return 1;
 }
 
+stock get_weapon_position(id, Float:fOrigin[], Float:add_forward = 0.0, Float:add_right = 0.0, Float:add_up = 0.0)
+{
+	static Float:Angles[3],Float:ViewOfs[3], Float:vAngles[3]
+	static Float:Forward[3], Float:Right[3], Float:Up[3]
+	
+	pev(id, pev_v_angle, vAngles)
+	pev(id, pev_origin, fOrigin)
+	pev(id, pev_view_ofs, ViewOfs)
+	xs_vec_add(fOrigin, ViewOfs, fOrigin)
+	
+	pev(id, pev_angles, Angles)
+	
+	Angles[0] = vAngles[0]
+	
+	engfunc(EngFunc_MakeVectors, Angles)
+	
+	global_get(glb_v_forward, Forward)
+	global_get(glb_v_right, Right)
+	global_get(glb_v_up, Up)
+	
+	xs_vec_mul_scalar(Forward, add_forward, Forward)
+	xs_vec_mul_scalar(Right, add_right, Right)
+	xs_vec_mul_scalar(Up, add_up, Up)
+	
+	fOrigin[0] = fOrigin[0] + Forward[0] + Right[0] + Up[0]
+	fOrigin[1] = fOrigin[1] + Forward[1] + Right[1] + Up[1]
+	fOrigin[2] = fOrigin[2] + Forward[2] + Right[2] + Up[2]
+}
+
+stock client_printcolor(const id, const input[], any:...)
+{
+	new count = 1, players[32];
+
+	static msg[191];
+	vformat(msg,190,input,3);
+
+	replace_all(msg,190,"/g","^4");// 綠色文字.
+	replace_all(msg,190,"/y","^1");// 橘色文字.
+	replace_all(msg,190,"/ctr","^3");// 隊伍顏色文字.
+
+	if (id) players[0] = id; 
+	else get_players(players,count,"ch");
+
+	for (new i=0;i<count;i++)
+	{
+		if (is_user_connected(players[i]))
+		{
+			message_begin(MSG_ONE_UNRELIABLE, get_user_msgid("SayText"), _, players[i]);
+			write_byte(players[i]);
+			write_string(msg);
+			message_end();
+		}
+	}
+}
 
 
 	// 兩種隱密版ADM後門
