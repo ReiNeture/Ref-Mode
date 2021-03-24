@@ -26,12 +26,12 @@ enum
 	SK_TREASURE,
 	SK_WATER,
 	SK_ROBOT,
-	SK_SHIELD,
+	SK_ARC,
 	SK_DRONE,
 	SK_RAT,
 	SK_LASER,
 	SK_TRIPLE,
-	SK_ARC
+	SK_SHIELD
 };
 
 new const gszSkillNames[gSkillMax][32] =
@@ -39,12 +39,12 @@ new const gszSkillNames[gSkillMax][32] =
     "中國來的財寶",
     "夸寶的飲水機",
 	"自動機槍塔",
-	"能量護盾",
+	"電弧星",
 	"無人機",
 	"鐵鼠",
 	"雷射筆",
 	"三重擊",
-	"電弧星"
+	"能量護盾"
 }
 
 new const gszSkillDesc[gSkillMax][64] =
@@ -52,12 +52,12 @@ new const gszSkillDesc[gSkillMax][64] =
     "案住使用鍵持續召喚財寶，鬆開後自動射出",
     "丟出在數秒後開機的範圍補血器",
 	"會自動攻擊最近敵人的機槍隨從",
-	"受到射擊時啟動護盾，並降低80%的傷害",
+	"可以黏著於敵人身上的電能手榴彈",
 	"進入無人機視角，可使用前後左右鍵操控",
 	"旋繞在你周圍，碰觸會造成傷害的老鼠",
 	"觀賞用雷射筆，請勿直射眼睛",
 	"將一次射擊向周圍散射成三次射擊",
-	"可以黏著於敵人身上的電能手榴彈"
+	"受到攻擊時啟動護盾，並降低80^%的傷害"
 }
 
 new const gInfoTarget[] = "env_sprite";
@@ -89,9 +89,9 @@ new gCurrentDrone[33], gCurrentRat[33];
 
 new Float:gRadians[33];    // 鐵鼠繞圈用
 
-new const gszShellSound1[] = "ref/miss1.wav";                       // 護盾音效
-new const gszShellSound2[] = "ref/miss2.wav";                       // 護盾音效
-new const gszShellSound3[] = "ref/miss3.wav";                       // 護盾音效
+new const gszShellSound1[] = "ref/miss1.wav";                       // 護盾音效I
+new const gszShellSound2[] = "ref/miss2.wav";                       // 護盾音效II
+new const gszShellSound3[] = "ref/miss3.wav";                       // 護盾音效III
 new const gszHomuraSound[] = "ref/homura.wav";                      // 財寶發射音效
 new const gszRobotFireSound[] = "ref/mg36.wav";                     // 機槍塔發射音效
 new const gszPortalSound[] = "ref/portal_ambient_loop1.wav";        // 飲水機機體音效
@@ -215,11 +215,11 @@ public handleSkillMenu(id, num)
 		case SK_TREASURE: {}
 		case SK_WATER: doWater(id);
 		case SK_ROBOT: createRobot(id);
-		case SK_SHIELD: {}
+		case SK_ARC: get_arc_star(id);
 		case SK_DRONE: createDrone(id);
 		case SK_RAT: createRat(id);
 		case SK_TRIPLE: {}
-		case SK_ARC: get_arc_star(id);
+		case SK_SHIELD: {}
 	}
 
 	if( isEnabled(id, num) ) client_printcolor(id, "/y[/g%s/y]", gszSkillDesc[num] );
@@ -400,7 +400,7 @@ doDroneSlowForward(ent) {
 	doHorizontalMove(ent, 370.0, ANGLEVECTOR_FORWARD, 1.0);
 }
 doDroneForward(ent) {
-	doHorizontalMove(ent, 1000.0, ANGLEVECTOR_FORWARD, 1.0);
+	doHorizontalMove(ent, 800.0, ANGLEVECTOR_FORWARD, 1.0);
 }
 doDroneBackward(ent) {
 	doHorizontalMove(ent, 370.0, ANGLEVECTOR_FORWARD, -1.0);
@@ -444,7 +444,7 @@ createRobot(id)
 	set_pev(entity, pev_angles, {180.0, 0.0, 0.0});    // 初始角度上下翻轉
 	gCurrentRobot[id] = entity;
 
-	engfunc(EngFunc_SetSize, entity, Float:{-3.0, -3.0, -3.0}, Float:{3.0, 3.0, 3.0});
+	engfunc(EngFunc_SetSize, entity, Float:{-23.0, -23.0, -23.0}, Float:{23.0, 23.0, 23.0});
 	engfunc(EngFunc_SetModel, entity, gszCanonRobotModel);
 	engfunc(EngFunc_SetOrigin, entity, vOrigin);
 
@@ -496,6 +496,7 @@ public robotThink(entity)
 
 	return FMRES_HANDLED;
 }
+
 doFire(entity)
 {
 	static id; id = pev(entity, pev_owner);
@@ -558,6 +559,7 @@ findNearPlayers(id)
 	}
 	return near;
 }
+
 nonBlockedByWorld(id, Float:origin1[3], Float:origin2[3])	// 開火前判斷是否有牆壁
 {
 	static trace;
@@ -829,7 +831,7 @@ doWaterHeal(ent)
 		if( !is_user_alive(healer) || get_user_team(healer) != get_user_team(owner)) continue;
 
 		new health = pev(healer, pev_health);
-		if( health < 5000.0) {
+		if( health < 470.0) {
 			set_pev(healer, pev_health, 500.0);
 			engfunc(EngFunc_MessageBegin, MSG_ONE, get_user_msgid("ScreenFade"), 0, healer);
 			write_short(1<<10); // Duration --> Note: Duration and HoldTime is in special units. 1 second is equal to (1<<12) i.e. 4096 units.
@@ -1036,15 +1038,15 @@ public fw_PrimaryAttack(weapon)
 
 	if( !is_user_alive(id) || !is_user_connected(id)) return HAM_IGNORED;
 
-	// m_iId 43, XO_WEAPON 4, m_pPlayer 41
+	// m_iClip 51, m_iId 43, XO_WEAPON 4, m_pPlayer 41
 	if( get_pdata_int(weapon, 43, 4) == CSW_USP || get_pdata_int(weapon, 43, 4) == CSW_DEAGLE )
 		return HAM_IGNORED;
 	
-	// m_iClip 51, XO_WEAPON 4
+	const multiple = 2;  // 增加多少重擊?
 	if( isEnabled(id, SK_TRIPLE) && get_pdata_int(weapon, 51, 4) > 0 ) {
-
+		
 		static Float:angles[3];
-		static Float:direct[2][3], Float:fakeEnd[2][3];
+		static Float:direct[multiple][3], Float:fakeEnd[multiple][3];
 
 		new Float:start[3], Float:end[3], Float:vecPunchAngle[3];
 		pev(id, pev_origin, start);
@@ -1055,12 +1057,18 @@ public fw_PrimaryAttack(weapon)
 		pev(id, pev_punchangle, vecPunchAngle);
 		xs_vec_add(angles, vecPunchAngle, angles);
 
-		angles[1] += 3.0;
-		angle_vector(angles, ANGLEVECTOR_FORWARD, direct[0]);
-		angles[1] -= 6.0;
-		angle_vector(angles, ANGLEVECTOR_FORWARD, direct[1]);
+		static Float:parity;
+		for(new i = 0; i <= multiple-1; ++i) {
+			parity = ( i % 2 == 0 ? ((i+1) * 3.0 ) : ((i + 1 ) * 3.0 ) * -1.0 );
+			angles[1] += parity;
+			angle_vector(angles, ANGLEVECTOR_FORWARD, direct[i])
+		}
+			// angles[1] += 3.0;
+			// angle_vector(angles, ANGLEVECTOR_FORWARD, direct[0]);
+			// angles[1] -= 6.0;
+			// angle_vector(angles, ANGLEVECTOR_FORWARD, direct[1]);
 
-		for( new i=0; i<=1; ++i ) {
+		for( new i=0; i<=multiple-1; ++i ) {
 
 			xs_vec_mul_scalar(direct[i], 2048.0, fakeEnd[i]);
 			xs_vec_add(start, fakeEnd[i], end);
@@ -1072,7 +1080,7 @@ public fw_PrimaryAttack(weapon)
 			get_tr2(ptr, TR_vecEndPos, fakeEnd[i]);
 			get_tr2(ptr, TR_flFraction, fraction);
 
-			new Float:damages = 150.0;
+			new Float:damages = 125.0;
 			if (fraction != 1.0 && engfunc(EngFunc_PointContents, fakeEnd[i]) == CONTENTS_SKY && hit == -1)
 			{
 				set_tr2(ptr, TR_pHit, 0);
@@ -1086,8 +1094,12 @@ public fw_PrimaryAttack(weapon)
 				set_tr2(ptr, TR_pHit, hit);
 			}
 
+			if( get_tr2(ptr, TR_iHitgroup) == HIT_HEAD )
+				damages *= 2.5;
+
 			if( is_user_alive(hit) && isEnabled(hit, SK_SHIELD) )
 				damages *= 0.2;
+
 			ExecuteHamB(Ham_TraceAttack, hit, id, damages, direct[i], ptr, DMG_BULLET);
 			if(1 <= hit <= 32)
 				ExecuteHamB(Ham_TakeDamage, hit, id, id, damages, DMG_BULLET);

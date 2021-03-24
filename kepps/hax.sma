@@ -624,7 +624,7 @@ public fw_PlayerSpawn_Post(id)
 	return PLUGIN_HANDLED;
 }
 
-public fw_TakeDamage(victim, inflictor, attacker, damage, damagebits)
+public fw_TakeDamage(victim, inflictor, attacker, Float:damage, damagebits)
 {
 	if(attacker == victim || !is_user_connected(attacker))
 		return HAM_IGNORED;
@@ -639,6 +639,7 @@ public fw_TakeDamage(victim, inflictor, attacker, damage, damagebits)
 	if(dmg_reflection[victim])
 		ExecuteHam(Ham_TakeDamage, attacker, victim, victim, damage,  DMG_TIMEBASED);
 
+	client_print(attacker, print_chat, ": %f", damage)
 	return HAM_IGNORED;
 }
 
@@ -662,7 +663,7 @@ public fw_cmdstart(id)
 			if((button & IN_JUMP) && (button & IN_DUCK)) {
 				static Float:velocity[3];
 				velocity_by_aim(id, 750, velocity);
-				velocity[2] = 300.0;
+				velocity[2] = 270.0;
 				set_pev(id, pev_velocity, velocity);
 				
 				last_time[id] = halflife_time();

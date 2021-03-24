@@ -58,6 +58,10 @@ public plugin_init()
 	register_plugin("RefMainSystem", "1.0", "Reff");
 
 	register_clcmd("chooseteam", "createMainMenu");
+	register_clcmd("say /menu", "createMainMenu");
+	register_clcmd("say menu", "createMainMenu");
+	register_clcmd("/menu", "createMainMenu");
+	register_clcmd("menu", "createMainMenu");
 
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
 	RegisterHam(Ham_Killed, "player", "fw_PlayerKilled");
@@ -356,7 +360,7 @@ public fw_PlayerSpawn_Post(id)
 	
 	if ( is_user_bot(id) ) {
 		cs_set_user_model(id, "zombie_nnn");
-		set_pev(id, pev_health, random_float(2500.0, 3000.0));
+		set_pev(id, pev_health, random_float(2500.0, 2500.0));
 	}
 
 	return HAM_HANDLED;

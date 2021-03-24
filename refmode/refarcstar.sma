@@ -8,12 +8,13 @@
 #define weapon_arc "weapon_hegrenade"
 #define ARC_SECRETCODE 98983
 
-#define ARC_RADIUS 275.0
-#define ARC_DAMAGE 5000.0
+#define ARC_RADIUS 245.0
+#define ARC_DAMAGE 2510.0
 #define ARC_DMGTIME 2.5
 
 new const touch_time = pev_fuser1
 new const secret_code = pev_iuser1
+const Float:Infinite = 9999999.0
 
 new const WeaponModel[2][] =
 {
@@ -21,11 +22,13 @@ new const WeaponModel[2][] =
 	"models/ref/w_arcstar.mdl"
 }
 
-new const WeaponSound[3][] = 
+new const WeaponSound[5][] = 
 {
 	"ref/arc_explode.wav",
 	"ref/arc_down.wav",
-	"ref/arc_throw.wav"
+	"ref/arc_throw.wav",
+	"ref/pain2.wav",
+	"ref/pain3.wav"
 }
 
 new const WeaponRes[2][] =
@@ -34,6 +37,8 @@ new const WeaponRes[2][] =
 	"sprites/ref/muzzleflash81.spr"
 }
 
+new const beamSprite[] = "sprites/ref/steam1.spr";
+
 // OFFSET
 const PDATA_SAFE = 2
 const OFFSET_LINUX_WEAPONS = 4
@@ -41,10 +46,10 @@ const OFFSET_WEAPONOWNER = 41
 
 new const VOLET_CLASSNAME[] = "volets"
 
-new arc_explode
+new arc_explode, smoke
 new gMaxPlayers
 
-new bool:ghadArc[33]
+new bool:ghadArc[33], bool:gArced[33]
 
 public plugin_init()
 {
@@ -58,6 +63,7 @@ public plugin_init()
 
 	RegisterHam(Ham_Item_AddToPlayer, weapon_arc, "fw_AddToPlayer_Post", 1)
 	RegisterHam(Ham_Item_Deploy, weapon_arc, "fw_Item_Deploy_Post", 1)
+	register_event("CurWeapon", "eventCurWeapon", "be");
 	
 	gMaxPlayers = get_maxplayers()
 	register_clcmd("weapon_holybomb", "hook_weapon")
@@ -75,6 +81,9 @@ public plugin_precache()
 
 	engfunc(EngFunc_PrecacheModel, WeaponRes[1])
 	arc_explode = engfunc(EngFunc_PrecacheModel, WeaponRes[0])
+
+	smoke = engfunc(EngFunc_PrecacheModel, beamSprite)
+	
 
 }
 
@@ -113,13 +122,14 @@ public fw_SetModel(ent, const Model[])
 			engfunc(EngFunc_SetModel, ent, WeaponModel[1])
 			
 			set_pev(ent, secret_code, ARC_SECRETCODE)
-			set_pev(ent, pev_dmgtime, 9999999.0)
-			set_pev(ent, touch_time, 9999999.0)
+			set_pev(ent, touch_time,  Infinite)
+			set_pev(ent, pev_dmgtime, Infinite)
 			set_pev(ent, pev_velocity, velocity)
-			set_pev(ent, pev_gravity, 0.4)
+			set_pev(ent, pev_gravity, 0.5)
 
 			ghadArc[id] = false
 			emit_sound(ent, CHAN_STATIC, WeaponSound[2], 1.0, ATTN_NORM, 0, PITCH_NORM);
+			create_beam_follow(ent)
 			
 			return FMRES_SUPERCEDE
 		}
@@ -132,28 +142,45 @@ public fw_Touch(toucher, touched)
 	if(!pev_valid(toucher) ) return;
 		
 	static Classname[32]; pev(toucher, pev_classname, Classname, sizeof(Classname))
-	if(equal(Classname, "grenade"))
+	if(equal(Classname, "grenade") )
 	{
 		if(pev(toucher, secret_code) != ARC_SECRETCODE)
+			return;
+		if(pev(toucher, touch_time) < Infinite)
 			return;
 			
 		set_pev(toucher, touch_time, get_gametime());
 		set_pev(toucher, pev_velocity, {0.0, 0.0, 0.0} )
 
 		if( is_user_alive(touched) ) {
+
 			set_pev(toucher, pev_aiment, touched)
 			set_pev(toucher, pev_movetype, MOVETYPE_FOLLOW)
 			set_pev(toucher, pev_iuser3, touched)
+
+			fm_set_user_maxspeed(touched, 83.0);
+			gArced[touched] = true;
+
+			if( task_exists(touched) ) remove_task(touched);
+			set_task(ARC_DMGTIME, "removeArcSymptom", touched);
+
+			makeScreenFade(touched, 12, 245, 10, 10, 195);
+			client_cmd(touched, "default_fov 720");
+
+			new sound[15];
+			formatex(sound, charsmax(sound), "spk %s", WeaponSound[random_num(3, 4)]);
+
+			client_cmd(touched, sound);
+			client_cmd(pev(toucher, pev_owner), sound);
 		}
 		else
 			set_pev(toucher, pev_movetype, MOVETYPE_NONE)
 		
 
-		new aim = createVolet()
-		set_pev(aim, pev_aiment, toucher);
-		set_pev(aim, touch_time, get_gametime());
+		new aim = createVolet(toucher)
+		set_pev(aim, touch_time, get_gametime() );
 
-		emit_sound(toucher, CHAN_WEAPON, WeaponSound[1], 1.0, ATTN_NORM, 0, PITCH_NORM);
+		emit_sound(toucher, CHAN_WEAPON, WeaponSound[1], 0.75, ATTN_NORM, 0, PITCH_NORM);
 	}
 }
 
@@ -185,22 +212,20 @@ public fw_Think(ent)
 
 	if( equal(Classname, "grenade") && pev(ent, secret_code) == ARC_SECRETCODE ) {
 
-		static Float:dmgTime;
+		static Float:dmgTime, Float:fOrigin[3];
 		pev(ent, touch_time, dmgTime)
+
 		if( get_gametime() >= dmgTime + ARC_DMGTIME ) {
-
-			new Float:fOrigin[3]
 			pev(ent, pev_origin, fOrigin)
-
 			makeArcExplode(ent, fOrigin);
 			return FMRES_HANDLED;
 		}
 
-		// static touched; touched = pev(ent, pev_iuser3)
-		// if( touched && !is_user_alive(touched) ) {
-		// 	removeArcStar(ent)
-		// 	return FMRES_HANDLED;
-		// }
+		if( dmgTime < Infinite ) {
+			pev(ent, pev_origin, fOrigin)
+			create_dynamic_light(fOrigin, 8, 254, 177, 235, 1)
+		}
+
 		set_pev(ent, pev_nextthink, get_gametime() + 0.1)
 	}
 
@@ -226,7 +251,7 @@ makeArcExplode(ent, const Float:fOrigin[3])
 			
 		if(!is_user_connected(Owner) ) Owner = i
 
-		ExecuteHam(Ham_TakeDamage, i, "Arc Star", Owner, ARC_DAMAGE, DMG_SONIC)
+		ExecuteHamB(Ham_TakeDamage, i, "Arc Star", Owner, ARC_DAMAGE, DMG_SONIC)
 	}
 
 	engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0)
@@ -241,19 +266,19 @@ makeArcExplode(ent, const Float:fOrigin[3])
 	message_end()
 }
 
-// removeArcStar(ent)
-// {
-// 	new aiment = pev(ent, pev_iuser2);
-// 	engfunc(EngFunc_RemoveEntity, aiment);
-// 	engfunc(EngFunc_RemoveEntity, ent);
-// }
+public removeArcSymptom(id)
+{
+	client_cmd(id, "default_fov 90");
+	gArced[id] = false;
+}
 
-createVolet()
+createVolet(aimed)
 {
 	new ent = fm_create_entity("env_sprite");
 	set_pev(ent, pev_classname, VOLET_CLASSNAME);
 
 	set_pev(ent, pev_movetype, MOVETYPE_FOLLOW);
+	set_pev(ent, pev_aiment, aimed);
 	set_pev(ent, pev_solid, SOLID_NOT);
 
 	set_pev(ent, pev_rendermode, kRenderTransAdd);
@@ -303,6 +328,13 @@ public Event_NewRound()
 	fm_remove_entity_name(VOLET_CLASSNAME)
 }
 
+public eventCurWeapon(id)
+{
+	if( !gArced[id] ) return PLUGIN_CONTINUE;
+	fm_set_user_maxspeed(id, 83.0);
+	return PLUGIN_CONTINUE;
+}
+
 stock fm_cs_get_weapon_ent_owner(ent)
 {
 	if (pev_valid(ent) != PDATA_SAFE)
@@ -310,6 +342,51 @@ stock fm_cs_get_weapon_ent_owner(ent)
 	
 	return get_pdata_cbase(ent, OFFSET_WEAPONOWNER, OFFSET_LINUX_WEAPONS)
 }
+
+stock create_dynamic_light(const Float:originF[3], radius, red, green, blue, life)
+{
+	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, originF, 0);
+	write_byte(TE_DLIGHT) 
+	engfunc(EngFunc_WriteCoord, originF[0])
+	engfunc(EngFunc_WriteCoord, originF[1])
+	engfunc(EngFunc_WriteCoord, originF[2])
+	write_byte(radius)
+	write_byte(red)
+	write_byte(green)
+	write_byte(blue)
+	write_byte(life)
+	write_byte(1)
+	message_end()
+}
+
+stock create_beam_follow(ent)
+{
+	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+	write_byte(TE_BEAMFOLLOW);
+	write_short(ent);
+	write_short(smoke);
+	write_byte(5); // life
+	write_byte(1); // width
+	write_byte(56); // r
+	write_byte(169); // g
+	write_byte(255); // b
+	write_byte(235); // brightness
+	message_end();
+}
+
+stock makeScreenFade(id, const time=12, const r=255, const g=255, const b=255, const alpha=250)
+{
+	engfunc(EngFunc_MessageBegin, MSG_ONE, get_user_msgid("ScreenFade"), {0,0,0}, id);
+	write_short(1<<time); // Duration --> Note: Duration and HoldTime is in special units. 1 second is equal to (1<<12) i.e. 4096 units.
+	write_short(1<<11); // Holdtime
+	write_short(0x0000); // 0x0001 Fade in
+	write_byte(r);
+	write_byte(g);
+	write_byte(b);
+	write_byte(alpha);  // Alpha
+	message_end();
+}
+
 
 // stock fm_remove_entity_name(const classname[]) {
 // 	new ent = -1, num = 0;

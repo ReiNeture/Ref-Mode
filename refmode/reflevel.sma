@@ -11,6 +11,8 @@ new sync;
 new vault;
 new bool:havedLoad[33];
 
+new sz_time[22]
+
 enum {
     LEVEL,
     EXP
@@ -28,7 +30,7 @@ public plugin_init(){
 
     sync = CreateHudSyncObj();
     vault = nvault_open("reflevel");
-    set_task(20.0, "AutoSave", _, _, _, "b");
+    set_task(30.0, "AutoSave", _, _, _, "b");
 }
 
 public plugin_natives()
@@ -87,7 +89,9 @@ public show_hud(id)
 
 SaveData(id)
 {
-    client_print(id, print_console, "save data.");
+    get_time("%m/%d/%Y - %H:%M:%S", sz_time, charsmax(sz_time));
+    client_print(id, print_console, "L %s : AUTOMATIC SAVE DATA #--", sz_time);
+
     new name[32], vaultKey[64], vaultData[256];
 
     get_user_name(id, name, 31);
@@ -149,7 +153,7 @@ public fw_PlayerKilled(victim, attacker, shouldgib)
     if(reflevel[attacker][LEVEL] <= 0)
         reflevel[attacker][LEVEL] = 1;
 
-    new exp = 800 * get_cvar_num("refExpRate");
+    new exp = 777 * get_cvar_num("refExpRate");
 
     if( reflevel[attacker][LEVEL] < 100 ) {
         exp *= 10;
