@@ -12,52 +12,105 @@ native get_arc_star(id);
 
 enum
 {
-	B1 = 1 << 0, B2 = 1 << 1, B3 = 1 << 2, B4 = 1 << 3, B5 = 1 << 4,
-	B6 = 1 << 5, B7 = 1 << 6, B8 = 1 << 7, B9 = 1 << 8, B0 = 1 << 9,
+	N1, N2, N3, N4, N5, N6, N7, N8, N9, N0
+};
+
+enum
+{
+	B1 = 1 << N1, B2 = 1 << N2, B3 = 1 << N3, B4 = 1 << N4, B5 = 1 << N5,
+	B6 = 1 << N6, B7 = 1 << N7, B8 = 1 << N8, B9 = 1 << N9, B0 = 1 << N0,
 };
 
 new gKeysSkillMenu;
 new gTreasureMenu[256];
 
-const gSkillMax = 9;
+const MAX_ITEM = 9;
+const MAX_CATE = 4;
 
-enum
-{
-	SK_TREASURE,
-	SK_WATER,
-	SK_ROBOT,
-	SK_ARC,
-	SK_DRONE,
-	SK_RAT,
-	SK_LASER,
-	SK_TRIPLE,
-	SK_SHIELD
+enum category {
+	CHANT,
+	CORE,
+	CAPACITOR,
+	EQUATION
 };
 
-new const gszSkillNames[gSkillMax][32] =
+new const gszCateNames[MAX_CATE][16] =
 {
-    "中國來的財寶",
-    "夸寶的飲水機",
-	"自動機槍塔",
-	"電弧星",
-	"無人機",
-	"鐵鼠",
-	"雷射筆",
-	"三重擊",
-	"能量護盾"
+    "詠唱",
+    "核心",
+	"電容器",
+	"方程式"
 }
 
-new const gszSkillDesc[gSkillMax][64] =
+enum skill {
+	SK_TREASURE
+};
+
+enum core {
+	CORE_ROBOT,
+	CORE_DRONE,
+	CORE_ARC
+};
+
+enum capacitor {
+	CAP_WATER,
+	CAP_SHIELD,
+	CAP_RAT
+};
+
+enum equation {
+	EQ_LASER,
+	EQ_TRIPLE
+};
+
+new const gszSkillNames[MAX_CATE][MAX_ITEM][32] =
 {
-    "案住使用鍵持續召喚財寶，鬆開後自動射出",
-    "丟出在數秒後開機的範圍補血器",
-	"會自動攻擊最近敵人的機槍隨從",
-	"可以黏著於敵人身上的電能手榴彈",
-	"進入無人機視角，可使用前後左右鍵操控",
-	"旋繞在你周圍，碰觸會造成傷害的老鼠",
-	"觀賞用雷射筆，請勿直射眼睛",
-	"將一次射擊向周圍散射成三次射擊",
-	"受到攻擊時啟動護盾，並降低80^%的傷害"
+	{
+		"中國來的財寶",
+		"", "", "", "", "", "", "", ""
+	},
+	{
+		"自動機槍塔",
+		"無人機",
+		"電弧星",
+		"", "", "", "", "", ""
+	},
+	{
+		"夸寶的飲水機",
+		"能量護盾",
+		"電氣鼠",
+		"", "", "", "", "", ""
+	},
+	{
+		"雷射筆",
+		"三重擊",
+		"", "", "", "", "", "", ""
+	}
+}
+
+new const gszSkillDesc[MAX_CATE][MAX_ITEM][64] =
+{
+	{
+		"案住使用鍵持續召喚財寶，鬆開後自動射出",
+		"None", "None", "None", "None", "None", "None", "None", "None"
+	},
+	{
+		"會自動攻擊最近敵人的機槍隨從",
+		"進入無人機視角，可使用前後左右鍵操控",
+		"可以黏著於敵人身上的電能手榴彈",
+		"None", "None", "None", "None", "None", "None"
+	},
+	{
+		"丟出在數秒後開機的範圍補血器",
+		"受到攻擊時啟動護盾，並降低80百分比傷害",
+		"旋繞在你周圍，碰觸會造成傷害的老鼠",
+		"None", "None", "None", "None", "None", "None"
+	},
+	{
+		"觀賞用雷射筆，請勿直射眼睛",
+		"將一次射擊向周圍散射成三次射擊",
+		"None", "None", "None", "None", "None", "None", "None"
+	}
 }
 
 new const gInfoTarget[] = "env_sprite";
@@ -110,8 +163,9 @@ new const gszShieldSprite[] = "sprites/ref/vac.spr";                // 護盾特
 new const gszRatTyrantSprite[] = "sprites/ref/muzzleflash59.spr";   // 碰觸鐵鼠特效
 
 new smoke, exp, aqua, shield, rat;
-new gPlayerSelect[33];
-new gPlayerSelect2[33];
+
+new gCurrentMenu[33];
+new gPlayerSelect[33][MAX_CATE];
 
 public plugin_init()
 {
@@ -143,7 +197,7 @@ public plugin_init()
 	register_think(gRatClassName, "ratThink");
 
 	createMenu();
-	register_menucmd(register_menuid("SkillMenu"),    gKeysSkillMenu, "handleSkillMenu");
+	register_menucmd(register_menuid("SkillMenu"),    gKeysSkillMenu, "handleSkillMenu"); // CHANT
 	register_menucmd(register_menuid("TreasureMenu"), gKeysSkillMenu, "handleTreasureMenu");
 }
 
@@ -174,7 +228,7 @@ createMenu()
 	new size;
 
 	// Skills Class Menu
-	gKeysSkillMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9;
+	gKeysSkillMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 | B0;
 
 	size = sizeof(gTreasureMenu);
 	add(gTreasureMenu, size, "\yTreasure Option Menu^n^n");
@@ -188,41 +242,67 @@ createMenu()
 
 public showSkillMenu(id)
 {
-    new szMenu[256];
-    new szTitle[32];
-    new szEntry[32], color[3];
+	new szMenu[256];
+	new szTitle[64];
+	new szEntry[32], color[3];
 
-    format(szTitle, sizeof(szTitle), "\ySkills Class Selection^n^n");
-    add(szMenu, sizeof(szMenu), szTitle);
+	new cat = gCurrentMenu[id];
 
-    for(new i = 0; i < gSkillMax; ++i)
-    {
-		color = ( isEnabled(id, i) ? "\r" : "\w" );
-		format(szEntry, sizeof(szEntry), "\y%d\r. %s%s^n", (i+1), color, gszSkillNames[i]);
+	format(szTitle, sizeof(szTitle), "\y特殊選單: \r%s \y分類^n^n", gszCateNames[cat]);
+	add(szMenu, sizeof(szMenu), szTitle);
+
+	for(new i = 0; i < MAX_ITEM; ++i)
+	{
+		if( equal(gszSkillNames[cat][i], "") )
+			break;
+
+		color = ( isEnabled(id, i, cat) ? "\r" : "\w" );
+		format(szEntry, sizeof(szEntry), "\y%d. %s%s^n", (i+1), color, gszSkillNames[cat][i]);
 		add(szMenu, sizeof(szMenu), szEntry);
-    }
+	}
 
-    add(szMenu, sizeof(szMenu), "^n\r0. \wBack^t\r9. \wMore");
-	
-    show_menu(id, gKeysSkillMenu, szMenu, -1, "SkillMenu");
+	add(szMenu, sizeof(szMenu), "^n\y0. \w下個分類");
+	show_menu(id, gKeysSkillMenu, szMenu, -1, "SkillMenu");
 }
 
 public handleSkillMenu(id, num)
 {
-	gPlayerSelect[id] ^= (1 << num);   //  Enable/Disable Item
+	new cat = gCurrentMenu[id];
+	gPlayerSelect[id][cat] ^= (1 << num);
 
-	switch(num) {
-		case SK_TREASURE: {}
-		case SK_WATER: doWater(id);
-		case SK_ROBOT: createRobot(id);
-		case SK_ARC: get_arc_star(id);
-		case SK_DRONE: createDrone(id);
-		case SK_RAT: createRat(id);
-		case SK_TRIPLE: {}
-		case SK_SHIELD: {}
+	switch(cat)
+	{
+		case CHANT: {
+			switch(num) {
+				case SK_TREASURE: {}
+			}
+		}
+		case CORE: {
+			switch(num) {
+				case CORE_ROBOT: createRobot(id);
+				case CORE_DRONE: createDrone(id);
+				case CORE_ARC: get_arc_star(id);
+			}
+		}
+		case CAPACITOR: {
+			switch(num) {
+				case CAP_WATER: doWater(id);
+				case CAP_SHIELD: {}
+				case CAP_RAT: createRat(id);
+			}
+		}
+		case EQUATION: {
+			switch(num) {
+				case EQ_LASER: {}
+				case EQ_TRIPLE: {}
+			}
+		}
 	}
 
-	if( isEnabled(id, num) ) client_printcolor(id, "/y[/g%s/y]", gszSkillDesc[num] );
+	if( num == N0 )
+		gCurrentMenu[id] = ++gCurrentMenu[id] % MAX_CATE;
+	else
+		if( isEnabled(id, num, cat) ) client_printcolor(id, "/y[/g%s/y]", gszSkillDesc[cat][num] );
 
 	showSkillMenu(id);
 }
@@ -605,7 +685,7 @@ createDick(id)
 		gHaveDick[id][count] = ent;
 		gCurrentDick[id]++;
 
-		emit_sound(id, CHAN_WEAPON, "ref/miss2.wav", 0.3, ATTN_NORM, 0, PITCH_NORM);
+		emit_sound(id, CHAN_WEAPON, gszShellSound2, 0.3, ATTN_NORM, 0, PITCH_NORM);
 	}
 }
 public dickThink(ent)
@@ -868,7 +948,7 @@ public fw_playerPreThink(id)
 	static Float:gameTime, Float:LaserTime[33];
 	gameTime = halflife_time();
 
-	if( gameTime > LaserTime[id] && isEnabled(id, SK_LASER) ) {
+	if( gameTime > LaserTime[id] && isEnabled(id, EQ_LASER, EQUATION) ) {
 		static Float:start[3], end[3];
 
 		get_weapon_position(id, start, 20.0, 6.2, -5.0);
@@ -877,7 +957,6 @@ public fw_playerPreThink(id)
 		create_beam(start, end, 184, 184, 255);
 		LaserTime[id] = gameTime + 0.01;
 	}
-
 	return PLUGIN_CONTINUE;
 }
 
@@ -953,7 +1032,7 @@ public fw_cmdstart(id, uc_handle, seed)
 
 	if (button & IN_USE && (pev(id, pev_oldbuttons) & IN_USE))
 	{
-		if( isEnabled(id, SK_TREASURE))
+		if( isEnabled(id, SK_TREASURE, CHANT))
 			createDick(id);
 
 	} else if ( !(button & IN_USE) && (pev(id, pev_oldbuttons) & IN_USE)) {
@@ -971,7 +1050,7 @@ public fw_TraceAttack(this, id, Float:damage, Float:direction[3], tracehandle, d
 {
 	if ( !is_user_alive(id) || !is_user_connected(id) ) return HAM_IGNORED;
 
-	if( isEnabled(this, SK_SHIELD) ) {
+	if( isEnabled(this, CAP_SHIELD, CAPACITOR) ) {
 		SetHamParamFloat(3, damage * 0.2);
 
 		static Float:last_time;
@@ -1003,7 +1082,7 @@ public fw_TraceAttack_world(this, id, Float:damage, Float:direction[3], tracehan
 {
 	if ( !is_user_alive(id) || !is_user_connected(id) ) return HAM_IGNORED;
 	
-	if( isEnabled(id, SK_TRIPLE) && get_user_weapon(id) != CSW_KNIFE ) {
+	if( isEnabled(id, EQ_TRIPLE, EQUATION) && get_user_weapon(id) != CSW_KNIFE ) {
 
 		static Float:origin[3];
 		static Decal; Decal = random_num(41, 45);
@@ -1043,7 +1122,7 @@ public fw_PrimaryAttack(weapon)
 		return HAM_IGNORED;
 	
 	const multiple = 2;  // 增加多少重擊?
-	if( isEnabled(id, SK_TRIPLE) && get_pdata_int(weapon, 51, 4) > 0 ) {
+	if( isEnabled(id, EQ_TRIPLE, EQUATION) && get_pdata_int(weapon, 51, 4) > 0 ) {
 		
 		static Float:angles[3];
 		static Float:direct[multiple][3], Float:fakeEnd[multiple][3];
@@ -1097,7 +1176,7 @@ public fw_PrimaryAttack(weapon)
 			if( get_tr2(ptr, TR_iHitgroup) == HIT_HEAD )
 				damages *= 2.5;
 
-			if( is_user_alive(hit) && isEnabled(hit, SK_SHIELD) )
+			if( is_user_alive(hit) && isEnabled(hit, CAP_SHIELD, CAPACITOR) )
 				damages *= 0.2;
 
 			ExecuteHamB(Ham_TraceAttack, hit, id, damages, direct[i], ptr, DMG_BULLET);
@@ -1153,7 +1232,7 @@ public client_disconnected(id)
 }
 removeAllEntityFromPlayer(id)
 {
-	gPlayerSelect[id] = 0;
+	arrayset(gPlayerSelect[id], 0, MAX_CATE);
 	doDick(id);
 	deleteOldWater(id);
 	deleteOldDrone(id);
@@ -1174,8 +1253,8 @@ public native_open_refmenu(id) {
 	showSkillMenu(id);
 }
 
-isEnabled(id, item) {
-	return gPlayerSelect[id] & (1 << item);
+isEnabled(id, item, cat) {
+	return gPlayerSelect[id][cat] & (1 << item);
 }
 
 /*============================================== STOCK =======================================*/
