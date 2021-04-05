@@ -93,7 +93,7 @@ toLogin(id)
 toRegister(id)
 {
 	if( checkRegisterStatus(id) ) {
-		client_printcolor(id, "/y[/g你已經註冊過了 請登入/y]");
+		client_printcolor(id, "/y[/g此名稱已經註冊過了 請登入或是換個名字再註冊/y]");
 		displayMainMenu(id);
 		return;
 	} else {

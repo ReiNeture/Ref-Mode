@@ -7,6 +7,8 @@
 #include <vector>
 
 native get_arc_star(id);
+native get_gas_grenade(id);
+native get_sakura_miko(id);
 
 #define TASK_TREASURE 11326
 
@@ -43,13 +45,15 @@ new const gszCateNames[MAX_CATE][16] =
 }
 
 enum skill {
-	SK_TREASURE
+	SK_TREASURE,
+	SK_SAKURAMIKO
 };
 
 enum core {
 	CORE_ROBOT,
 	CORE_DRONE,
-	CORE_ARC
+	CORE_ARC,
+	CORE_GAS
 };
 
 enum capacitor {
@@ -67,13 +71,15 @@ new const gszSkillNames[MAX_CATE][MAX_ITEM][32] =
 {
 	{
 		"中國來的財寶",
-		"", "", "", "", "", "", "", ""
+		"櫻花樹結界",
+		"", "", "", "", "", "", ""
 	},
 	{
 		"自動機槍塔",
 		"無人機",
 		"電弧星",
-		"", "", "", "", "", ""
+		"松石彈",
+		"", "", "", "", ""
 	},
 	{
 		"夸寶的飲水機",
@@ -92,13 +98,15 @@ new const gszSkillDesc[MAX_CATE][MAX_ITEM][64] =
 {
 	{
 		"案住使用鍵持續召喚財寶，鬆開後自動射出",
-		"None", "None", "None", "None", "None", "None", "None", "None"
+		"展開定點能對敵人造成傷害的櫻花樹結界",
+		"None", "None", "None", "None", "None", "None", "None"
 	},
 	{
 		"會自動攻擊最近敵人的機槍隨從",
 		"進入無人機視角，可使用前後左右鍵操控",
 		"可以黏著於敵人身上的電能手榴彈",
-		"None", "None", "None", "None", "None", "None"
+		"會散發出毒氣的手榴彈",
+		"None", "None", "None", "None", "None"
 	},
 	{
 		"丟出在數秒後開機的範圍補血器",
@@ -156,7 +164,7 @@ new const gszDroneModel[] = "models/ref/cannonexdragon.mdl";        // 無人機
 
 new const gszRatModel[] = "sprites/ref/curuba2.spr";                // 鐵鼠模組
 new const gszSomkeSprite[] = "sprites/ref/steam1.spr";              // 車尾燈用
-// new const gszSomkeSprite[] = "sprites/ref/icenyanya.spr";           // 車尾燈用
+// new const gszSomkeSprite[] = "sprites/ref/icenyanya.spr";        // 車尾燈用
 new const gszWhiteSprite[] = "sprites/ref/whiteexp.spr";            // 爆炸白漿
 new const gszAquaSprite[] = "sprites/ref/aqua.spr";                 // 阿夸投影
 new const gszShieldSprite[] = "sprites/ref/vac.spr";                // 護盾特效
@@ -275,6 +283,7 @@ public handleSkillMenu(id, num)
 		case CHANT: {
 			switch(num) {
 				case SK_TREASURE: {}
+				case SK_SAKURAMIKO: get_sakura_miko(id);
 			}
 		}
 		case CORE: {
@@ -282,6 +291,7 @@ public handleSkillMenu(id, num)
 				case CORE_ROBOT: createRobot(id);
 				case CORE_DRONE: createDrone(id);
 				case CORE_ARC: get_arc_star(id);
+				case CORE_GAS: get_gas_grenade(id);
 			}
 		}
 		case CAPACITOR: {
@@ -572,7 +582,7 @@ public robotThink(entity)
 		set_pev(entity, pev_velocity, Float:{0.0, 0.0, 0.0});
 
 	doFire(entity);
-	set_pev(entity, pev_nextthink, halflife_time()+0.15);
+	set_pev(entity, pev_nextthink, halflife_time()+0.1);
 
 	return FMRES_HANDLED;
 }
@@ -587,7 +597,7 @@ doFire(entity)
 	if( near ) {
 		static Float:vOrigin[3], Float:eOrigin[3];
 
-		ExecuteHamB(Ham_TakeDamage, near, id, id, 38.0, DMG_SONIC);
+		ExecuteHamB(Ham_TakeDamage, near, id, id, 108.0, DMG_SONIC);
 		
 		pev(entity, pev_origin, vOrigin);		
 		pev(near, pev_origin, eOrigin);

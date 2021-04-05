@@ -251,7 +251,7 @@ makeArcExplode(ent, const Float:fOrigin[3])
 			
 		if(!is_user_connected(Owner) ) Owner = i
 
-		ExecuteHamB(Ham_TakeDamage, i, "Arc Star", Owner, ARC_DAMAGE, DMG_SONIC)
+		ExecuteHam(Ham_TakeDamage, i, Owner, Owner, ARC_DAMAGE, DMG_PARALYZE)
 	}
 
 	engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0)

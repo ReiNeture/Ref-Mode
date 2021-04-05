@@ -2,6 +2,7 @@
 #include <fakemeta>
 #include <hamsandwich>
 #include <cstrike>
+#include <engine>
 
 native get_music_menu(id);
 native get_login_status(id);
