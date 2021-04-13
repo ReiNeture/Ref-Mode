@@ -3,14 +3,21 @@
 #include <hamsandwich>
 
 new const szMikoClass[] = "sakuraMiko";
+
 new const szSakuraTree[] = "models/ref/rs_sakura.mdl";
 new const szFireFlies[] = "models/ref/rs_fireflies.mdl";
+
 new const szSakuraExpSound[] = "ref/sakura_exp2.wav"
+
 new const szPinkDot[] = "sprites/ref/pflare.spr"
 new const szBlueDot[] = "sprites/ref/bflare.spr"
+new const szMikoFox[] = "sprites/ref/miko_kitsune2.spr";
 
-new flare, flies;
-new flare_b;
+new flare, flies, fox, flare_b;
+
+#define PRE_DAMAGE_TIME 2.0
+#define SAKURA_DAMAGE 333.0
+#define SAKURA_RADIUS 550.0
 
 public plugin_init()
 {
@@ -22,11 +29,12 @@ public plugin_init()
 
 public plugin_precache()
 {
+    engfunc(EngFunc_PrecacheSound, szSakuraExpSound);
     engfunc(EngFunc_PrecacheModel, szSakuraTree);
     flies = engfunc(EngFunc_PrecacheModel, szFireFlies);
     flare = engfunc(EngFunc_PrecacheModel, szPinkDot);
     flare_b = engfunc(EngFunc_PrecacheModel, szBlueDot);
-    engfunc(EngFunc_PrecacheSound, szSakuraExpSound);
+    fox = engfunc(EngFunc_PrecacheModel, szMikoFox);
 }
 
 public plugin_natives()
@@ -68,26 +76,26 @@ public makeSakuraMiko(id)
     new Float:end_origin[3];
     get_tr2(trace, TR_vecEndPos, end_origin);
 
-    vOrigin[2] = end_origin[2] + 220.0;
+    vOrigin[2] = end_origin[2] + 240.0;
     engfunc(EngFunc_SetModel, entity, szSakuraTree);
     engfunc(EngFunc_SetSize, entity, Float:{ -250.0, -250.0, -240.0}, Float:{250.0, 250.0, 260.0} );
     engfunc(EngFunc_SetOrigin, entity, vOrigin);
 
     create_dynamic_light(vOrigin, 300, 255, 179, 250, 30);
-    set_pev(entity, pev_nextthink, get_gametime() + 3.0);
+    set_pev(entity, pev_nextthink, get_gametime() + PRE_DAMAGE_TIME);
 }
 
 public fw_Think(ent)
 {
-	if(!pev_valid(ent) ) return FMRES_IGNORED;
+	if( !pev_valid(ent) ) return FMRES_IGNORED;
 	
 	static Classname[32], Float:vOrigin[3];
-	pev(ent, pev_classname, Classname, sizeof(Classname) )
+	pev(ent, pev_classname, Classname, sizeof(Classname) );
 
 	if( equal(Classname, szMikoClass) ) {
 
         pev(ent, pev_origin, vOrigin);
-        create_dynamic_light(vOrigin, 300, 255, 179, 250, 30);
+        create_dynamic_light(vOrigin, 300, 255, 179, 250, 20);
         create_sprite_trail(vOrigin);
         create_fire_field(vOrigin);
         emit_sound(ent, CHAN_STATIC, szSakuraExpSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
@@ -96,7 +104,7 @@ public fw_Think(ent)
         new victim = FM_NULLENT;
         new id = pev(ent, pev_owner);
         
-        while((victim = engfunc(EngFunc_FindEntityInSphere, victim, vOrigin, 500.0) ) != 0) {
+        while((victim = engfunc(EngFunc_FindEntityInSphere, victim, vOrigin, SAKURA_RADIUS) ) != 0 ) {
 
             if(!is_user_alive(victim) || id == victim )
                 continue;
@@ -105,15 +113,34 @@ public fw_Think(ent)
                 continue;
 
             pev(victim, pev_origin, victimOrigin);
+            create_basic_sprite(victimOrigin);
             create_sprite_trail2(victimOrigin);
 
-            ExecuteHam(Ham_TakeDamage, victim, id, id, 4000.0, DMG_ENERGYBEAM);
-
+            ExecuteHam(Ham_TakeDamage, victim, id, id, SAKURA_DAMAGE, DMG_ENERGYBEAM);
         }
-        set_pev(ent, pev_nextthink, get_gametime() + 3.0);
+        
+        set_pev(ent, pev_nextthink, get_gametime() + PRE_DAMAGE_TIME);
     }
 
     return FMRES_IGNORED;
+}
+
+public client_putinserver(id)
+{
+	removeSakuraFromPlayer(id);
+}
+
+public client_disconnected(id)
+{
+	removeSakuraFromPlayer(id);
+}
+
+removeSakuraFromPlayer(id)
+{
+    new originEntity = fm_find_ent_by_owner(-1, szMikoClass, id);
+    if( originEntity ) {
+        engfunc(EngFunc_RemoveEntity, originEntity);
+    }
 }
 
 stock fm_find_ent_by_owner(index, const classname[], owner, jghgtype = 0) {
@@ -126,6 +153,19 @@ stock fm_find_ent_by_owner(index, const classname[], owner, jghgtype = 0) {
 	while ((ent = engfunc(EngFunc_FindEntityByString, ent, strtype, classname)) && pev(ent, pev_owner) != owner) {}
 
 	return ent;
+}
+
+stock create_basic_sprite(const Float:vOrigin[3])
+{
+    engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, vOrigin, 0);
+    write_byte(TE_SPRITE)
+    engfunc(EngFunc_WriteCoord, vOrigin[0]);
+    engfunc(EngFunc_WriteCoord, vOrigin[1]);
+    engfunc(EngFunc_WriteCoord, vOrigin[2]+10.0);
+    write_short(fox)
+    write_byte(3)
+    write_byte(145)
+    message_end();
 }
 
 stock create_screen_fade(id)
@@ -150,9 +190,9 @@ stock create_fire_field(const Float:vOrigin[3])
     engfunc(EngFunc_WriteCoord, vOrigin[2] );
     write_short(200);
     write_short(flies);
-    write_byte(7);
+    write_byte(6);
     write_byte(TEFIRE_FLAG_ALPHA | TEFIRE_FLAG_ALLFLOAT);
-    write_byte(20);
+    write_byte(10);
     message_end();
 }
 
@@ -167,11 +207,11 @@ stock create_sprite_trail(const Float:vOrigin[3])
     engfunc(EngFunc_WriteCoord, vOrigin[1]);
     engfunc(EngFunc_WriteCoord, vOrigin[2]+100.0);
     write_short(flare);
-    write_byte(50);
-    write_byte(20);
-    write_byte(5);
-    write_byte(80);
-    write_byte(20);
+    write_byte(30);
+    write_byte(10);
+    write_byte(3);
+    write_byte(100);
+    write_byte(30);
     message_end();
 }
 
@@ -187,9 +227,9 @@ stock create_sprite_trail2(const Float:vOrigin[3])
     engfunc(EngFunc_WriteCoord, vOrigin[2]);
     write_short(flare_b);
     write_byte(1);
-    write_byte(10);
     write_byte(5);
-    write_byte(10);
+    write_byte(15);
+    write_byte(0);
     write_byte(0);
     message_end();
 }

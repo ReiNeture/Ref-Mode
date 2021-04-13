@@ -239,7 +239,7 @@ public fw_Think(ent)
 		engfunc(EngFunc_WriteCoord, vOrigin[2] );
 		write_short(150);
 		write_short(gas);
-		write_byte(70);
+		write_byte(100);
 		write_byte(TEFIRE_FLAG_ALPHA | TEFIRE_FLAG_SOMEFLOAT);
 		write_byte(10);
 		message_end();

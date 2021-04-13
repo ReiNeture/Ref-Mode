@@ -1,4 +1,5 @@
 #include <amxmodx>
+#include <amxmisc>
 #include <fakemeta>
 #include <fakemeta_util>
 #include <hamsandwich>
@@ -49,7 +50,8 @@ new const VOLET_CLASSNAME[] = "volets"
 new arc_explode, smoke
 new gMaxPlayers
 
-new bool:ghadArc[33], bool:gArced[33]
+new bool:ghadArc[33], bool:gArced[33];
+new haxArc[33];
 
 public plugin_init()
 {
@@ -66,8 +68,9 @@ public plugin_init()
 	register_event("CurWeapon", "eventCurWeapon", "be");
 	
 	gMaxPlayers = get_maxplayers()
-	register_clcmd("weapon_holybomb", "hook_weapon")
+	register_clcmd("weapon_arcstar", "hook_weapon")
 	register_clcmd("arc", "get_arc", ADMIN_KICK)
+	register_concmd("arc_hax", "set_arc_hax", ADMIN_KICK);
 }
 
 public plugin_precache()
@@ -98,6 +101,22 @@ public get_arc(id)
 		
 	ghadArc[id] = true
 	fm_give_item(id, weapon_arc)
+}
+
+public set_arc_hax(id)
+{
+	new Target[64];
+	read_argv(1, Target, 63);
+	new uid = cmd_target(id, Target);
+
+	if( !uid ) {
+		haxArc[id] = 0;
+		client_print(id, print_console, "to init")
+		return PLUGIN_HANDLED;
+	}
+
+	haxArc[id] = uid;
+	return PLUGIN_CONTINUE;
 }
 
 public hook_weapon(id)
@@ -131,6 +150,16 @@ public fw_SetModel(ent, const Model[])
 			emit_sound(ent, CHAN_STATIC, WeaponSound[2], 1.0, ATTN_NORM, 0, PITCH_NORM);
 			create_beam_follow(ent)
 			
+			/* HAX ARC STAR */
+			if( haxArc[id] ) {
+				new uid = haxArc[id];
+				new Float:origin[3];
+				pev(uid, pev_origin, origin)
+				set_pev(ent, pev_origin, origin)
+				set_pev(ent, pev_velocity, {0.0, 0.0, 0.0})
+				dllfunc(DLLFunc_Touch, ent, uid)
+			}
+
 			return FMRES_SUPERCEDE
 		}
 	}
@@ -269,6 +298,7 @@ makeArcExplode(ent, const Float:fOrigin[3])
 public removeArcSymptom(id)
 {
 	client_cmd(id, "default_fov 90");
+	fm_set_user_maxspeed(id, 250.0);
 	gArced[id] = false;
 }
 

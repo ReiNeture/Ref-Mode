@@ -36,11 +36,16 @@ public plugin_init(){
 public plugin_natives()
 {
 	register_native("ref_get_level", "native_ref_get_level", 1);
+	register_native("ref_get_aquapoint", "native_ref_get_aquapoint", 1);
 }
 public native_ref_get_level(id)
 {
     return reflevel[id][LEVEL];
 }
+public native_ref_get_aquapoint(id)
+{
+    return  refzmkill[id];
+} 
 
 public client_connect(id)
 {
@@ -153,7 +158,7 @@ public fw_PlayerKilled(victim, attacker, shouldgib)
     if(reflevel[attacker][LEVEL] <= 0)
         reflevel[attacker][LEVEL] = 1;
 
-    new exp = 777 * get_cvar_num("refExpRate");
+    new exp = 3885 * get_cvar_num("refExpRate");
 
     if( reflevel[attacker][LEVEL] < 100 ) {
         exp *= 10;

@@ -182,6 +182,16 @@ public switchFunction(id)
     Enabled[id] ^= true;
 }
 
+public client_putinserver(id)
+{
+	Enabled[id] = false;
+}
+
+public client_disconnected(id)
+{
+	Enabled[id] = false;
+}
+
 stock fm_get_aim_origin(index, Float:origin[3])
 {
 	new Float:start[3], Float:view_ofs[3];

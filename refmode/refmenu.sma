@@ -9,6 +9,8 @@
 native get_arc_star(id);
 native get_gas_grenade(id);
 native get_sakura_miko(id);
+native set_missile_switch(id);
+native set_nuke_magic(id);
 
 #define TASK_TREASURE 11326
 
@@ -46,7 +48,8 @@ new const gszCateNames[MAX_CATE][16] =
 
 enum skill {
 	SK_TREASURE,
-	SK_SAKURAMIKO
+	SK_SAKURAMIKO,
+	SK_NUKE
 };
 
 enum core {
@@ -64,7 +67,8 @@ enum capacitor {
 
 enum equation {
 	EQ_LASER,
-	EQ_TRIPLE
+	EQ_TRIPLE,
+	EQ_MISSILE
 };
 
 new const gszSkillNames[MAX_CATE][MAX_ITEM][32] =
@@ -72,7 +76,8 @@ new const gszSkillNames[MAX_CATE][MAX_ITEM][32] =
 	{
 		"中國來的財寶",
 		"櫻花樹結界",
-		"", "", "", "", "", "", ""
+		"核爆災害",
+		"", "", "", "", "", ""
 	},
 	{
 		"自動機槍塔",
@@ -90,16 +95,18 @@ new const gszSkillNames[MAX_CATE][MAX_ITEM][32] =
 	{
 		"雷射筆",
 		"三重擊",
-		"", "", "", "", "", "", ""
+		"穿透型導彈",
+		"", "", "", "", "", ""
 	}
 }
 
-new const gszSkillDesc[MAX_CATE][MAX_ITEM][64] =
+new const gszSkillDesc[MAX_CATE][MAX_ITEM][70] =
 {
 	{
 		"案住使用鍵持續召喚財寶，鬆開後自動射出",
 		"展開定點能對敵人造成傷害的櫻花樹結界",
-		"None", "None", "None", "None", "None", "None", "None"
+		"三十秒衝能結束後，對附近造成持續性的大量傷害",
+		"None", "None", "None", "None", "None", "None"
 	},
 	{
 		"會自動攻擊最近敵人的機槍隨從",
@@ -117,7 +124,8 @@ new const gszSkillDesc[MAX_CATE][MAX_ITEM][64] =
 	{
 		"觀賞用雷射筆，請勿直射眼睛",
 		"將一次射擊向周圍散射成三次射擊",
-		"None", "None", "None", "None", "None", "None", "None"
+		"攻擊時有百分之十的機率在目標點進行導彈射擊",
+		"None", "None", "None", "None", "None", "None"
 	}
 }
 
@@ -139,10 +147,11 @@ new bool:trAutoFire[33];
 
 new const gTreasureModel[4][] =
 {
-	"models/ref/blade06.mdl",
-	"models/ref/blade06.mdl",
-	"models/ref/blade06.mdl",
-	"models/ref/blade06.mdl"
+	"models/ref/dualsword_skillfx2.mdl",
+	"models/ref/dualsword_skillfx2.mdl",
+	"models/ref/dualsword_skillfx2.mdl",
+	"models/ref/dualsword_skillfx2.mdl"
+	// "models/ref/blade06.mdl"
 }
 
 new gCurrentWater[33], gCurrentRobot[33];
@@ -160,6 +169,7 @@ new const gszPortalSound[] = "ref/portal_ambient_loop1.wav";        // 飲水機
 new const gszAircoreModel[] = "models/ref/w_aicore.mdl";            // 飲水機
 new const gszCanonRobotModel[] = "models/ref/sentry3.mdl";          // 機搶塔
 new const gszBladeModel[] = "models/ref/blade06.mdl";               // 財寶劍
+new const gszBlade2Model[] = "models/ref/dualsword_skillfx2.mdl";   // 財寶劍II
 new const gszDroneModel[] = "models/ref/cannonexdragon.mdl";        // 無人機
 
 new const gszRatModel[] = "sprites/ref/curuba2.spr";                // 鐵鼠模組
@@ -221,6 +231,7 @@ public plugin_precache()
 	precache_model(gszAircoreModel);
 	precache_model(gszCanonRobotModel);
 	precache_model(gszBladeModel);
+	precache_model(gszBlade2Model);
 	precache_model(gszDroneModel);
 	precache_model(gszRatModel);
 
@@ -284,14 +295,21 @@ public handleSkillMenu(id, num)
 			switch(num) {
 				case SK_TREASURE: {}
 				case SK_SAKURAMIKO: get_sakura_miko(id);
+				case SK_NUKE: set_nuke_magic(id);
 			}
 		}
 		case CORE: {
 			switch(num) {
 				case CORE_ROBOT: createRobot(id);
 				case CORE_DRONE: createDrone(id);
-				case CORE_ARC: get_arc_star(id);
-				case CORE_GAS: get_gas_grenade(id);
+				case CORE_ARC: {
+					get_arc_star(id);
+					client_cmd(id, "weapon_arcstar");
+				}
+				case CORE_GAS: {
+					get_gas_grenade(id);
+					client_cmd(id, "weapon_gas");
+				}
 			}
 		}
 		case CAPACITOR: {
@@ -305,6 +323,7 @@ public handleSkillMenu(id, num)
 			switch(num) {
 				case EQ_LASER: {}
 				case EQ_TRIPLE: {}
+				case EQ_MISSILE: set_missile_switch(id);
 			}
 		}
 	}
@@ -364,7 +383,6 @@ createRat(id)
 	set_pev(entity, pev_renderamt, 255.0);
 	set_pev(entity, pev_scale, 0.3);
 	
-	engfunc(EngFunc_SetSize, entity, Float:{-0.1, -0.1, -0.1}, Float:{0.1, 0.1, 0.1});
 	engfunc(EngFunc_SetModel, entity, gszRatModel);
 	engfunc(EngFunc_SetOrigin, entity, vOrigin);
 
@@ -590,8 +608,6 @@ public robotThink(entity)
 doFire(entity)
 {
 	static id; id = pev(entity, pev_owner);
-	if( !is_user_alive(id)) return FMRES_IGNORED;
-
 	new near = findNearPlayers(id);
 
 	if( near ) {
@@ -716,7 +732,7 @@ handleState(ent)
 	new id = entity_get_edict(ent, EV_ENT_owner);
 	static Float:vOrigin[3], Float:fAim[3], Float:fAngles[3];
 
-	velocity_by_aim(id, 32, fAim);
+	velocity_by_aim(id, 16, fAim);
 	vector_to_angle(fAim, fAngles);
 
 	// 物件角度設定
@@ -1032,7 +1048,7 @@ public fw_touch(ent, ptr)
 
 public fw_cmdstart(id, uc_handle, seed)
 {
-	if (!is_user_alive(id)|| !is_user_connected(id)) return FMRES_IGNORED;
+	if (!is_user_connected(id) ) return FMRES_IGNORED;
 	static button;
 	button = get_uc(uc_handle, UC_Buttons);
 
@@ -1061,7 +1077,7 @@ public fw_TraceAttack(this, id, Float:damage, Float:direction[3], tracehandle, d
 	if ( !is_user_alive(id) || !is_user_connected(id) ) return HAM_IGNORED;
 
 	if( isEnabled(this, CAP_SHIELD, CAPACITOR) ) {
-		SetHamParamFloat(3, damage * 0.2);
+		SetHamParamFloat(3, damage * 0.1);
 
 		static Float:last_time;
 		if ( get_gametime() - last_time >= 0.2) 
@@ -1152,10 +1168,10 @@ public fw_PrimaryAttack(weapon)
 			angles[1] += parity;
 			angle_vector(angles, ANGLEVECTOR_FORWARD, direct[i])
 		}
-			// angles[1] += 3.0;
-			// angle_vector(angles, ANGLEVECTOR_FORWARD, direct[0]);
-			// angles[1] -= 6.0;
-			// angle_vector(angles, ANGLEVECTOR_FORWARD, direct[1]);
+		// angles[1] += 3.0;
+		// angle_vector(angles, ANGLEVECTOR_FORWARD, direct[0]);
+		// angles[1] -= 6.0;
+		// angle_vector(angles, ANGLEVECTOR_FORWARD, direct[1]);
 
 		for( new i=0; i<=multiple-1; ++i ) {
 
@@ -1187,7 +1203,7 @@ public fw_PrimaryAttack(weapon)
 				damages *= 2.5;
 
 			if( is_user_alive(hit) && isEnabled(hit, CAP_SHIELD, CAPACITOR) )
-				damages *= 0.2;
+				damages *= 0.1;
 
 			ExecuteHamB(Ham_TraceAttack, hit, id, damages, direct[i], ptr, DMG_BULLET);
 			if(1 <= hit <= 32)

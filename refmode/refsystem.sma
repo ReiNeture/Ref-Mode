@@ -1,4 +1,5 @@
 #include <amxmodx>
+#include <amxmisc>
 #include <fakemeta>
 #include <hamsandwich>
 #include <cstrike>
@@ -9,7 +10,9 @@ native get_login_status(id);
 native show_login_menu(id);
 native open_refmenu(id);
 native ref_get_level(id);
+native ref_get_aquapoint(id);
 native get_hax_menu(id);
+native get_ak_paladin(id);
 
 new const SoundFiles[6][] =
 {
@@ -54,6 +57,12 @@ new blessing[512];
 new bool:gChangedFree[33];
 new gChangedChicken[33], gChangedChicken2[33];
 
+new aqua;
+new sync;
+new bossZombie;
+
+#define BOSS_HEALTH 700000.0
+
 public plugin_init()
 {
 	register_plugin("RefMainSystem", "1.0", "Reff");
@@ -68,10 +77,12 @@ public plugin_init()
 	RegisterHam(Ham_Killed, "player", "fw_PlayerKilled");
 	RegisterHam(Ham_TraceAttack, "worldspawn", "fw_TraceAttack");
 	RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
+	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
 
 	register_event("DeathMsg", "eventPlayerDeath", "a");
 	register_event("DeathMsg", "eventPlayerDeath", "bg");
-	// register_event("ResetHUD", "event_hud_reset", "be")
+	// register_event("ResetHUD","event_NewRound","be");
+	register_event("HLTV", "event_RoundStart", "a", "1=0", "2=0");
 	register_event("CurWeapon", "event_curweapon", "be", "1=1");
 
 	register_menucmd(register_menuid("MainMenu"), KEYSMENU, "handleMainMenu");
@@ -90,6 +101,9 @@ public plugin_init()
 		}
 	}
 	register_forward(FM_SetModel, "SetModel_Post", 1);
+	register_concmd("set_boss", "set_boss_zombie", ADMIN_KICK);
+
+	sync = CreateHudSyncObj();
 }
 
 public plugin_precache()
@@ -100,6 +114,7 @@ public plugin_precache()
 	chick = engfunc(EngFunc_PrecacheModel, "models/chick.mdl");
 	engfunc(EngFunc_PrecacheModel, "models/player/zombie_nnn/zombie_nnn.mdl");
 	engfunc(EngFunc_PrecacheModel, "models/player/zombie_nnn/zombie_nnnT.mdl");
+	aqua = engfunc(EngFunc_PrecacheModel, "sprites/ref/aqua.spr"); 
 	createAllMenu();
 }
 
@@ -110,8 +125,8 @@ public createAllMenu()
 	add(mainmenu, size, "\w你可以案\r M \w再次開啟此選單^n");
 	add(mainmenu, size, "\w(You can press \r'M'\w to open this menu again.)^n^n");
 	add(mainmenu, size, "\r1. \w選擇免費武器^n\y(Choose free weapons)^n^n");
-	add(mainmenu, size, "\r2. \w基礎特殊選單: 等級需求100^n\y(Basic special menu: Level required 100)^n^n");
-	add(mainmenu, size, "\r3. \w進階特殊選單: 等級需求200^n\y(Advanced special menu: Level required 200)^n^n");
+	add(mainmenu, size, "\r2. \w基礎特殊選單: 等級需求 50^n\y(Basic special menu: Level required 50)^n^n");
+	add(mainmenu, size, "\r3. \w進階特殊選單: 等級需求 140^n\y(Advanced special menu: Level required 140)^n^n");
 	add(mainmenu, size, "\r4. \w雞雞的祝福 \y(Chicken blessing)^n^n");
 	add(mainmenu, size, "\r5. \w音樂盒 <煩請開啟音樂> \y(Mp3 Player)^n^n");
 	add(mainmenu, size, "\r6. \w重生 \y(Respawn)^n^n");
@@ -125,7 +140,8 @@ public createAllMenu()
 	add(freemenu, size, "\r5. \wUSP ^n");
 	add(freemenu, size, "\r6. \wFAMAS ^n");
 	add(freemenu, size, "\r7. \wM249 ^n");
-	add(freemenu, size, "\r8. \wAUG ^n^n");
+	add(freemenu, size, "\r8. \wAUG ^n");
+	add(freemenu, size, "\r9. \wAK47 Paladin (需要AquaPoint 500以上)^n^n");
 	add(freemenu, size, "\r0. \wClose ^n");
 
 	size = sizeof(blessing);
@@ -192,16 +208,16 @@ public handleMainMenu(id, key)
 	{
 		case 0: createFreeWeaponMenu(id);
 		case 1: {
-			if( ref_get_level(id) >= 100)
+			if( ref_get_level(id) >= 50)
 				get_hax_menu(id);
 			else
-				client_print(id, print_chat, "等級不足 (Level required 100)");
+				client_print(id, print_chat, "等級不足 (Level required 50)");
 		}
 		case 2: {
-			if( ref_get_level(id) >= 200)
+			if( ref_get_level(id) >= 140)
 				open_refmenu(id);
 			else
-				client_print(id, print_chat, "等級不足 (Level required 200)");
+				client_print(id, print_chat, "等級不足 (Level required 140)");
 		}
 		case 3: createChickenMenu(id);
 		case 4: get_music_menu(id);
@@ -254,10 +270,22 @@ public handleFreeWeaponMenu(id, key)
 			fm_give_item(id, "weapon_aug");
 			wepId = get_weaponid("weapon_aug")
 		}
+		case 8: {
+			if( ref_get_aquapoint(id) >= 500) {
+				get_ak_paladin(id);
+				wepId = get_weaponid("weapon_ak47");
+			}
+			else {
+				gChangedFree[id] = false;
+				client_print(id, print_chat, "需要阿夸5000")
+			}
+
+		}
 		default: { gChangedFree[id] = false;}
 	}
-
-	set_pdata_int(id, OFFSET_AMMO[wepId], 120, 5);
+	if( wepId )
+		set_pdata_int(id, OFFSET_AMMO[wepId], 120, 5);
+		
 	return PLUGIN_HANDLED;
 }
 
@@ -362,10 +390,51 @@ public fw_PlayerSpawn_Post(id)
 	if ( is_user_bot(id) ) {
 		cs_set_user_model(id, "zombie_nnn");
 		set_pev(id, pev_health, random_float(2500.0, 2500.0));
+
+		if( bossZombie )
+			if( id == bossZombie )
+				bossZombie = 0;
+
+		if( !bossZombie ) {
+			if( random_num(1, 1000) == 40 ) {
+				toBossZombie(id);
+			}
+		}
 	}
 
 	return HAM_HANDLED;
 }
+
+public toBossZombie(id)
+{
+	bossZombie = id;
+	set_pev(id, pev_health, BOSS_HEALTH);
+	fm_set_user_maxspeed(id, 700.0);
+	set_pev(id, pev_gravity, 0.5);
+	set_task(1.0, "bossZombieTask", id);
+}
+
+public bossZombieTask(id)
+{
+	if( bossZombie != id ) {
+		set_pev(id, pev_health, 2500.0);
+		return;
+	}
+
+	static Float:fOrigin[3];
+	pev(id, pev_origin, fOrigin);
+	attachBeamCylinder(fOrigin);
+
+	// velocity_by_aim(id, 880, fOrigin);
+	// fOrigin[2] = 350.0;
+	// set_pev(id, pev_velocity, fOrigin);
+
+	set_hudmessage(230, 10, 10, -0.5, 0.15, 0, 0.0, 1.5, 0.0, 0.0, -1);
+	ShowSyncHudMsg(0, sync, "變異實驗體: %d", pev(id, pev_health) );
+
+	set_task(1.0, "bossZombieTask", id);
+}
+
 public Item_PostFrame_Post(iEnt)
 {    
     if( get_pdata_int(iEnt, m_fInReload, 4))
@@ -392,6 +461,20 @@ public SetModel_Post(entity, const model[])
 	return FMRES_HANDLED;
 } 
 
+public fw_TakeDamage(victim, inflictor, attacker, Float:damage, damagebits)
+{
+	if(!is_user_bot(attacker) )
+		return HAM_IGNORED;
+	if(!is_user_alive(victim) || attacker == victim )
+		return HAM_IGNORED;
+	
+	if( bossZombie == attacker )
+		SetHamParamFloat(4, 5000.0);
+
+	return HAM_IGNORED;
+}
+
+
 public event_curweapon(id)
 {
 	if( !is_user_alive(id)) return PLUGIN_CONTINUE;
@@ -404,11 +487,20 @@ public event_curweapon(id)
 	return PLUGIN_HANDLED;
 }
 
+public event_RoundStart()
+{
+	bossZombie = 0;
+}
+
 public client_putinserver(id)
 {
 	if(!is_user_connected(id) || is_user_bot(id) ) return PLUGIN_CONTINUE;
 
-	set_task(1.0, "setChick", id);
+	set_task(0.5, "setChick", id);
+
+	static names[32];
+	get_user_name(id, names, charsmax(names));
+	client_printcolor(0, "/y[/ctr%s /g進入伺服器 Lv: /ctr%d/g - AquaPoint: /ctr%d/y]", names, ref_get_level(id), ref_get_aquapoint(id))
 
 	return PLUGIN_HANDLED;
 }
@@ -444,11 +536,38 @@ public DeathPost(index)
 	ExecuteHamB(Ham_CS_RoundRespawn, index);
 }
 
+public set_boss_zombie(id)
+{
+	new Target[64];
+	read_argv(1, Target, 63);
+	new uid = cmd_target(id, Target);
+
+	if( !uid ) {
+		bossZombie = 0;
+		client_print(id, print_console, "to init")
+		return PLUGIN_HANDLED;
+	}
+
+	if( is_user_bot(uid) ) {
+		toBossZombie(uid);
+	}
+
+	return PLUGIN_CONTINUE;
+}
+
 stock get_user_weaponame(id, szWeapon[20])
 {
 	new iWeapon = get_user_weapon(id);
 	if ( iWeapon ) get_weaponname(iWeapon, szWeapon, 19);
 }
+
+stock fm_set_user_maxspeed(index, Float:speed = -1.0) {
+	engfunc(EngFunc_SetClientMaxspeed, index, speed);
+	set_pev(index, pev_maxspeed, speed);
+
+	return 1;
+}
+
 stock fm_strip_user_weapons(index) {
 	new ent = fm_create_entity("player_weaponstrip");
 	if (!pev_valid(ent))
@@ -460,6 +579,7 @@ stock fm_strip_user_weapons(index) {
 
 	return 1;
 }
+
 stock fm_give_item(id, const item[])
 {
 	static ent
@@ -479,7 +599,58 @@ stock fm_give_item(id, const item[])
 
 	engfunc(EngFunc_RemoveEntity, ent)
 }
+
 stock fm_create_entity(const classname[])
 {
 	return engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, classname))
+}
+
+stock attachBeamCylinder(const Float:position[3])
+{
+	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+	write_byte(TE_BEAMTORUS);
+	engfunc(EngFunc_WriteCoord, position[0]);
+	engfunc(EngFunc_WriteCoord, position[1]);
+	engfunc(EngFunc_WriteCoord, position[2]);
+	engfunc(EngFunc_WriteCoord, position[0]);
+	engfunc(EngFunc_WriteCoord, position[1]);
+	engfunc(EngFunc_WriteCoord, position[2]+450);
+	write_short(aqua);
+	write_byte(0);
+	write_byte(0);
+	write_byte(10);
+	write_byte(1);
+	write_byte(0);
+	write_byte(245);
+	write_byte(5);
+	write_byte(5);
+	write_byte(170)
+	write_byte(0);
+	message_end();
+}
+
+stock client_printcolor(const id, const input[], any:...)
+{
+	new count = 1, players[32];
+
+	static msg[191];
+	vformat(msg,190,input,3);
+
+	replace_all(msg,190,"/g","^4");// 綠色文字.
+	replace_all(msg,190,"/y","^1");// 橘色文字.
+	replace_all(msg,190,"/ctr","^3");// 隊伍顏色文字.
+
+	if (id) players[0] = id; 
+	else get_players(players,count,"ch");
+
+	for (new i=0;i<count;i++)
+	{
+		if (is_user_connected(players[i]))
+		{
+			message_begin(MSG_ONE_UNRELIABLE, get_user_msgid("SayText"), _, players[i]);
+			write_byte(players[i]);
+			write_string(msg);
+			message_end();
+		}
+	}
 }
