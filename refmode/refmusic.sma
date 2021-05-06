@@ -95,12 +95,12 @@ new playBack[33], bool:playStatus[33];
 
 const MAX_QUEUE = 20;
 new Array:playQueue[33];
+new Array:playRecord[33];
 
 public plugin_init()
 {
 	register_plugin("RefRegisterSystem", "1.0", "Reff");
-	register_clcmd("refbgm2", "showMusicSelectMenu");
-	register_clcmd("refbgm", "showInterfaceMenu")
+	register_clcmd("ref_bgm", "showInterfaceMenu")
 
 	MenuConstructor();
 	// 主介面選單
@@ -118,8 +118,10 @@ public plugin_init()
 public plugin_precache()
 {
 	new i;
-	for(i = 0; i <= 32; ++i)
+	for(i = 0; i <= 32; ++i) {
 		playQueue[i] = ArrayCreate();
+		playRecord[i] = ArrayCreate(64);
+	}
 	for (i = 0; i < sizeof(MusicFiles); i++)
 		precache_sound(MusicFiles[i]);
 }
@@ -139,8 +141,9 @@ MenuConstructor()
 	add(infaceMenu, size, "\y2. \w播放模式 ^n^n");
 	add(infaceMenu, size, "\y3. \w佇列新增 ^n");
 	add(infaceMenu, size, "\y4. \w播放佇列 ^n^n");
+	add(infaceMenu, size, "\y5. \w播放紀錄 ^n^n");
 
-	gKeyInfaceMenu =   (B0 | B1 | B2 | B3 | B4 | B8 );
+	gKeyInfaceMenu =   (B0 | B1 | B2 | B3 | B4 | B5 | B8 );
 	gKeySelectMenu =   (B0 | B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 );
 	gKeyplaybackMenu = (B0 | B1 | B2 | B3 );
 	gKeyQueueMenu =    (B0 | B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 );
@@ -152,17 +155,14 @@ MenuConstructor()
 /*=========================================== SHOW MENU ============================================*/
 public showInterfaceMenu(id)
 {
-	new menu[400], text[128], pasue[64];
-	new size = charsmax(menu);
+	new szMenu[400];
+	new menuSize = charsmax(szMenu);
 
-	viewPlayStatus(id, text);
-	add(menu, size, text);
-	add(menu, size, infaceMenu);
+	addPlayStatus(id, szMenu, menuSize);
+	add(szMenu, menuSize, infaceMenu);
+	addStopAndPlay(id, szMenu, menuSize);
 
-	viewStopAndPlay(id, pasue);
-	add(menu, size, pasue);
-
-	show_menu(id, gKeyInfaceMenu, menu, -1, "InterfaceMenu");
+	show_menu(id, gKeyInfaceMenu, szMenu, -1, "InterfaceMenu");
 }
 
 public showPlaybackMenu(id)
@@ -187,19 +187,12 @@ public showMusicSelectMenu(id)
 
 	formatex(szEntry, entrySize, "湊あくあ 総長: \r音樂列表  \y%d/%d^n^n", pages[id]+1, gMenuPagesMax+1);
 	add(szMenu, menuSize, szEntry);
-
 	formatex(szEntry, entrySize, "\y7\w. 功能切換 & 重新整理^n" );
 	add(szMenu, menuSize, szEntry);
 
-	new info[128], info2[256];
-	viewSwitchPlayback(id, info);
-	add(szMenu, menuSize, info);
-
-	viewPlayStatus(id, info);
-	add(szMenu, menuSize, info);
-
-	viewTrackList(id, info2);
-	add(szMenu, menuSize, info2);
+	addSwitchPlayback(id, szMenu, menuSize);
+	addPlayStatus(id, szMenu, menuSize);
+	addTrackList(id, szMenu, menuSize);
 
 	show_menu(id, gKeySelectMenu, szMenu, -1, "MusicSelectMenu");
 }
@@ -214,9 +207,7 @@ public showQueueMenu(id)
 	formatex(szEntry, entrySize, "\y若佇列有歌曲時優先以佇列順序播放^n停止 或 指定歌曲時將清空佇列^n^n");
 	add(szMenu, menuSize, szEntry);
 
-	new info[256];
-	viewTrackList(id, info);
-	add(szMenu, menuSize, info);
+	addTrackList(id, szMenu, menuSize);
 
 	show_menu(id, gKeySelectMenu, szMenu, -1, "QueueMenu");
 }
@@ -229,26 +220,30 @@ public showQueueManagerMenu(id)
 	formatex(szEntry, entrySize, "\r播放佇列管理: \y點擊移除指定佇列歌曲^n^n");
 	add(szMenu, menuSize, szEntry);
 
-	new info[256], info2[128];
-	viewPlayStatus(id, info2);
-	add(szMenu, menuSize, info2);
-
-	viewQueueList(id, info);
-	add(szMenu, menuSize, info);
+	addPlayStatus(id, szMenu, menuSize);
+	addQueueList(id, szMenu, menuSize);
 
 	show_menu(id, gKeyQueueManagerMenu, szMenu, -1, "QueueManagerMenu");
 }
 
+public showRecordMenu(id)
+{
+	new szMenu[512];
+	new menuSize = charsmax(szMenu);
+
+	formatex(szEntry, entrySize, "\r播放紀錄: ^n^n");
+	add(szMenu, menuSize, szEntry);
+	
+	addRecordList(id, szMenu, menuSize);
+
+	show_menu(id, gKeyQueueManagerMenu, szMenu);
+}
+
 /*============================================= VIEW ==============================================*/
 
-viewTrackList(id, szText[256])  // 全歌曲列表
+addTrackList(id, szText[], textSize)  // 全歌曲列表
 {
-	szText = "";
-
-	new textSize = charsmax(szText);
-	
 	new szColor[3];
-
 	new start = pages[id] * preItem;
 	new end = (pages[id] + 1) * preItem - 1;
 	new seqno; 
@@ -272,12 +267,8 @@ viewTrackList(id, szText[256])  // 全歌曲列表
 		add(szText, textSize, "\r0\y. \w回第一頁");
 }
 
-viewPlayStatus(id, szText[128])  // 正在播放歌曲
+addPlayStatus(id, szText[], textSize)  // 正在播放歌曲
 {
-	szText = "";
-	
-	new textSize = charsmax(szText);
-
 	if( playingTrack[id] >= 0 && playStatus[id] )
 		formatex(szEntry, entrySize, "\y[\w 播放中 \r: \w%s \y]^n^n", MusicTrackName[ playingTrack[id] ]);
 	else
@@ -285,58 +276,29 @@ viewPlayStatus(id, szText[128])  // 正在播放歌曲
 	add(szText, textSize, szEntry);
 }
 
-viewStopAndPlay(id, szText[64])  // 播放/停止
+addStopAndPlay(id, szText[], textSize)  // 播放/停止
 {
-	szText = "";
-	formatex(szText, sizeof(szText), "\y8\w. 播放\y/\w停止: %s^n^n", (isPlaying(id) ? "\r停止" : "\y播放" ));
+	formatex(szEntry, entrySize, "\y8\w. 播放\y/\w停止: %s^n^n", (isPlaying(id) ? "\r停止" : "\y播放" ));
+	add(szText, textSize, szEntry);
 }
 
-viewPlaySequence(id, szText[64])
+addPlaySequence(id, szText[], textSize)
 {
-	szText = "";
-	formatex(szText, sizeof(szText), "\y8\w. 目前模式: %s^n^n", PlaybackMode[ playBack[id] ]);
+	formatex(szEntry, entrySize, "\y8\w. 目前模式: %s^n^n", PlaybackMode[ playBack[id] ]);
+	add(szText, textSize, szEntry);
 }
 
-viewSwitchPlayback(id, szText[128])
+addSwitchPlayback(id, szText[], textSize)
 {
-	szText = "";
-
-	new temp[64];
 	switch( features[id] ) {
-		case FUNC_SWITCH: viewStopAndPlay(id, temp);
-		case FUNC_PLAYBACK: viewPlaySequence(id, temp);
+		case FUNC_SWITCH: addStopAndPlay(id, szText, textSize);
+		case FUNC_PLAYBACK: addPlaySequence(id, szText, textSize);
 	}
-	szText = temp;
 }
 
-viewQueueTop3(id, szText[256])  // 播放佇列前三首
+addQueueList(id, szText[], textSize)  // 播放佇列全檢視
 {
-	szText = "";
-	
-	new textSize = charsmax(szText);
-
-	new item, length = ArraySize(playQueue[id]);
-	if( playQueue[id] )
-		item = (length > 3 ) ? 3 : ArraySize(playQueue[id]);
-
-	add(szText, textSize, "\w> \y播放佇列(前三首) : ^n");
-	for(new i = 0; i < item; ++i) {
-		static track; 
-		track = ArrayGetCell(playQueue[id], i);
-
-		formatex(szEntry, entrySize, "\y%d\w. %s^n", i+1, MusicTrackName[track]);
-		add(szText, textSize, szEntry);
-	}
-
-	if( length > 3) add(szText, textSize, "...^n");
-	add(szText, textSize, "^n");
-}
-
-viewQueueList(id, szText[256])  // 播放佇列全檢視
-{
-	szText = "";
 	gKeyQueueManagerMenu = B0;
-	new textSize = charsmax(szText);
 	
 	// 5 item in one page
 	new queueSize = ArraySize(playQueue[id]);
@@ -363,8 +325,6 @@ viewQueueList(id, szText[256])  // 播放佇列全檢視
 	add(szText, textSize, "^n");
 	if( maxQueuePage > 1 ) {
 
-		gKeyQueueManagerMenu |= (B0);
-
 		if( queuePages[id] < maxQueuePage - 1 )
 			add(szText, textSize, "\r0\y. \w下一頁");
 		else if( queuePages[id] >= maxQueuePage - 1 )
@@ -372,7 +332,35 @@ viewQueueList(id, szText[256])  // 播放佇列全檢視
 	}
 }
 
+addRecordList(id, szText[], textSize)  // 播放記錄最後五首
+{
+	new size = ArraySize(playRecord[id]);
+
+	static info[64];
+	for(new i = size - 1; i >= 0 ; --i) {
+		ArrayGetString(playRecord[id], i, info, charsmax(info));
+		add(szText, textSize, info);
+	}
+}
+
 /*=========================================== MENU HANDLE ============================================*/
+
+public handleInterfaceMenu(id, num)
+{
+	switch(num)
+	{
+		case N1: showMusicSelectMenu(id);
+		case N2: showPlaybackMenu(id);
+		case N3: showQueueMenu(id);
+		case N4: showQueueManagerMenu(id);
+		case N5: showRecordMenu(id);
+		case N8: { 
+			stopAndPlay(id);
+			showInterfaceMenu(id);
+		}
+	}
+}
+
 public handleMusicSelectMenu(id, num)
 {
 	switch(num)
@@ -386,21 +374,6 @@ public handleMusicSelectMenu(id, num)
 
 	showMusicSelectMenu(id);
 	return PLUGIN_HANDLED;
-}
-
-public handleInterfaceMenu(id, num)
-{
-	switch(num)
-	{
-		case N1: showMusicSelectMenu(id);
-		case N2: showPlaybackMenu(id);
-		case N3: showQueueMenu(id);
-		case N4: showQueueManagerMenu(id);
-		case N8: { 
-			stopAndPlay(id);
-			showInterfaceMenu(id);
-		}
-	}
 }
 
 public handlePlayBackMenu(id, num)
@@ -501,8 +474,10 @@ toQueuePreviousPage(id)
 removeFromQueue(id, num)
 {
 	num += ( 5 * queuePages[id] );
+	new tempTrack = ArrayGetCell(playQueue[id], num);
+
 	ArrayDeleteItem(playQueue[id], num);
-	client_printcolor(id, "\y[\g已將\ctr%d:%s\g從播放佇列移除\y]", num+1, MusicTrackName[num] );
+	client_printcolor(id, "\y[\g已將\ctr%d:%s\g從播放佇列移除\y]", num+1, MusicTrackName[tempTrack] );
 
 	new const maxQueuePage = floatround(float(ArraySize(playQueue[id])) / 5.0, floatround_ceil);
 	while( queuePages[id] >= maxQueuePage && queuePages[id] > 0 )
@@ -555,8 +530,26 @@ playSpecificTrack(id)
 {
 	new track = playingTrack[id];
 	playStatus[id] = true;
+
 	client_cmd(id, "mp3 play ^"sound/%s^"", MusicFiles[track]);
+	pushToRecord(id, track);
+
 	set_task(MUSIC_TASK[track] + fDelay, "automaticPlaySelectMusic", id+7866);
+}
+
+pushToRecord(id, track)
+{
+	#define FIRST_ITEM 0
+	new Array:arrayHandle = playRecord[id];
+	static playingInfo[64], times[10];
+
+	get_time("%H:%M:%S", times, charsmax(times));
+	formatex(playingInfo, charsmax(playingInfo), "\y%s\r: \w%s^n", times, MusicTrackName[track] );
+
+	if( ArraySize(arrayHandle) >= 5 )
+		ArrayDeleteItem(arrayHandle, FIRST_ITEM);
+
+	ArrayPushString(arrayHandle, playingInfo);
 }
 
 public stopMusic(id)
@@ -566,7 +559,10 @@ public stopMusic(id)
 
 	playingTrack[id] = -1;
 	playStatus[id] = false;
+
+	queuePages[id] = 0;
 	ArrayClear(playQueue[id]);
+	
 	client_cmd(id, "mp3 stop");
 }
 
