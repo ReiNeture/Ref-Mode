@@ -1,6 +1,9 @@
 #include <amxmodx>
 #include <amxmisc>
 
+#define PLAYING_TASK 7866
+#define ID_TASK (id+PLAYING_TASK)
+
 enum
 {
 	N1, N2, N3, N4, N5, N6, N7, N8, N9, N0
@@ -19,18 +22,20 @@ enum
 	FUNC_PLAYBACK
 };
 
-const MAX_PLAYBACK = 3;
+const MAX_PLAYBACK = 4;
 new const PlaybackMode[MAX_PLAYBACK][] = 
 {
 	"隨機播放",
 	"單一循環",
-	"播放一次"
+	"播放一次",
+	"預設順序"
 }
 enum
 {
 	PLAY_RANDOM = 0,
 	PLAY_REPEAT,
-	PLAY_ONCE
+	PLAY_ONCE,
+	PLAY_DEFAULT
 };
 
 const MAX_TRACK = 11;
@@ -41,8 +46,8 @@ new const MusicTrackName[MAX_TRACK][] =
     "蘭の香り - 水月陵",
     "ReminiscE - 金閉開羅巧夢",
     "Time left - 天門&柳英一郎",
-    "サクラ - 未知",
-    "耐える冬 - 未知",
+    "サクラ - ステージ なな",
+    "耐える冬 - ステージ なな",
 	"夢の歩みを見上げて - 松本文紀",
     "竜姫 奏でる - 渡邊崇",
 	"Summer Pockets - 水月陵",
@@ -79,9 +84,15 @@ new const Float:MUSIC_TASK[MAX_TRACK] =
 	190.0
 }
 
+// 歌曲資訊網頁路徑
+new const trackInfoHTML[] = "addons\amxmodx\refmusic\"; 
+
+// 每首歌曲播放間格
 const Float:fDelay = 5.0;
-const preItem = 6;
-const NA = (preItem - 1);
+
+// 音樂列表每頁顯示數量
+const PRE_ITEM = 6;  
+const NA = (PRE_ITEM - 1);
 
 new infaceMenu[400];
 new szEntry[128];
@@ -100,7 +111,7 @@ new Array:playRecord[33];
 public plugin_init()
 {
 	register_plugin("RefRegisterSystem", "1.0", "Reff");
-	register_clcmd("ref_bgm", "showInterfaceMenu")
+	register_clcmd("ref_bgm", "showInterfaceMenu");
 
 	MenuConstructor();
 	// 主介面選單
@@ -133,7 +144,8 @@ public plugin_natives()
 
 MenuConstructor()
 {
-	gMenuPagesMax = floatround((float(MAX_TRACK) / float(preItem) ), floatround_ceil) - 1;
+	// 計算音樂列表最大頁數 從零開始
+	gMenuPagesMax = floatround((float(MAX_TRACK) / float(PRE_ITEM) ), floatround_ceil) - 1;
 
 	new size = sizeof(infaceMenu);
 	add(infaceMenu, size, "\w湊あくあ 総長: \y播放音樂的\r 音樂盒 \w|||^n^n");
@@ -141,11 +153,13 @@ MenuConstructor()
 	add(infaceMenu, size, "\y2. \w播放模式 ^n^n");
 	add(infaceMenu, size, "\y3. \w佇列新增 ^n");
 	add(infaceMenu, size, "\y4. \w播放佇列 ^n^n");
-	add(infaceMenu, size, "\y5. \w播放紀錄 ^n^n");
+	add(infaceMenu, size, "\y5. \w播放紀錄 ^n");
+	add(infaceMenu, size, "\y6. \w歌曲資訊 ^n^n");
+	add(infaceMenu, size, "\y9. \w下一首 ^n");
 
-	gKeyInfaceMenu =   (B0 | B1 | B2 | B3 | B4 | B5 | B8 );
+	gKeyInfaceMenu =   (B0 | B1 | B2 | B3 | B4 | B5 | B6 | B8 | B9 );
 	gKeySelectMenu =   (B0 | B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 );
-	gKeyplaybackMenu = (B0 | B1 | B2 | B3 );
+	gKeyplaybackMenu = (B0 | B1 | B2 | B3 | B4 );
 	gKeyQueueMenu =    (B0 | B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 );
 
 	// 播放佇列全檢視會更動到此變數
@@ -155,12 +169,12 @@ MenuConstructor()
 /*=========================================== SHOW MENU ============================================*/
 public showInterfaceMenu(id)
 {
-	new szMenu[400];
+	new szMenu[500];
 	new menuSize = charsmax(szMenu);
 
 	addPlayStatus(id, szMenu, menuSize);
 	add(szMenu, menuSize, infaceMenu);
-	addStopAndPlay(id, szMenu, menuSize);
+	addStopAndPlay(id, szMenu, menuSize, 0);
 
 	show_menu(id, gKeyInfaceMenu, szMenu, -1, "InterfaceMenu");
 }
@@ -219,10 +233,11 @@ public showQueueManagerMenu(id)
 
 	formatex(szEntry, entrySize, "\r播放佇列管理: \y點擊移除指定佇列歌曲^n^n");
 	add(szMenu, menuSize, szEntry);
-
+	
+	toQueueCorrectPage(id);
 	addPlayStatus(id, szMenu, menuSize);
 	addQueueList(id, szMenu, menuSize);
-
+	
 	show_menu(id, gKeyQueueManagerMenu, szMenu, -1, "QueueManagerMenu");
 }
 
@@ -231,10 +246,13 @@ public showRecordMenu(id)
 	new szMenu[512];
 	new menuSize = charsmax(szMenu);
 
-	formatex(szEntry, entrySize, "\r播放紀錄: ^n^n");
+	formatex(szEntry, entrySize, "\r播放紀錄: \y最後五首紀錄^n^n");
 	add(szMenu, menuSize, szEntry);
-	
+
 	addRecordList(id, szMenu, menuSize);
+
+	formatex(szEntry, entrySize, "\y—^n");
+	add(szMenu, menuSize, szEntry);
 
 	show_menu(id, gKeyQueueManagerMenu, szMenu);
 }
@@ -244,8 +262,8 @@ public showRecordMenu(id)
 addTrackList(id, szText[], textSize)  // 全歌曲列表
 {
 	new szColor[3];
-	new start = pages[id] * preItem;
-	new end = (pages[id] + 1) * preItem - 1;
+	new start = pages[id] * PRE_ITEM;
+	new end = (pages[id] + 1) * PRE_ITEM - 1;
 	new seqno; 
 
 	add(szText, textSize, "\w> \y歌曲列表 : ^n");
@@ -262,9 +280,9 @@ addTrackList(id, szText[], textSize)  // 全歌曲列表
 
 	add(szText, textSize, "^n");
 	if( pages[id] < gMenuPagesMax )
-		add(szText, textSize, "\r0\y. \w下一頁");
+		add(szText, textSize, "\y9\w. 下一頁");
 	else if( pages[id] >= gMenuPagesMax )
-		add(szText, textSize, "\r0\y. \w回第一頁");
+		add(szText, textSize, "\y9\w. \r回第一頁");
 }
 
 addPlayStatus(id, szText[], textSize)  // 正在播放歌曲
@@ -272,13 +290,13 @@ addPlayStatus(id, szText[], textSize)  // 正在播放歌曲
 	if( playingTrack[id] >= 0 && playStatus[id] )
 		formatex(szEntry, entrySize, "\y[\w 播放中 \r: \w%s \y]^n^n", MusicTrackName[ playingTrack[id] ]);
 	else
-		formatex(szEntry, entrySize, "\y[\w 播放中 \r: \w無正在播放歌曲 \y]^n^n");
+		formatex(szEntry, entrySize, "\y[\w 播放中 \r: \w無 \y]^n^n");
 	add(szText, textSize, szEntry);
 }
 
-addStopAndPlay(id, szText[], textSize)  // 播放/停止
+addStopAndPlay(id, szText[], textSize, option)  // 播放/停止
 {
-	formatex(szEntry, entrySize, "\y8\w. 播放\y/\w停止: %s^n^n", (isPlaying(id) ? "\r停止" : "\y播放" ));
+	formatex(szEntry, entrySize, "\y%d\w. 播放\y/\w停止: %s^n^n", option, (isPlaying(id) ? "\r停止" : "\y播放" ));
 	add(szText, textSize, szEntry);
 }
 
@@ -291,7 +309,7 @@ addPlaySequence(id, szText[], textSize)
 addSwitchPlayback(id, szText[], textSize)
 {
 	switch( features[id] ) {
-		case FUNC_SWITCH: addStopAndPlay(id, szText, textSize);
+		case FUNC_SWITCH: addStopAndPlay(id, szText, textSize, 8);
 		case FUNC_PLAYBACK: addPlaySequence(id, szText, textSize);
 	}
 }
@@ -326,9 +344,9 @@ addQueueList(id, szText[], textSize)  // 播放佇列全檢視
 	if( maxQueuePage > 1 ) {
 
 		if( queuePages[id] < maxQueuePage - 1 )
-			add(szText, textSize, "\r0\y. \w下一頁");
+			add(szText, textSize, "\y9\w. 下一頁");
 		else if( queuePages[id] >= maxQueuePage - 1 )
-			add(szText, textSize, "\r0\y. \w回第一頁");
+			add(szText, textSize, "\y9\w. \r回第一頁");
 	}
 }
 
@@ -354,7 +372,15 @@ public handleInterfaceMenu(id, num)
 		case N3: showQueueMenu(id);
 		case N4: showQueueManagerMenu(id);
 		case N5: showRecordMenu(id);
-		case N8: { 
+		case N6: {
+			motdTrackInfo(id);
+			showInterfaceMenu(id);
+		}
+		case N9: {
+			automaticPlaySelectMusic(ID_TASK);
+			showInterfaceMenu(id);
+		}
+		case N0: { 
 			stopAndPlay(id);
 			showInterfaceMenu(id);
 		}
@@ -365,11 +391,14 @@ public handleMusicSelectMenu(id, num)
 {
 	switch(num)
 	{
+		case N1..NA: chooseTrack(id, num);
 		case N7: features[id] = (++features[id] % MAX_FUNC); // 功能切換
 		case N8: doFeatures(id);  // 執行功能
-		case N0: toNextPage(id);
-		case N1..NA: chooseTrack(id, num);
-		default: return PLUGIN_HANDLED;
+		case N9: toNextPage(id);
+		case N0: {
+			showInterfaceMenu(id);
+			return PLUGIN_HANDLED;
+		}
 	}
 
 	showMusicSelectMenu(id);
@@ -391,12 +420,15 @@ public handleQueueMenu(id, num)
 {
 	switch(num)
 	{
-		case N0: toNextPage(id);
-		case N1..NA: addTrackToQueue(id, num);
-		default: return PLUGIN_HANDLED;
+		case N1..NA: trackToQueue(id, num);
+		case N9: toNextPage(id);
+		case N0: {
+			showInterfaceMenu(id);
+			return PLUGIN_HANDLED;
+		}
 	}
-	showQueueMenu(id);
 
+	showQueueMenu(id);
 	return PLUGIN_HANDLED;
 }
 
@@ -404,17 +436,21 @@ public handleQueueManagerMenu(id, num)
 {
 	switch(num)
 	{
-		case N0: toQueueNextPage(id);
+		case N9: toQueueNextPage(id);
+		case N0: {
+			showInterfaceMenu(id);
+			return PLUGIN_HANDLED;
+		}
 		default: removeFromQueue(id, num);
 	}
-	showQueueManagerMenu(id);
 
+	showQueueManagerMenu(id);
 	return PLUGIN_HANDLED;
 }
 
 
 /*============================================ CONTROL ===============================================*/
-addTrackToQueue(id, num)
+trackToQueue(id, num)
 {
 	if( !playQueue[id] ) playQueue[id] = ArrayCreate();
 
@@ -425,7 +461,7 @@ addTrackToQueue(id, num)
 		return;
 	}
 
-	num += ( preItem * pages[id] );
+	num += ( PRE_ITEM * pages[id] );
 	if ( num < MAX_TRACK )
 	{
 		ArrayPushCell(playQueue[id], num);
@@ -435,7 +471,7 @@ addTrackToQueue(id, num)
 
 chooseTrack(id, num)
 {
-	num += ( preItem * pages[id] );
+	num += ( PRE_ITEM * pages[id] );
 	if ( num < MAX_TRACK )
 	{
 		stopMusic(id);
@@ -466,9 +502,11 @@ toQueueNextPage(id)
 		queuePages[id] = 0;
 }
 
-toQueuePreviousPage(id)
+toQueueCorrectPage(id)
 {
-	if( queuePages[id] > 0 ) --queuePages[id];
+	new const maxQueuePage = floatround(float(ArraySize(playQueue[id])) / 5.0, floatround_ceil);
+	while( queuePages[id] >= maxQueuePage && queuePages[id] > 0 )
+		if( queuePages[id] > 0 ) --queuePages[id];
 }
 
 removeFromQueue(id, num)
@@ -478,10 +516,6 @@ removeFromQueue(id, num)
 
 	ArrayDeleteItem(playQueue[id], num);
 	client_printcolor(id, "\y[\g已將\ctr%d:%s\g從播放佇列移除\y]", num+1, MusicTrackName[tempTrack] );
-
-	new const maxQueuePage = floatround(float(ArraySize(playQueue[id])) / 5.0, floatround_ceil);
-	while( queuePages[id] >= maxQueuePage && queuePages[id] > 0 )
-		toQueuePreviousPage(id);
 }
 
 doFeatures(id)
@@ -498,7 +532,7 @@ public automaticPlaySelectMusic(id)
 {
 	if( task_exists(id) ) remove_task(id);
 
-	id = id - 7866;
+	id = id - PLAYING_TASK;
 	if( !is_user_connected(id) ) return;
 
 	if( playQueue[id] && ArraySize(playQueue[id]) > 0 ) {
@@ -514,6 +548,7 @@ public automaticPlaySelectMusic(id)
 		case PLAY_REPEAT: {}
 		case PLAY_RANDOM: setPlayingTrackRandom(id);
 		case PLAY_ONCE  : {}
+		case PLAY_DEFAULT: setPlayingTrackDefault(id);
 	}
 
 	if( playingTrack[id] >= 0 ) playSpecificTrack(id);
@@ -526,6 +561,11 @@ setPlayingTrackRandom(id)
 		playingTrack[id] = random_num(0, MAX_TRACK-1);
 }
 
+setPlayingTrackDefault(id)
+{
+	playingTrack[id] = (++playingTrack[id] % MAX_TRACK);
+}
+
 playSpecificTrack(id)
 {
 	new track = playingTrack[id];
@@ -534,7 +574,7 @@ playSpecificTrack(id)
 	client_cmd(id, "mp3 play ^"sound/%s^"", MusicFiles[track]);
 	pushToRecord(id, track);
 
-	set_task(MUSIC_TASK[track] + fDelay, "automaticPlaySelectMusic", id+7866);
+	set_task(MUSIC_TASK[track] + fDelay, "automaticPlaySelectMusic", ID_TASK);
 }
 
 pushToRecord(id, track)
@@ -544,7 +584,7 @@ pushToRecord(id, track)
 	static playingInfo[64], times[10];
 
 	get_time("%H:%M:%S", times, charsmax(times));
-	formatex(playingInfo, charsmax(playingInfo), "\y%s\r: \w%s^n", times, MusicTrackName[track] );
+	formatex(playingInfo, charsmax(playingInfo), "\y¦-%s\r: \w%s^n", times, MusicTrackName[track] );
 
 	if( ArraySize(arrayHandle) >= 5 )
 		ArrayDeleteItem(arrayHandle, FIRST_ITEM);
@@ -552,10 +592,23 @@ pushToRecord(id, track)
 	ArrayPushString(arrayHandle, playingInfo);
 }
 
+motdTrackInfo(id)
+{
+	static url[64];
+	new track = playingTrack[id];
+
+	if( track > -1 ) {
+		formatex(url, charsmax(url), "%s%d%s", trackInfoHTML, track, ".html");
+		show_motd(id, url, "正在播放的歌曲資訊");
+
+	} else
+		client_printcolor(id, "\y[\g無正在播放歌曲\y]");
+}
+
 public stopMusic(id)
 {
-	if( task_exists(id+7866) )
-		remove_task(id+7866);
+	if( task_exists(ID_TASK) )
+		remove_task(ID_TASK);
 
 	playingTrack[id] = -1;
 	playStatus[id] = false;
@@ -566,28 +619,29 @@ public stopMusic(id)
 	client_cmd(id, "mp3 stop");
 }
 
-stopAndPlay(id)
-{
-	isPlaying(id) ? stopMusic(id) : automaticPlaySelectMusic(id+7866);
-}
-
-/*========================================== FORWARD & CHECK FUNC ===========================================*/
-public client_putinserver(id)
-{
-	resetInfo(id);
-	set_task(fDelay-3.0, "automaticPlaySelectMusic", id+7866);
-}
-
 resetInfo(id)
 {
 	stopMusic(id);
-	playBack[id] = 0;
+	playBack[id] = PLAY_DEFAULT;
 	pages[id] = 0;
+}
+
+stopAndPlay(id)
+{
+	isPlaying(id) ? stopMusic(id) : automaticPlaySelectMusic(ID_TASK);
+}
+
+/*========================================== FORWARD & CHECK FUNC ===========================================*/
+
+public client_putinserver(id)
+{
+	resetInfo(id);
+	set_task(fDelay-3.0, "automaticPlaySelectMusic", ID_TASK);
 }
 
 public client_disconnected(id)
 {
-	stopMusic(id);
+	resetInfo(id);
 }
 
 public isPlaying(id)
@@ -601,6 +655,7 @@ public playBackMode(id)
 }
 
 /*============================================ STOCK ==================================================*/
+
 stock client_printcolor(const id, const input[], any:...)
 {
 	new count = 1, players[32];
@@ -608,9 +663,9 @@ stock client_printcolor(const id, const input[], any:...)
 	static msg[191];
 	vformat(msg,190,input,3);
 
-	replace_all(msg,190,"\g","^4");// 綠色文字.
-	replace_all(msg,190,"\y","^1");// 橘色文字.
-	replace_all(msg,190,"\ctr","^3");// 隊伍顏色文字.
+	replace_all(msg,190,"\g","^4");   // 綠色文字.
+	replace_all(msg,190,"\y","^1");   // 橘色文字.
+	replace_all(msg,190,"\ctr","^3"); // 隊伍顏色文字.
 
 	if (id) players[0] = id; 
 	else get_players(players,count,"ch");
