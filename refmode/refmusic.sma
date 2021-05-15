@@ -1,5 +1,6 @@
 #include <amxmodx>
 #include <amxmisc>
+#include "trackinfo"
 
 #define PLAYING_TASK 7866
 #define ID_TASK (id+PLAYING_TASK)
@@ -38,55 +39,6 @@ enum
 	PLAY_DEFAULT
 };
 
-const MAX_TRACK = 11;
-new const MusicTrackName[MAX_TRACK][] = 
-{
-    "此花亭 - 菊地創",
-    "眩しさの中 - 水月陵",
-    "蘭の香り - 水月陵",
-    "ReminiscE - 金閉開羅巧夢",
-    "Time left - 天門&柳英一郎",
-    "サクラ - ステージ なな",
-    "耐える冬 - ステージ なな",
-	"夢の歩みを見上げて - 松本文紀",
-    "竜姫 奏でる - 渡邊崇",
-	"Summer Pockets - 水月陵",
-	"さくらみこBGM - 未知"
-}
-
-new const MusicFiles[MAX_TRACK][] = 
-{
-	"ref/konohana.mp3",
-	"ref/mabusiisa.mp3",
-	"ref/kaori.mp3",
-	"ref/ReminiscE.mp3",
-	"ref/TimeLeft.mp3",
-	"ref/narcissusakura.mp3",
-	"ref/narcissufuyu.mp3",
-	"ref/yumenoarumi.mp3",
-	"ref/ryuhime.mp3",
-	"ref/SummerPocket.mp3",
-	"ref/sakuramiko.mp3"
-}
-
-new const Float:MUSIC_TASK[MAX_TRACK] = 
-{
-	101.0,
-	260.0,
-	149.0,
-	150.0,
-	185.0,
-	139.0,
-	142.0,
-	134.0,
-	92.0,
-	260.0,
-	190.0
-}
-
-// 歌曲資訊網頁路徑
-new const trackInfoHTML[] = "addons\amxmodx\refmusic\"; 
-
 // 每首歌曲播放間格
 const Float:fDelay = 5.0;
 
@@ -114,6 +66,7 @@ public plugin_init()
 	register_clcmd("ref_bgm", "showInterfaceMenu");
 
 	MenuConstructor();
+
 	// 主介面選單
 	register_menucmd(register_menuid("InterfaceMenu"), gKeyInfaceMenu, "handleInterfaceMenu");
 	// 音樂列表
@@ -133,8 +86,12 @@ public plugin_precache()
 		playQueue[i] = ArrayCreate();
 		playRecord[i] = ArrayCreate(64);
 	}
-	for (i = 0; i < sizeof(MusicFiles); i++)
-		precache_sound(MusicFiles[i]);
+
+	new name[32];
+	for (i = 0; i < sizeof(MusicFiles); i++) {
+		formatex(name, charsmax(name), "ref/%s", MusicFiles[i]);
+		precache_sound(name);
+	}
 }
 
 public plugin_natives()
@@ -199,7 +156,7 @@ public showMusicSelectMenu(id)
 	new szMenu[512];
 	new menuSize = charsmax(szMenu);
 
-	formatex(szEntry, entrySize, "湊あくあ 総長: \r音樂列表  \y%d/%d^n^n", pages[id]+1, gMenuPagesMax+1);
+	formatex(szEntry, entrySize, "湊あくあ 総長: \r音樂列表 ^n^n");
 	add(szMenu, menuSize, szEntry);
 	formatex(szEntry, entrySize, "\y7\w. 功能切換 & 重新整理^n" );
 	add(szMenu, menuSize, szEntry);
@@ -266,13 +223,15 @@ addTrackList(id, szText[], textSize)  // 全歌曲列表
 	new end = (pages[id] + 1) * PRE_ITEM - 1;
 	new seqno; 
 
-	add(szText, textSize, "\w> \y歌曲列表 : ^n");
+	formatex(szEntry, entrySize, "\w> \y歌曲列表 (%d/%d) : ^n", pages[id]+1, gMenuPagesMax+1);
+	add(szText, textSize, szEntry);
+
 	for(new i = start; i <= end; ++i) {
 		seqno = (i - start) + 1;
 		szColor = ( playingTrack[id] == i ? "\r" : "\w" );
 
 		if( i < MAX_TRACK )
-			formatex(szEntry, entrySize, "\y%d\w. %s%s^n", seqno, szColor, MusicTrackName[i]);
+			formatex(szEntry, entrySize, "\y%d\w. %s%s - %s^n", seqno, szColor, MusicTrackName[i], MusicArtistName[i]);
 		else
 			formatex(szEntry, entrySize, "\w--^n");
 		add(szText, textSize, szEntry);
@@ -335,8 +294,13 @@ addQueueList(id, szText[], textSize)  // 播放佇列全檢視
 
 		if( i >= ArraySize(playQueue[id]) ) break;
 
-		formatex(szEntry, entrySize, "\y%d\w. %s^n", (i - start) + 1, MusicTrackName[ArrayGetCell(playQueue[id], i)]);
+		formatex(szEntry, entrySize, "\y%d\w. %s - %s^n", (i - start) + 1, 
+		MusicTrackName[ArrayGetCell(playQueue[id], i)], 
+		MusicArtistName[ArrayGetCell(playQueue[id], i)]);
+
 		add(szText, textSize, szEntry);
+
+		// 設定可按按鍵範圍
 		gKeyQueueManagerMenu |= (1 << (i - start) );
 	}
 
@@ -571,7 +535,7 @@ playSpecificTrack(id)
 	new track = playingTrack[id];
 	playStatus[id] = true;
 
-	client_cmd(id, "mp3 play ^"sound/%s^"", MusicFiles[track]);
+	client_cmd(id, "mp3 play ^"sound/ref/%s^"", MusicFiles[track]);
 	pushToRecord(id, track);
 
 	set_task(MUSIC_TASK[track] + fDelay, "automaticPlaySelectMusic", ID_TASK);
@@ -584,25 +548,12 @@ pushToRecord(id, track)
 	static playingInfo[64], times[10];
 
 	get_time("%H:%M:%S", times, charsmax(times));
-	formatex(playingInfo, charsmax(playingInfo), "\y¦-%s\r: \w%s^n", times, MusicTrackName[track] );
+	formatex(playingInfo, charsmax(playingInfo), "\y¦-%s\r: \w%s - %s^n", times, MusicTrackName[track], MusicArtistName[track] );
 
 	if( ArraySize(arrayHandle) >= 5 )
 		ArrayDeleteItem(arrayHandle, FIRST_ITEM);
 
 	ArrayPushString(arrayHandle, playingInfo);
-}
-
-motdTrackInfo(id)
-{
-	static url[64];
-	new track = playingTrack[id];
-
-	if( track > -1 ) {
-		formatex(url, charsmax(url), "%s%d%s", trackInfoHTML, track, ".html");
-		show_motd(id, url, "正在播放的歌曲資訊");
-
-	} else
-		client_printcolor(id, "\y[\g無正在播放歌曲\y]");
 }
 
 public stopMusic(id)
@@ -629,6 +580,43 @@ resetInfo(id)
 stopAndPlay(id)
 {
 	isPlaying(id) ? stopMusic(id) : automaticPlaySelectMusic(ID_TASK);
+}
+
+motdTrackInfo(id)
+{
+	static html[2048];
+	new track = playingTrack[id];
+
+	if( track > -1 ) {
+		makeTrackInfoHTML(track, html, charsmax(html) );
+		show_motd(id, html, "正在播放的歌曲資訊");
+
+	} else
+		client_printcolor(id, "\y[\g無正在播放歌曲\y]");
+}
+
+makeTrackInfoHTML(track, html[], textSize)
+{
+	copy(html, textSize, "");
+	new files = fopen(trackInfoHTML, "r");
+
+	while ( !feof(files) ) {
+
+		static buffer[512];
+		fgets(files, buffer, charsmax(buffer) );
+
+		if( strfind(buffer, "ALBUM_PATH") != -1 )
+			replace_string(buffer, charsmax(buffer), "ALBUM_PATH", MusicFiles[track]);
+		if( strfind(buffer, "TRACK_NAME") != -1 )
+			replace_string(buffer, charsmax(buffer), "TRACK_NAME", MusicTrackName[track]);
+		if( strfind(buffer, "ARTIST_NAME") != -1 )
+			replace_string(buffer, charsmax(buffer), "ARTIST_NAME", MusicArtistName[track]);
+		if( strfind(buffer, "ALBUM_NAME") != -1 )
+			replace_string(buffer, charsmax(buffer), "ALBUM_NAME", TrackOfAlbum[track]);
+
+		add(html, textSize, buffer);
+	}
+	fclose(files);
 }
 
 /*========================================== FORWARD & CHECK FUNC ===========================================*/
