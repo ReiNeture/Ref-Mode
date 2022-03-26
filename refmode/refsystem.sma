@@ -5,6 +5,7 @@
 #include <cstrike>
 #include <engine>
 
+// Ref-Mode
 native get_music_menu(id);
 native get_login_status(id);
 native show_login_menu(id);
@@ -12,7 +13,12 @@ native open_refmenu(id);
 native ref_get_level(id);
 native ref_get_aquapoint(id);
 native get_hax_menu(id);
+
+// Weapon
 native get_ak_paladin(id);
+native get_m249_aerolis(id);
+native get_m249_thanatos7(id);
+native get_m249_AT4(id);
 
 new const SoundFiles[6][] =
 {
@@ -137,11 +143,12 @@ public createAllMenu()
 	add(freemenu, size, "\r2. \wM4A1 ^n");
 	add(freemenu, size, "\r3. \wMP5 ^n");
 	add(freemenu, size, "\r4. \wDesert Eagle ^n");
-	add(freemenu, size, "\r5. \wUSP ^n");
-	add(freemenu, size, "\r6. \wFAMAS ^n");
-	add(freemenu, size, "\r7. \wM249 ^n");
-	add(freemenu, size, "\r8. \wAUG ^n");
-	add(freemenu, size, "\r9. \wAK47 Paladin (需要AquaPoint 500以上)^n^n");
+	add(freemenu, size, "\r5. \wUSP ^n^n");
+	add(freemenu, size, "\w# 特殊武器^n");
+	add(freemenu, size, "\r6. \wAT4CS ^n");
+	add(freemenu, size, "\r7. \wM249 Aerolis^n");
+	add(freemenu, size, "\r8. \wTHANATOS 7 ^n");
+	add(freemenu, size, "\r9. \wAK47 Paladin^n^n");
 	add(freemenu, size, "\r0. \wClose ^n");
 
 	size = sizeof(blessing);
@@ -259,27 +266,20 @@ public handleFreeWeaponMenu(id, key)
 			wepId = get_weaponid("weapon_usp")
 		}
 		case 5: { 
-			fm_give_item(id, "weapon_famas");
-			wepId = get_weaponid("weapon_famas")
+			get_m249_AT4(id);
+			wepId = get_weaponid("weapon_m249")
 		}
 		case 6: {
-			fm_give_item(id, "weapon_m249");
+			get_m249_aerolis(id);
 			wepId = get_weaponid("weapon_m249")
 		}
 		case 7: {
-			fm_give_item(id, "weapon_aug");
-			wepId = get_weaponid("weapon_aug")
+			get_m249_thanatos7(id);
+			wepId = get_weaponid("weapon_m249")
 		}
 		case 8: {
-			if( ref_get_aquapoint(id) >= 500) {
-				get_ak_paladin(id);
-				wepId = get_weaponid("weapon_ak47");
-			}
-			else {
-				gChangedFree[id] = false;
-				client_print(id, print_chat, "需要阿夸5000")
-			}
-
+			get_ak_paladin(id);
+			wepId = get_weaponid("weapon_ak47");
 		}
 		default: { gChangedFree[id] = false;}
 	}
@@ -327,21 +327,21 @@ public fw_PlayerKilled(this, attack, shouldgib)
 
 
 	// 擊殺噴小雞
-	new Float:this_aim[3], this_origin[3];
-	get_user_origin(this, this_origin, 0);
-	velocity_by_aim(attack, 880, this_aim);
+	// new Float:this_aim[3], this_origin[3];
+	// get_user_origin(this, this_origin, 0);
+	velocity_by_aim(attack, 880, attOrigin);
 
 	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
 	write_byte(TE_BREAKMODEL);
-	write_coord(this_origin[0]);
-	write_coord(this_origin[1]);
-	write_coord(this_origin[2]+30);
+	engfunc(EngFunc_WriteCoord, thisOrigin[0]);
+	engfunc(EngFunc_WriteCoord, thisOrigin[1]);
+	engfunc(EngFunc_WriteCoord, thisOrigin[2]+30);
 	write_coord(16); // size x
 	write_coord(16); // size y
 	write_coord(16); // size z
-	engfunc(EngFunc_WriteCoord, this_aim[0]); // write_coord(this_aim[0]); // velocity x 
-	engfunc(EngFunc_WriteCoord, this_aim[1]); // write_coord(this_aim[1]); // velocity y
-	engfunc(EngFunc_WriteCoord, this_aim[2]); // write_coord(this_aim[2]); // velocity z default 165
+	engfunc(EngFunc_WriteCoord, attOrigin[0]); // write_coord(this_aim[0]); // velocity x 
+	engfunc(EngFunc_WriteCoord, attOrigin[1]); // write_coord(this_aim[1]); // velocity y
+	engfunc(EngFunc_WriteCoord, attOrigin[2]); // write_coord(this_aim[2]); // velocity z default 165
 	write_byte(30); // random velocity
 	write_short(chick);
 	write_byte(2); // count
@@ -379,7 +379,7 @@ public fw_TraceAttack(this, id, Float:damage, Float:direction[3], tracehandle, d
 }
 public fw_PlayerSpawn_Post(id)
 {
-	if (!is_user_alive(id) && !is_user_connected(id))
+	if (!is_user_alive(id) || !is_user_connected(id))
 		return HAM_IGNORED;
 
 	gChangedFree[id] = false;
@@ -389,7 +389,7 @@ public fw_PlayerSpawn_Post(id)
 	
 	if ( is_user_bot(id) ) {
 		cs_set_user_model(id, "zombie_nnn");
-		set_pev(id, pev_health, random_float(2500.0, 2500.0));
+		set_pev(id, pev_health, random_float(3000.0, 4000.0));
 
 		if( bossZombie )
 			if( id == bossZombie )
@@ -490,6 +490,7 @@ public event_curweapon(id)
 public event_RoundStart()
 {
 	bossZombie = 0;
+	// set_lights("a");
 }
 
 public client_putinserver(id)

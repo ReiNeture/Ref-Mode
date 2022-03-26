@@ -87,7 +87,7 @@ public show_hud(id)
 
     set_hudmessage(red, green, blue, -0.85, 0.15, 0, 0.0, 0.3, 0.0, 0.0, -1);
     ShowSyncHudMsg(id, sync, "|血量: %d|^n|等級: %d|^n|經驗: %d / %d|^n|經驗倍率: %d|^n|Aqua Point: %d|", get_user_health(id), reflevel[id][LEVEL], reflevel[id][EXP], reflevel[id][LEVEL] * y14y, get_cvar_num("refExpRate"), refzmkill[id]);
-    set_task(0.2, "show_hud", id+1234);
+    set_task(0.1, "show_hud", id+1234);
 
     return PLUGIN_HANDLED;
 }
@@ -152,23 +152,26 @@ public AutoSave()
 
 public fw_PlayerKilled(victim, attacker, shouldgib)
 {
-    if(attacker == victim || !is_user_alive(attacker))
+    if( !is_user_alive(attacker) || attacker == victim )
         return HAM_IGNORED;
 
-    if(reflevel[attacker][LEVEL] <= 0)
+    static level;
+    level = reflevel[attacker][LEVEL];
+
+    if( level <= 0 )
         reflevel[attacker][LEVEL] = 1;
 
     new exp = 3885 * get_cvar_num("refExpRate");
 
-    if( reflevel[attacker][LEVEL] < 100 ) {
-        exp *= 10;
-        client_print(attacker, print_center, "擊殺了 怪人 獲得 %d 經驗值 (100等以下經驗值10倍)", exp);
+    if( level < 100 ) {
+        exp *= 15;
+        client_print(attacker, print_center, "擊殺了 怪人 獲得 %d 經驗值 (100等以下經驗值15倍)", exp);
     } else
         client_print(attacker, print_center, "擊殺了 怪人 獲得 %d 經驗值", exp);
 
-    if(get_user_team(victim) == 2){
+    if(get_user_team(victim) == 2 ){
         reflevel[attacker][EXP] += exp
-        refzmkill[attacker]++;
+        ++refzmkill[attacker];
     }
 
     new refexp = reflevel[attacker][LEVEL] * y14y;

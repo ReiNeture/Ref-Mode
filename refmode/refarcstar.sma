@@ -10,7 +10,7 @@
 #define ARC_SECRETCODE 98983
 
 #define ARC_RADIUS 245.0
-#define ARC_DAMAGE 2510.0
+#define ARC_DAMAGE 5510.0
 #define ARC_DMGTIME 2.5
 
 new const touch_time = pev_fuser1
@@ -129,7 +129,6 @@ public fw_SetModel(ent, const Model[])
 {
 	if(!pev_valid(ent) ) return FMRES_IGNORED
 		
-	static Classname[32]; pev(ent, pev_classname, Classname, sizeof(Classname))
 	if(equal(Model, "models/w_hegrenade.mdl"))
 	{
 		static id; id = pev(ent, pev_owner)
@@ -267,9 +266,6 @@ makeArcExplode(ent, const Float:fOrigin[3])
 	static Owner; Owner = pev(ent, pev_owner)
 	static Float:PlayerOrigin[3]
 
-	emit_sound(ent, CHAN_WEAPON, WeaponSound[0], 1.0, ATTN_NORM, 0, PITCH_NORM);
-	engfunc(EngFunc_RemoveEntity, ent);
-
 	for(new i = 0; i < gMaxPlayers; i++)
 	{
 		if(!is_user_alive(i) ) continue;
@@ -280,8 +276,11 @@ makeArcExplode(ent, const Float:fOrigin[3])
 			
 		if(!is_user_connected(Owner) ) Owner = i
 
-		ExecuteHam(Ham_TakeDamage, i, Owner, Owner, ARC_DAMAGE, DMG_PARALYZE)
+		ExecuteHam(Ham_TakeDamage, i, ent, Owner, ARC_DAMAGE, DMG_PARALYZE)
 	}
+
+	emit_sound(ent, CHAN_WEAPON, WeaponSound[0], 1.0, ATTN_NORM, 0, PITCH_NORM);
+	engfunc(EngFunc_RemoveEntity, ent);
 
 	engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0)
 	write_byte(TE_EXPLOSION)

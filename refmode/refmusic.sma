@@ -62,8 +62,9 @@ new Array:playRecord[33];
 
 public plugin_init()
 {
-	register_plugin("RefRegisterSystem", "1.0", "Reff");
+	register_plugin("RefMusic", "1.0", "Reff");
 	register_clcmd("ref_bgm", "showInterfaceMenu");
+	register_clcmd("say music", "showInterfaceMenu");
 
 	MenuConstructor();
 
@@ -439,8 +440,7 @@ chooseTrack(id, num)
 	if ( num < MAX_TRACK )
 	{
 		stopMusic(id);
-		playingTrack[id] = num;
-		playSpecificTrack(id);
+		playSpecificTrack(id, num);
 		client_printcolor(id, "\y[\g你播放了\ctr %s\y]", MusicTrackName[num]);
 	}
 }
@@ -492,6 +492,7 @@ doFeatures(id)
 	}
 }
 
+// 核心功能 輪播機制
 public automaticPlaySelectMusic(id)
 {
 	if( task_exists(id) ) remove_task(id);
@@ -500,39 +501,38 @@ public automaticPlaySelectMusic(id)
 	if( !is_user_connected(id) ) return;
 
 	if( playQueue[id] && ArraySize(playQueue[id]) > 0 ) {
-
-		playingTrack[id] = ArrayGetCell(playQueue[id], 0);
+		playSpecificTrack(id, ArrayGetCell(playQueue[id], 0));
 		ArrayDeleteItem(playQueue[id], 0);
-		playSpecificTrack(id);
 		return;
 	}
 
 	switch( playBack[id] )
 	{
-		case PLAY_REPEAT: {}
-		case PLAY_RANDOM: setPlayingTrackRandom(id);
-		case PLAY_ONCE  : {}
-		case PLAY_DEFAULT: setPlayingTrackDefault(id);
+		case PLAY_REPEAT  :  playSpecificTrack(id, playingTrack[id]);
+		case PLAY_RANDOM  :  playTrackRandom(id);
+		case PLAY_ONCE    :  playSpecificTrack(id, playingTrack[id]);
+		case PLAY_DEFAULT :  playTrackDefault(id);
 	}
-
-	if( playingTrack[id] >= 0 ) playSpecificTrack(id);
+	// if( playingTrack[id] >= 0 ) playSpecificTrack(id);
 }
 
-setPlayingTrackRandom(id)
+playTrackRandom(id)
 {
 	new track = playingTrack[id];
 	while( track == playingTrack[id] )
-		playingTrack[id] = random_num(0, MAX_TRACK-1);
+		track = random_num(0, MAX_TRACK-1);
+	playSpecificTrack(id, track);
 }
 
-setPlayingTrackDefault(id)
+playTrackDefault(id)
 {
-	playingTrack[id] = (++playingTrack[id] % MAX_TRACK);
+	playSpecificTrack(id, ++playingTrack[id] % MAX_TRACK);
 }
 
-playSpecificTrack(id)
+// 核心功能 播放音樂
+playSpecificTrack(id, track)
 {
-	new track = playingTrack[id];
+	playingTrack[id] = track;
 	playStatus[id] = true;
 
 	client_cmd(id, "mp3 play ^"sound/ref/%s^"", MusicFiles[track]);
@@ -544,13 +544,15 @@ playSpecificTrack(id)
 pushToRecord(id, track)
 {
 	#define FIRST_ITEM 0
+	#define MAX_RECORD_ITEM 5
+
 	new Array:arrayHandle = playRecord[id];
 	static playingInfo[64], times[10];
 
 	get_time("%H:%M:%S", times, charsmax(times));
 	formatex(playingInfo, charsmax(playingInfo), "\y¦-%s\r: \w%s - %s^n", times, MusicTrackName[track], MusicArtistName[track] );
 
-	if( ArraySize(arrayHandle) >= 5 )
+	if( ArraySize(arrayHandle) >= MAX_RECORD_ITEM )
 		ArrayDeleteItem(arrayHandle, FIRST_ITEM);
 
 	ArrayPushString(arrayHandle, playingInfo);
@@ -561,7 +563,7 @@ public stopMusic(id)
 	if( task_exists(ID_TASK) )
 		remove_task(ID_TASK);
 
-	playingTrack[id] = -1;
+	// playingTrack[id] = -1;
 	playStatus[id] = false;
 
 	queuePages[id] = 0;
@@ -624,7 +626,7 @@ makeTrackInfoHTML(track, html[], textSize)
 public client_putinserver(id)
 {
 	resetInfo(id);
-	set_task(fDelay-3.0, "automaticPlaySelectMusic", ID_TASK);
+	set_task(fDelay - 3.0, "automaticPlaySelectMusic", ID_TASK);
 }
 
 public client_disconnected(id)

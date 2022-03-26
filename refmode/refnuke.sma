@@ -7,18 +7,12 @@
 #define NUKE_DAMAGE 9777.0
 
 #define RADIAN_OFFSET 45.0
-#define MAX_RADIUS 540.0 // 需要能整除 CHARGE_TIME
-#define PER_CHANGE_RADIUS 2.0
-#define CHARGE_TIME 3.0
-#define EXPLODE_TIME 12.0
+#define MAX_RADIUS 300.0 // 需要能整除 CHARGE_TIME
+#define PER_CHANGE_RADIUS 1.5
+#define CHARGE_TIME 20.0
+#define EXPLODE_TIME 7.0
 #define THINK_TIME 0.1
-
-// new const Float:RADIAN_OFFSET = 45.0;
-// new const Float:MAX_RADIUS = 540.0;
-// new const Float:PER_CHANGE_RADIUS = 2.0;
-// new const Float:CHARGE_TIME = 5.0;
-// new const Float:EXPLODE_TIME = 10.0;
-// new const Float:THINK_TIME = 0.1;
+#define EXPLODE_THINK_TIME 0.1
 
 new Float:MAX_CHARGE_LIFE;       // = (PER_CHANGE_RADIUS * 30.0) * 10.0;
 new Float:MAX_LIFE;              // = MAX_CHARGE_LIFE + 10.0 * 10.0;
@@ -27,12 +21,12 @@ new Float:CHANGE_RANGE;          // = ((MAX_RADIUS / CHARGE_TIME) / PER_CHANGE_R
 new const nukeDeviceClass[] = "r_nuke";
 
 new const szLightLine[] = "sprites/ref/ef_gungnir_lightline2.spr";
-// new const szLineEnd[] = "sprites/ref/wall_puff1.spr";
 new const szDeimoExplode[] = "sprites/ref/deimosexp.spr";
 
 new const szMissile[] = "models/ref/stinger_rocket_frk14_big.mdl";
+new const szPuff[] = "sprites/wall_puff1.spr";
 
-new light, endl;
+new light, endl, puff;
 
 new bool:hasNuke[33];
 new gMaxPlayers;
@@ -50,12 +44,13 @@ public plugin_init()
 public plugin_precache()
 {
     MAX_CHARGE_LIFE = (PER_CHANGE_RADIUS * CHARGE_TIME) / THINK_TIME; 
-    MAX_LIFE = MAX_CHARGE_LIFE + (PER_CHANGE_RADIUS * EXPLODE_TIME) / THINK_TIME;
+    MAX_LIFE = MAX_CHARGE_LIFE + (PER_CHANGE_RADIUS * EXPLODE_TIME) / EXPLODE_THINK_TIME;
     CHANGE_RANGE = ((MAX_RADIUS / CHARGE_TIME) / PER_CHANGE_RADIUS ) * THINK_TIME;
 
     engfunc(EngFunc_PrecacheModel, szMissile);
     light = engfunc(EngFunc_PrecacheModel, szLightLine);
     endl = engfunc(EngFunc_PrecacheModel, szDeimoExplode);
+    puff = engfunc(EngFunc_PrecacheModel, szPuff);
 }
 
 public plugin_natives()
@@ -121,11 +116,15 @@ public fw_Think(ent)
                 vOrigin[1] += floatsin((degree + i * RADIAN_OFFSET), degrees ) * (MAX_RADIUS - (degree * CHANGE_RANGE) );
 
                 create_beam_end(vOrigin);
+                create_dot_spr(vOrigin);
             }
+            set_pev(ent, pev_nextthink, get_gametime() + THINK_TIME);
 
         } else if( degree < MAX_LIFE ) {
 
             static Float:origin[3];
+            pev(ent, pev_origin, vOrigin);
+            
             get_spherical_coord_explode(
                 vOrigin,
                 random_float(30.0, 530.0),   // Float:redius
@@ -135,6 +134,8 @@ public fw_Think(ent)
             );
 
             static Float:PlayerOrigin[3], owner;
+            owner = pev(ent, pev_owner);
+
             for(new i = 0; i < gMaxPlayers; ++i ) {
 
                 if( !is_user_alive(i) ) continue;
@@ -142,11 +143,11 @@ public fw_Think(ent)
                 pev(i, pev_origin, PlayerOrigin);
                 if(get_distance_f(vOrigin, PlayerOrigin) > NUKE_EXPLODE_RADIUS )
                     continue;
-
-                owner = pev(ent, pev_owner);
+                
                 ExecuteHam(Ham_TakeDamage, i, owner, owner, NUKE_DAMAGE, DMG_RADIATION);
             }
             create_expload_spr(origin);
+            set_pev(ent, pev_nextthink, get_gametime() + EXPLODE_THINK_TIME);
 
         } else {
             new owner = pev(ent, pev_owner);
@@ -154,8 +155,7 @@ public fw_Think(ent)
             engfunc(EngFunc_RemoveEntity, ent);
             return FMRES_IGNORED;
         }
-
-        set_pev(ent, pev_nextthink, get_gametime() + THINK_TIME);
+        
     }
 
     return FMRES_IGNORED;
@@ -169,6 +169,20 @@ stock get_spherical_coord_explode(const Float:ent_origin[3], Float:redius, Float
     origin[0] = ent_origin[0] + length * floatcos(level_angle, degrees);
     origin[1] = ent_origin[1] + length * floatsin(level_angle, degrees);
     origin[2] = ent_origin[2] + redius * floatsin(vertical_angle, degrees);
+}
+
+stock create_dot_spr(const Float:fOrigin[3])
+{
+    engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0);
+    write_byte(TE_EXPLOSION);
+    engfunc(EngFunc_WriteCoord, fOrigin[0]);
+    engfunc(EngFunc_WriteCoord, fOrigin[1]);
+    engfunc(EngFunc_WriteCoord, fOrigin[2] - 10.0);
+    write_short(puff);
+    write_byte(3);
+    write_byte(45);
+    write_byte(TE_EXPLFLAG_NODLIGHTS | TE_EXPLFLAG_NOSOUND | TE_EXPLFLAG_NOPARTICLES);
+    message_end();
 }
 
 stock create_expload_spr(const Float:fOrigin[3])

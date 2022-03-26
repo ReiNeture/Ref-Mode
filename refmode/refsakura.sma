@@ -1,6 +1,7 @@
 #include <amxmodx>
 #include <fakemeta>
 #include <hamsandwich>
+#include <engine>
 
 new const szMikoClass[] = "sakuraMiko";
 
@@ -10,13 +11,14 @@ new const szFireFlies[] = "models/ref/rs_fireflies.mdl";
 new const szSakuraExpSound[] = "ref/sakura_exp2.wav"
 
 new const szPinkDot[] = "sprites/ref/pflare.spr"
-new const szBlueDot[] = "sprites/ref/bflare.spr"
+// new const szBlueDot[] = "sprites/ref/bflare.spr"
 new const szMikoFox[] = "sprites/ref/miko_kitsune2.spr";
 
-new flare, flies, fox, flare_b;
+new flare, flies, fox
+// new flare_b;
 
 #define PRE_DAMAGE_TIME 2.0
-#define SAKURA_DAMAGE 333.0
+#define SAKURA_DAMAGE 233.0
 #define SAKURA_RADIUS 550.0
 
 public plugin_init()
@@ -24,7 +26,7 @@ public plugin_init()
     register_plugin("Sakura Barrier", "1.0", "Reff");
     register_clcmd("miko", "makeSakuraMiko");
 
-    register_forward(FM_Think, "fw_Think");
+    register_think(szMikoClass, "fw_Think");
 }
 
 public plugin_precache()
@@ -33,7 +35,7 @@ public plugin_precache()
     engfunc(EngFunc_PrecacheModel, szSakuraTree);
     flies = engfunc(EngFunc_PrecacheModel, szFireFlies);
     flare = engfunc(EngFunc_PrecacheModel, szPinkDot);
-    flare_b = engfunc(EngFunc_PrecacheModel, szBlueDot);
+    // flare_b = engfunc(EngFunc_PrecacheModel, szBlueDot);
     fox = engfunc(EngFunc_PrecacheModel, szMikoFox);
 }
 
@@ -89,38 +91,34 @@ public fw_Think(ent)
 {
 	if( !pev_valid(ent) ) return FMRES_IGNORED;
 	
-	static Classname[32], Float:vOrigin[3];
-	pev(ent, pev_classname, Classname, sizeof(Classname) );
+    static Float:vOrigin[3];
+    pev(ent, pev_origin, vOrigin);
 
-	if( equal(Classname, szMikoClass) ) {
+    create_dynamic_light(vOrigin, 300, 255, 179, 250, 20);
+    create_sprite_trail(vOrigin);
+    create_fire_field(vOrigin);
+    emit_sound(ent, CHAN_STATIC, szSakuraExpSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
 
-        pev(ent, pev_origin, vOrigin);
-        create_dynamic_light(vOrigin, 300, 255, 179, 250, 20);
-        create_sprite_trail(vOrigin);
-        create_fire_field(vOrigin);
-        emit_sound(ent, CHAN_STATIC, szSakuraExpSound, 1.0, ATTN_NORM, 0, PITCH_NORM);
+    new Float:victimOrigin[3];
+    new victim = FM_NULLENT;
+    new id = pev(ent, pev_owner);
+    
+    while((victim = engfunc(EngFunc_FindEntityInSphere, victim, vOrigin, SAKURA_RADIUS) ) != 0 ) {
 
-        new Float:victimOrigin[3];
-        new victim = FM_NULLENT;
-        new id = pev(ent, pev_owner);
-        
-        while((victim = engfunc(EngFunc_FindEntityInSphere, victim, vOrigin, SAKURA_RADIUS) ) != 0 ) {
+        if(!is_user_alive(victim) || id == victim )
+            continue;
 
-            if(!is_user_alive(victim) || id == victim )
-                continue;
+        if(get_user_team(victim) == get_user_team(id) ) 
+            continue;
 
-            if(get_user_team(victim) == get_user_team(id) ) 
-                continue;
+        pev(victim, pev_origin, victimOrigin);
+        create_basic_sprite(victimOrigin);
+        // create_sprite_trail2(victimOrigin);
 
-            pev(victim, pev_origin, victimOrigin);
-            create_basic_sprite(victimOrigin);
-            create_sprite_trail2(victimOrigin);
-
-            ExecuteHam(Ham_TakeDamage, victim, id, id, SAKURA_DAMAGE, DMG_ENERGYBEAM);
-        }
-        
-        set_pev(ent, pev_nextthink, get_gametime() + PRE_DAMAGE_TIME);
+        ExecuteHam(Ham_TakeDamage, victim, id, id, SAKURA_DAMAGE, DMG_ENERGYBEAM);
     }
+    
+    set_pev(ent, pev_nextthink, get_gametime() + PRE_DAMAGE_TIME);
 
     return FMRES_IGNORED;
 }

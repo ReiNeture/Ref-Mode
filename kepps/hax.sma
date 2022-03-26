@@ -93,7 +93,7 @@ public plugin_init()
 	RegisterHam(Ham_TraceAttack, "worldspawn", "fw_TraceAttack_bullet");
 	RegisterHam(Ham_Killed, "player", "fw_PlayerKilled", 1);
 	RegisterHam(Ham_Spawn, "player", "fw_PlayerSpawn_Post", 1);
-	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage");
+	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage", 1);
 	RegisterHam(Ham_Touch, EntInfo, "ballTouch");
 	RegisterHam(Ham_Touch, EntInfo, "fragementexplodeTouch");
 
@@ -160,13 +160,13 @@ createMenu()
 {
 	new size = sizeof(akoMainMenu);
 	add(akoMainMenu, size, "\w低能兒 ^n^n");
-	add(akoMainMenu, size, "\r1. \wAimbot: %s ^n");
+	add(akoMainMenu, size, "\r1. \wAimbot(自動爆頭): %s ^n");
 	add(akoMainMenu, size, "\r2. \w反射傷害: %s ^n");
 	add(akoMainMenu, size, "\r3. \w隱身: %s ^n");
-	add(akoMainMenu, size, "\r4. \w大跳: %s ^n");
-	add(akoMainMenu, size, "\r5. \w爆炸睪丸: %s^n");
-	add(akoMainMenu, size, "\r6. \w破片睪丸: %s^n");
-	add(akoMainMenu, size, "\r7. \w迴避: %s^n^n");
+	add(akoMainMenu, size, "\r4. \w大跳(按 蹲+跳): %s ^n");
+	add(akoMainMenu, size, "\r5. \w爆炸子彈: %s^n");
+	add(akoMainMenu, size, "\r6. \w破片子彈(擊殺產生): %s^n");
+	add(akoMainMenu, size, "\r7. \w迴避(機率發生): %s^n^n");
 	add(akoMainMenu, size, "\r8. \w睪丸選單 ^n^n^n");
 	add(akoMainMenu, size, "\r0. \w關閉");
 	gKeysMainMenu = B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B0
@@ -519,10 +519,11 @@ public fragementexplodeTouch(ent, ptr)
 
 public eventCurWeapon(id)
 {
-	new Float:fTime = halflife_time();
-	new Float:fTimeLeft = SpeedBoostTimeOut[id] - fTime;
-	if(fTimeLeft > 0.0)
-		set_user_maxspeed(id, 700.0);
+	// new Float:fTime = halflife_time();
+	// new Float:fTimeLeft = SpeedBoostTimeOut[id] - fTime;
+	// if(fTimeLeft > 0.0)
+	// 	set_user_maxspeed(id, 700.0);
+	return;
 }
 
 public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], tracehandle, damage_type)
@@ -535,9 +536,8 @@ public fw_TraceAttack(victim, attacker, Float:damage, Float:direction[3], traceh
 		if(random_num(1, 5) == 1) {
 			new Float:fTime = halflife_time();
 
-			set_task(4.0, "speedboostRemove", victim);
-
-			set_user_maxspeed(victim, 700.0);
+			// set_task(4.0, "speedboostRemove", victim);
+			// set_user_maxspeed(victim, 700.0);
 
 			emit_sound(victim, CHAN_WEAPON, dodgeSpeedBoost, 1.0, ATTN_NORM, 0, PITCH_NORM);
 			static Float:last_time;
@@ -569,6 +569,7 @@ public fw_TraceAttack_bullet(victim, attacker, Float:damage, Float:direction[3],
 {
 	if(!is_user_connected(attacker) ) return HAM_IGNORED;
 
+	// 爆炸子彈
 	if(explosionbullet[attacker] && get_user_weapon(attacker) != CSW_KNIFE) {
 		if(random_num(1, 2) == 1) {
 			victim  = FM_NULLENT;
@@ -600,16 +601,14 @@ public fw_TraceAttack_bullet(victim, attacker, Float:damage, Float:direction[3],
 
 public fw_PlayerKilled(victim, attacker, shouldgib)
 {
-	if(attacker == victim || !is_user_connected(attacker)) return HAM_IGNORED;
+	if( !is_user_alive(attacker) || attacker == victim ) return HAM_IGNORED;
 
-	if(fragementexplode[attacker]) {
-
-		if(get_user_team(victim) == 2) {
-			static Float:vOrigin[3];
-			pev(victim, pev_origin, vOrigin);
-			createFragement(attacker, vOrigin);
-		}
+	static Float:vOrigin[3];
+	if(fragementexplode[attacker] ) {
+		pev(victim, pev_origin, vOrigin);
+		createFragement(attacker, vOrigin);
 	}
+	
 	return HAM_IGNORED;
 }
 
@@ -626,27 +625,23 @@ public fw_PlayerSpawn_Post(id)
 
 public fw_TakeDamage(victim, inflictor, attacker, Float:damage, damagebits)
 {
+	if(!is_user_alive(victim) )
+		return HAM_IGNORED;
 	if(attacker == victim || !is_user_connected(attacker))
 		return HAM_IGNORED;
 
-	new victim_origin[3];
-	get_user_origin(victim, victim_origin, 0);
-	new Float:victim_aim[3], Float:originF[3], Float:scalar = -1.0, Float:attacker_origin[3];
-	velocity_by_aim(victim, 50, victim_aim);
-	xs_vec_mul_scalar(victim_aim, scalar, originF);
-	pev(attacker, pev_origin, attacker_origin);
-
 	if(dmg_reflection[victim])
-		ExecuteHam(Ham_TakeDamage, attacker, victim, victim, damage,  DMG_TIMEBASED);
+		ExecuteHam(Ham_TakeDamage, attacker, victim, victim, (damage*0.1), DMG_RADIATION);
 
-	client_print(attacker, print_chat, ": %f", damage)
+	// client_print(attacker, print_chat, ": %f", damage)
 	return HAM_IGNORED;
 }
 
 public speedboostRemove(victim)
 {
-	if(is_user_alive(victim))
-		set_user_maxspeed(victim, 250.0);
+	// if(is_user_alive(victim))
+	// 	set_user_maxspeed(victim, 250.0);
+	return 0;
 }
 
 public fw_cmdstart(id)
@@ -662,7 +657,7 @@ public fw_cmdstart(id)
 		if(halflife_time() - last_time[id] >= 0.1) {
 			if((button & IN_JUMP) && (button & IN_DUCK)) {
 				static Float:velocity[3];
-				velocity_by_aim(id, 750, velocity);
+				velocity_by_aim(id, 850, velocity);  // 大跳距離
 				velocity[2] = 270.0;
 				set_pev(id, pev_velocity, velocity);
 				

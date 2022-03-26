@@ -2,6 +2,7 @@
 #include <hamsandwich>
 #include <fakemeta>
 #include <xs>
+#include <engine>
 
 new const missileClass[] = "r_missile";
 
@@ -24,8 +25,8 @@ public plugin_init()
 {
     register_plugin("Sky Missile", "1.0", "Reff");
 
-    register_forward(FM_Think, "fw_Think");
     register_forward(FM_Touch, "fw_Touch");
+    register_think(missileClass, "fw_Think");
 
     RegisterHam(Ham_TraceAttack, "worldspawn", "fw_TraceAttack");
     RegisterHam(Ham_TraceAttack, "player", "fw_TraceAttack");
@@ -84,17 +85,13 @@ public fw_Think(ent)
 {
     if( !pev_valid(ent) ) return FMRES_IGNORED;
 
-    static Classname[32], Float:fOrigin[3];
-    pev(ent, pev_classname, Classname, sizeof(Classname) );
-
-    if( equal(Classname, missileClass) ) {
-
-        pev(ent, pev_origin, fOrigin);
-        if( fOrigin[2] - pev(ent, pev_fuser1) <= 36.0 )
-            doArrivals(ent);
-        else
-            set_pev(ent, pev_nextthink, get_gametime() + 0.01);
-    }
+    static Float:fOrigin[3];
+    pev(ent, pev_origin, fOrigin);
+    
+    if( fOrigin[2] - pev(ent, pev_fuser1) <= 36.0 )
+        doArrivals(ent);
+    else
+        set_pev(ent, pev_nextthink, get_gametime() + 0.01);
 
     return FMRES_IGNORED;
 }
