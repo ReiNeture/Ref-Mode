@@ -5,6 +5,7 @@
 #include <fakemeta_util>
 #include <xs>
 #include <vector>
+#include <orpheu>
 
 new const v_model[] = "models/v_samuraisword.mdl"
 new const p_model[] = "models/p_samuraisword.mdl"
@@ -85,8 +86,8 @@ public plugin_init()
 	register_forward(FM_Think, "fw_Think")
 	register_forward(FM_Touch, "fw_Touch")
 	register_forward(FM_CmdStart, "fw_CmdStart")
-	register_forward(FM_TraceLine, "fw_TraceLine")
-	register_forward(FM_TraceHull, "fw_TraceHull")
+	// register_forward(FM_TraceLine, "fw_TraceLine")
+	// register_forward(FM_TraceHull, "fw_TraceHull")
 
 	RegisterHam(Ham_CS_Weapon_SendWeaponAnim, WEAPON_REF, "fw_Weapon_SendAnim", 1)
 	register_clcmd("getrk", "getRefKnife")
@@ -122,7 +123,6 @@ public getRefKnife(id)
         Event_CurWeapon(id)
     else
         engclient_cmd(id, WEAPON_REF)
-
 }
 
 adurasMoonlightSword(id)
@@ -210,7 +210,7 @@ public fw_TraceLine(Float:vector_start[3], Float:vector_end[3], ignored_monster,
 	xs_vec_add(fOrigin, view_ofs, vecStart)
 	pev(id, pev_v_angle, v_angle)
 	angle_vector(v_angle, ANGLEVECTOR_FORWARD, v_forward)
-	xs_vec_mul_scalar(v_forward, 130.0, v_forward) // 攻擊距離
+	xs_vec_mul_scalar(v_forward, 80.0, v_forward) // 攻擊距離
 	xs_vec_add(vecStart, v_forward, vecEnd)
 	engfunc(EngFunc_TraceLine, vecStart, vecEnd, ignored_monster, id, handle)
 
@@ -231,7 +231,7 @@ public fw_TraceHull(Float:vector_start[3], Float:vector_end[3], ignored_monster,
 	xs_vec_add(fOrigin, view_ofs, vecStart)
 	pev(id, pev_v_angle, v_angle)
 	angle_vector(v_angle, ANGLEVECTOR_FORWARD, v_forward)
-	xs_vec_mul_scalar(v_forward, 130.0, v_forward) // 攻擊距離
+	xs_vec_mul_scalar(v_forward, 80.0, v_forward) // 攻擊距離
 	xs_vec_add(vecStart, v_forward, vecEnd)
 	engfunc(EngFunc_TraceLine, vecStart, vecEnd, ignored_monster, id, handle)
 
@@ -296,7 +296,7 @@ public fw_Think(ent)
 		static Float:fTimeRemove
 		pev(ent, pev_fuser1, fTimeRemove)
 		if (get_gametime() >= fTimeRemove)
-			fadeOutEntity(ent, 2.0)
+			fadeOutEntity(ent, 3.0)
 		else
 			set_pev(ent, pev_nextthink, get_gametime() + 0.1)
 
@@ -362,13 +362,15 @@ public fw_CmdStart(id, uc_handle, seed)
 
 		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_ATTACK)
 		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_ATTACK2)
-		set_pdata_float(id, m_flNextAttack, 1.0, 5) // 施放月光劍後的硬直時間
+		set_next_attacktime(id, ent, 1.0) // 施放月光劍後的硬直時間
 		set_weapon_anim(id, KNIFE_ANIM_DRAW)
 		adurasMoonlightSword(id)
 	}
 
 	if( CurButton & IN_ATTACK ) {
 
+		if(get_user_weapon(id) != CSW_KNIFE)
+			return FMRES_IGNORED
 		if(get_pdata_float(ent, m_flNextPrimaryAttack, 4) > 0.0 || get_pdata_float(ent, m_flNextSecondaryAttack, 4) > 0.0)
 			return FMRES_IGNORED
 		
@@ -378,8 +380,7 @@ public fw_CmdStart(id, uc_handle, seed)
 		if( g_had_element[id] ) {
 			slashFireWave(id)
 			RadiusAttack(id)
-			set_pdata_float(ent, m_flNextPrimaryAttack, 0.25, 4)
-			set_pdata_float(ent, m_flNextSecondaryAttack, 0.25, 4)
+			set_next_attacktime(id, ent, 0.25)
 			set_pdata_float(ent, m_flNextIdle, 1.2, 4)
 		}
 	}
@@ -387,6 +388,8 @@ public fw_CmdStart(id, uc_handle, seed)
 	if( (CurButton & IN_USE) && (CurButton & IN_RELOAD) ) {
 
 		if(get_pdata_float(id, m_flNextAttack, 5) > 0.0 )
+			return FMRES_IGNORED
+		if(get_user_weapon(id) != CSW_KNIFE)
 			return FMRES_IGNORED
 
 		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_USE)
@@ -399,11 +402,12 @@ public fw_CmdStart(id, uc_handle, seed)
 
 enChant(id)
 {
+	new ent = fm_get_user_weapon_entity(id, CSW_KNIFE)
 	if( !g_had_element[id] ) {
 
 		g_had_element[id] = 1
 		client_print(id, print_chat, "附魔啟動")
-		set_pdata_float(id, m_flNextAttack, 2.0, 5) // 施放附魔後的硬直時間
+		set_next_attacktime(id, ent, 1.5) // 施放附魔後的硬直時間
 		set_weapon_anim(id, KNIFE_ANIM_DRAW)
 
 		new element = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
@@ -421,7 +425,8 @@ enChant(id)
 
 		g_had_element[id] = 0
 		client_print(id, print_chat, "附魔關閉")
-		set_pdata_float(id, m_flNextAttack, 0.7, 5) // 關閉附魔後的硬直時間
+		set_next_attacktime(id, ent, 0.7) // 解除附魔後的硬直時間
+		set_weapon_anim(id, KNIFE_ANIM_DRAW)
 
 		new element = fm_find_ent_by_owner(0, ELEMENT_CLASS, id)
 		engfunc(EngFunc_RemoveEntity, element)
@@ -483,14 +488,14 @@ slashFireWave(id)
 {
 	new ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target"))
 	set_pev(ent, pev_movetype, MOVETYPE_FLY)
-	set_pev(ent, pev_fuser1, get_gametime() + 0.3) // remove time
-	set_pev(ent, pev_nextthink, get_gametime() + 0.1)
+	set_pev(ent, pev_fuser1, get_gametime() + 0.2) // remove time
+	set_pev(ent, pev_nextthink, get_gametime() + 0.2)
 	set_pev(ent, pev_classname, FIREWAVE_CLASS)
 	engfunc(EngFunc_SetModel, ent, firewave_model)
 	set_pev(ent, pev_solid, SOLID_NOT)
 	set_pev(ent, pev_owner, id)
 	set_pev(ent, pev_rendermode, kRenderTransAdd);
-	set_pev(ent, pev_renderamt, 100.0)
+	set_pev(ent, pev_renderamt, 130.0)
 
 	static Float:origin[3], Float:angles[3], Float:velocity[3]
 
@@ -506,68 +511,26 @@ slashFireWave(id)
 	set_pev(ent, pev_velocity, velocity)
 }
 
-RadiusAttack(id)
-{
-	static Float:Max_Distance, Float:Point[4][3], Float:TB_Distance, Float:Point_Dis
-	Point_Dis = 90.0
-	Max_Distance = 120.0
-	TB_Distance = Max_Distance / 4.0
-	
-	static Float:VicOrigin[3], Float:MyOrigin[3]
-	pev(id, pev_origin, MyOrigin)
-	
-	for(new i = 0; i < 4; i++)
-		get_position(id, TB_Distance * (i + 1), 0.0, 0.0, Point[i])
-	
-	static ent; ent = fm_get_user_weapon_entity(id, get_user_weapon(id))
-		
-	if(!pev_valid(ent) ) return
-		
-	for(new i = 0; i < get_maxplayers(); i++)
-	{
-		if(!is_user_alive(i))
-			continue
-		if(id == i)
-			continue
-		if(fm_entity_range(id, i) > Max_Distance)
-			continue
-	
-		pev(i, pev_origin, VicOrigin)
-		if(is_wall_between_points(MyOrigin, VicOrigin, id))
-			continue
-			
-		if(get_distance_f(VicOrigin, Point[0]) <= Point_Dis
-			|| get_distance_f(VicOrigin, Point[1]) <= Point_Dis
-			|| get_distance_f(VicOrigin, Point[2]) <= Point_Dis
-			|| get_distance_f(VicOrigin, Point[3]) <= Point_Dis)
-		{
-			emit_sound(id, CHAN_WEAPON, weapon_sound[random_num(SOUND_HIT1, SOUND_HIT4)], 1.0, ATTN_NORM, 0, PITCH_NORM)
-			doAttack(id, i, ent, 15.0)
-		}
-	}
-}	
-
-doAttack(Attacker, Victim, Inflictor, Float:fDamage)
-{
-	fake_player_trace_attack(Attacker, Victim, fDamage)
-	fake_take_damage(Attacker, Victim, fDamage*1.0, Inflictor)
-}
-
 stock fadeOutEntity(ent, Float:fadeSpeed=5.0)
 {
 	static Float:renderamt
-	static id
 	pev(ent, pev_renderamt, renderamt)
-	id = pev(ent, pev_owner)
 
  	if( renderamt > 0.0 ) {
-		set_pev(ent, pev_renderamt, renderamt - fadeSpeed) // 漸層淡出的速度
+		if( fadeSpeed > renderamt )  
+			set_pev(ent, pev_renderamt, 0.0)
+		else
+			set_pev(ent, pev_renderamt, renderamt - fadeSpeed) // 漸層淡出的速度
 		set_pev(ent, pev_nextthink, get_gametime() + 0.01)
 
-	} else {
-		client_print(id, print_chat, "FadeOut %d removed;", ent)
-		engfunc(EngFunc_RemoveEntity, ent)
-	}
+	} else engfunc(EngFunc_RemoveEntity, ent)
+}
+
+stock set_next_attacktime(id, weaponEnt, Float:time)
+{
+	set_pdata_float(weaponEnt, m_flNextPrimaryAttack, time, 4)
+	set_pdata_float(weaponEnt, m_flNextSecondaryAttack, time, 4)
+	set_pdata_float(id, m_flNextAttack, time, 5) 
 }
 
 stock set_weapon_anim(id, anim)
@@ -592,191 +555,293 @@ stock get_speed_vector(const Float:origin1[3], const Float:origin2[3],Float:spee
 	return 1
 }
 
-stock get_position(ent, Float:forw, Float:right, Float:up, Float:vStart[])
+/* ----------------------------------------- 範圍攻擊天才區域 -------------------------------------------------- */
+
+#define	RESULT_HIT_NONE 			0
+#define	RESULT_HIT_PLAYER			1
+#define	RESULT_HIT_METAL			2
+#define	RESULT_HIT_GENERIC			3
+
+RadiusAttack(id)
 {
-	static Float:vOrigin[3], Float:vAngle[3], Float:vForward[3], Float:vRight[3], Float:vUp[3]
-	
-	pev(ent, pev_origin, vOrigin)
-	pev(ent, pev_view_ofs,vUp) //for player
-	xs_vec_add(vOrigin,vUp,vOrigin)
-	pev(ent, pev_v_angle, vAngle) // if normal entity ,use pev_angles
-	
-	angle_vector(vAngle,ANGLEVECTOR_FORWARD,vForward) //or use EngFunc_AngleVectors
-	angle_vector(vAngle,ANGLEVECTOR_RIGHT,vRight)
-	angle_vector(vAngle,ANGLEVECTOR_UP,vUp)
-	
-	vStart[0] = vOrigin[0] + vForward[0] * forw + vRight[0] * right + vUp[0] * up
-	vStart[1] = vOrigin[1] + vForward[1] * forw + vRight[1] * right + vUp[1] * up
-	vStart[2] = vOrigin[2] + vForward[2] * forw + vRight[2] * right + vUp[2] * up
+	#define ATTACK_RANGE 165.0
+	#define ATTACK_ANGLE 30.0
+	#define ATTACK_DAMAGE 70.0
+	#define ATTACK_KNOCK 2.0
+
+	new iHitResult = KnifeAttack_Main(id, 0, ATTACK_RANGE, ATTACK_ANGLE, ATTACK_DAMAGE, ATTACK_KNOCK)
+	switch (iHitResult)
+	{
+		case RESULT_HIT_PLAYER : emit_sound(id, CHAN_WEAPON, weapon_sound[random_num(SOUND_HIT1, SOUND_HIT4)], 1.0, ATTN_NORM, 0, PITCH_NORM)
+		// case RESULT_HIT_METAL : ...
+		// case RESULT_HIT_GENERIC : ...
+	}
 }
 
-stock is_wall_between_points(Float:start[3], Float:end[3], ignore_ent)
+stock KnifeAttack_Main(id, bStab, Float:flRange, Float:fAngle, Float:flDamage, Float:flKnockBack)
 {
-	static ptr
-	ptr = create_tr2()
+	new iHitResult
+	if(fAngle > 0.0) iHitResult = KnifeAttack2(id, bStab, Float:flRange, Float:fAngle, Float:flDamage, Float:flKnockBack)
+	else iHitResult = KnifeAttack(id, bStab, Float:flRange, Float:flDamage, Float:flKnockBack)
 
-	engfunc(EngFunc_TraceLine, start, end, IGNORE_MONSTERS, ignore_ent, ptr)
-	
-	static Float:EndPos[3]
-	get_tr2(ptr, TR_vecEndPos, EndPos)
+	return iHitResult
+}
 
-	free_tr2(ptr)
-	return floatround(get_distance_f(end, EndPos))
-} 
-
-stock fake_player_trace_attack(iAttacker, iVictim, &Float:fDamage)
+stock KnifeAttack(id, bStab, Float:flRange, Float:flDamage, Float:flKnockBack, iHitgroup = -1, bitsDamageType = DMG_NEVERGIB | DMG_CLUB)
 {
-	// get fDirection
-	new Float:fAngles[3], Float:fDirection[3]
-	pev(iAttacker, pev_angles, fAngles)
-	angle_vector(fAngles, ANGLEVECTOR_FORWARD, fDirection)
-	
-	// get fStart
-	new Float:fStart[3], Float:fViewOfs[3]
-	pev(iAttacker, pev_origin, fStart)
-	pev(iAttacker, pev_view_ofs, fViewOfs)
-	xs_vec_add(fViewOfs, fStart, fStart)
-	
-	// get aimOrigin
-	new iAimOrigin[3], Float:fAimOrigin[3]
-	get_user_origin(iAttacker, iAimOrigin, 3)
-	IVecFVec(iAimOrigin, fAimOrigin)
-	
-	// TraceLine from fStart to AimOrigin
-	new ptr = create_tr2() 
-	engfunc(EngFunc_TraceLine, fStart, fAimOrigin, DONT_IGNORE_MONSTERS, iAttacker, ptr)
-	new pHit = get_tr2(ptr, TR_pHit)
-	new iHitgroup = get_tr2(ptr, TR_iHitgroup)
-	new Float:fEndPos[3]
-	get_tr2(ptr, TR_vecEndPos, fEndPos)
+	new Float:vecSrc[3], Float:vecEnd[3], Float:v_angle[3], Float:vecForward[3];
+	GetGunPosition(id, vecSrc);
 
-	// get target & body at aiming
-	new iTarget, iBody
-	get_user_aiming(iAttacker, iTarget, iBody)
+	pev(id, pev_v_angle, v_angle);
+	engfunc(EngFunc_MakeVectors, v_angle);
+
+	global_get(glb_v_forward, vecForward);
+	xs_vec_mul_scalar(vecForward, flRange, vecForward);
+	xs_vec_add(vecSrc, vecForward, vecEnd);
+
+	new tr = create_tr2();
+	engfunc(EngFunc_TraceLine, vecSrc, vecEnd, 0, id, tr);
+
+	new Float:flFraction; get_tr2(tr, TR_flFraction, flFraction);
+	if (flFraction >= 1.0) engfunc(EngFunc_TraceHull, vecSrc, vecEnd, 0, 3, id, tr);
 	
-	// if aiming find target is iVictim then update iHitgroup
-	if (iTarget == iVictim)
-	{
-		iHitgroup = iBody
-	}
+	get_tr2(tr, TR_flFraction, flFraction);
+
+	new Float:EndPos2[3]
+	get_tr2(tr, TR_vecEndPos, EndPos2)
 	
-	// if ptr find target not is iVictim
-	else if (pHit != iVictim)
+	new iHitResult = RESULT_HIT_NONE;
+	
+	if (flFraction < 1.0)
 	{
-		// get AimOrigin in iVictim
-		new Float:fVicOrigin[3], Float:fVicViewOfs[3], Float:fAimInVictim[3]
-		pev(iVictim, pev_origin, fVicOrigin)
-		pev(iVictim, pev_view_ofs, fVicViewOfs) 
-		xs_vec_add(fVicViewOfs, fVicOrigin, fAimInVictim)
-		fAimInVictim[2] = fStart[2]
-		fAimInVictim[2] += get_distance_f(fStart, fAimInVictim) * floattan( fAngles[0] * 2.0, degrees )
+		new pEntity = get_tr2(tr, TR_pHit);
 		
-		// check aim in size of iVictim
-		new iAngleToVictim = get_angle_to_target(iAttacker, fVicOrigin)
-		iAngleToVictim = abs(iAngleToVictim)
-		new Float:fDis = 2.0 * get_distance_f(fStart, fAimInVictim) * floatsin( float(iAngleToVictim) * 0.5, degrees )
-		new Float:fVicSize[3]
-		pev(iVictim, pev_size , fVicSize)
-		if ( fDis <= fVicSize[0] * 0.5 )
+		new iTtextureType, pTextureName[64];
+		engfunc(EngFunc_TraceTexture, 0, vecSrc, vecEnd, pTextureName, charsmax(pTextureName));
+		iTtextureType = dllfunc(DLLFunc_PM_FindTextureType, pTextureName);
+		
+		if (iTtextureType == 'M') iHitResult = RESULT_HIT_METAL
+		else iHitResult = RESULT_HIT_GENERIC;
+		
+		if (pev_valid(pEntity) && (IsPlayer(pEntity) || IsHostage(pEntity)))
 		{
-			// TraceLine from fStart to aimOrigin in iVictim
-			new ptr2 = create_tr2() 
-			engfunc(EngFunc_TraceLine, fStart, fAimInVictim, DONT_IGNORE_MONSTERS, iAttacker, ptr2)
-			new pHit2 = get_tr2(ptr2, TR_pHit)
-			new iHitgroup2 = get_tr2(ptr2, TR_iHitgroup)
+			if (CheckBack(id, pEntity) && bStab && iHitgroup == -1)
+				flDamage *= 3.0;
+
+			iHitResult = RESULT_HIT_PLAYER;
+		}
+
+		if (pev_valid(pEntity))
+		{
+			engfunc(EngFunc_MakeVectors, v_angle);
+			global_get(glb_v_forward, vecForward);
+
+			if (iHitgroup != -1)
+				set_tr2(tr, TR_iHitgroup, iHitgroup);
+
+			Stock_Fake_KnockBack(id, pEntity, flKnockBack)
+
+			ClearMultiDamage();
+			ExecuteHamB(Ham_TraceAttack, pEntity, id, flDamage, vecForward, tr, bitsDamageType);
+			ApplyMultiDamage(id, id);
 			
-			// if ptr2 find target is iVictim
-			if ( pHit2 == iVictim && (iHitgroup2 != HIT_HEAD || fDis <= fVicSize[0] * 0.25) )
+			if (IsAlive(pEntity))
 			{
-				pHit = iVictim
-				iHitgroup = iHitgroup2
-				get_tr2(ptr2, TR_vecEndPos, fEndPos)
+				free_tr2(tr);
+				return iHitResult;
 			}
-			
-			free_tr2(ptr2)
 		}
+	}
+	free_tr2(tr);
+	return iHitResult;
+}
+
+stock KnifeAttack2(id, bStab, Float:flRange, Float:fAngle, Float:flDamage, Float:flKnockBack, iHitgroup = -1, bNoTraceCheck = 0, bitsDamageType = DMG_NEVERGIB | DMG_CLUB)
+{
+	new Float:vecOrigin[3], Float:vecSrc[3], Float:vecEnd[3], Float:v_angle[3], Float:vecForward[3];
+	pev(id, pev_origin, vecOrigin);
+
+	new iHitResult = RESULT_HIT_NONE;
+	GetGunPosition(id, vecSrc);
+
+	pev(id, pev_v_angle, v_angle);
+	engfunc(EngFunc_MakeVectors, v_angle);
+
+	global_get(glb_v_forward, vecForward);
+	xs_vec_mul_scalar(vecForward, flRange, vecForward);
+	xs_vec_add(vecSrc, vecForward, vecEnd);
+
+	new tr = create_tr2();
+	engfunc(EngFunc_TraceLine, vecSrc, vecEnd, 0, id, tr);
+	
+	new Float:EndPos2[3]
+	get_tr2(tr, TR_vecEndPos, EndPos2)
+	
+	new Float:flFraction; get_tr2(tr, TR_flFraction, flFraction);
+	if (flFraction < 1.0) 
+	{
+		new iTtextureType, pTextureName[64];
+		engfunc(EngFunc_TraceTexture, 0, vecSrc, vecEnd, pTextureName, charsmax(pTextureName));
+		iTtextureType = dllfunc(DLLFunc_PM_FindTextureType, pTextureName);
 		
-		// if pHit still not is iVictim then set default HitGroup
-		if (pHit != iVictim)
+		if (iTtextureType == 'M') iHitResult = RESULT_HIT_METAL
+		else iHitResult = RESULT_HIT_GENERIC
+	}
+	
+	new Float:vecEndZ = vecEnd[2];
+	
+	new pEntity = -1;
+	while ((pEntity = engfunc(EngFunc_FindEntityInSphere, pEntity, vecOrigin, flRange)) != 0)
+	{
+		if (!pev_valid(pEntity))
+			continue;
+		if (id == pEntity)
+			continue;
+		if (!IsAlive(pEntity))
+			continue;
+		if (!CheckAngle(id, pEntity, fAngle))
+			continue;
+
+		GetGunPosition(id, vecSrc);
+		Stock_Get_Origin(pEntity, vecEnd);
+		
+		vecEnd[2] = vecSrc[2] + (vecEndZ - vecSrc[2]) * (get_distance_f(vecSrc, vecEnd) / flRange);
+
+		xs_vec_sub(vecEnd, vecSrc, vecForward);
+		xs_vec_normalize(vecForward, vecForward);
+		xs_vec_mul_scalar(vecForward, flRange, vecForward);
+		xs_vec_add(vecSrc, vecForward, vecEnd);
+
+		engfunc(EngFunc_TraceLine, vecSrc, vecEnd, 0, id, tr);
+		get_tr2(tr, TR_flFraction, flFraction);
+
+		if (flFraction >= 1.0) engfunc(EngFunc_TraceHull, vecSrc, vecEnd, 0, 3, id, tr);
+
+		get_tr2(tr, TR_flFraction, flFraction);
+		
+		if (flFraction < 1.0)
 		{
-			// set default iHitgroup
-			iHitgroup = HIT_GENERIC
-			
-			new ptr3 = create_tr2() 
-			engfunc(EngFunc_TraceLine, fStart, fVicOrigin, DONT_IGNORE_MONSTERS, iAttacker, ptr3)
-			get_tr2(ptr3, TR_vecEndPos, fEndPos)
-			
-			// free ptr3
-			free_tr2(ptr3)
+			if (IsPlayer(pEntity) || IsHostage(pEntity))
+			{
+				iHitResult = RESULT_HIT_PLAYER;
+				
+				if (CheckBack(id, pEntity) && bStab && iHitgroup == -1)
+					flDamage *= 3.0;
+			}
+
+			if (get_tr2(tr, TR_pHit) == pEntity || bNoTraceCheck)
+			{
+				engfunc(EngFunc_MakeVectors, v_angle);
+				global_get(glb_v_forward, vecForward);
+
+				if (iHitgroup != -1) set_tr2(tr, TR_iHitgroup, iHitgroup);
+
+				Stock_Fake_KnockBack(id, pEntity, flKnockBack)
+
+				ClearMultiDamage();
+				ExecuteHamB(Ham_TraceAttack, pEntity, id, flDamage, vecForward, tr, bitsDamageType);
+				ApplyMultiDamage(id, id);
+			}
 		}
+		free_tr2(tr);
 	}
-	
-	// set new Hit & Hitgroup & EndPos
-	set_tr2(ptr, TR_pHit, iVictim)
-	set_tr2(ptr, TR_iHitgroup, iHitgroup)
-	set_tr2(ptr, TR_vecEndPos, fEndPos)
-	
-	// hitgroup multi fDamage
-	new Float:fMultifDamage 
-	switch(iHitgroup)
-	{
-		case HIT_HEAD: fMultifDamage  = 4.0
-		case HIT_STOMACH: fMultifDamage  = 1.25
-		case HIT_LEFTLEG: fMultifDamage  = 0.75
-		case HIT_RIGHTLEG: fMultifDamage  = 0.75
-		default: fMultifDamage  = 1.0
-	}
-	
-	fDamage *= fMultifDamage
-	
-	// ExecuteHam
-	fake_trake_attack(iAttacker, iVictim, fDamage, fDirection, ptr)
-	
-	// free ptr
-	free_tr2(ptr)
+	return iHitResult;
 }
 
-stock fake_trake_attack(iAttacker, iVictim, Float:fDamage, Float:fDirection[3], iTraceHandle, iDamageBit = (DMG_NEVERGIB | DMG_BULLET))
+stock CheckAngle(iAttacker, iVictim, Float:fAngle)  return(Stock_CheckAngle(iAttacker, iVictim) > floatcos(fAngle,degrees))
+stock IsPlayer(pEntity) return is_user_connected(pEntity)
+stock ClearMultiDamage() OrpheuCall(OrpheuGetFunction("ClearMultiDamage"));
+stock ApplyMultiDamage(inflictor, iAttacker) OrpheuCall(OrpheuGetFunction("ApplyMultiDamage"), inflictor, iAttacker);
+stock GetGunPosition(id, Float:vecScr[3])
 {
-	ExecuteHamB(Ham_TraceAttack, iVictim, iAttacker, fDamage, fDirection, iTraceHandle, iDamageBit)
+	new Float:vecViewOfs[3]
+	pev(id, pev_origin, vecScr)
+	pev(id, pev_view_ofs, vecViewOfs)
+	xs_vec_add(vecScr, vecViewOfs, vecScr)
 }
-stock fake_take_damage(iAttacker, iVictim, Float:fDamage, iInflictor = 0, iDamageBit = (DMG_NEVERGIB | DMG_BULLET))
+stock CheckBack(iEnemy,id)
 {
-	iInflictor = (!iInflictor) ? iAttacker : iInflictor
-	ExecuteHamB(Ham_TakeDamage, iVictim, iInflictor, iAttacker, fDamage, iDamageBit)
+	new Float:anglea[3], Float:anglev[3]
+	pev(iEnemy, pev_v_angle, anglea)
+	pev(id, pev_v_angle, anglev)
+	new Float:angle = anglea[1] - anglev[1] 
+	if (angle < -180.0) angle += 360.0
+	if (angle <= 45.0 && angle >= -45.0) return 1
+	return 0
 }
-stock get_angle_to_target(id, const Float:fTarget[3], Float:TargetSize = 0.0)
+public Stock_Fake_KnockBack(id, iVic, Float:iKb)
 {
-	new Float:fOrigin[3], iAimOrigin[3], Float:fAimOrigin[3], Float:fV1[3]
-	pev(id, pev_origin, fOrigin)
-	get_user_origin(id, iAimOrigin, 3) // end position from eyes
-	IVecFVec(iAimOrigin, fAimOrigin)
-	xs_vec_sub(fAimOrigin, fOrigin, fV1)
+	if(iVic > 32) return
 	
-	new Float:fV2[3]
-	xs_vec_sub(fTarget, fOrigin, fV2)
+	new Float:vAttacker[3], Float:vVictim[3], Float:vVelocity[3], flags
+	pev(id, pev_origin, vAttacker)
+	pev(iVic, pev_origin, vVictim)
+	vAttacker[2] = vVictim[2] = 0.0
+	flags = pev(id, pev_flags)
 	
-	new iResult = get_angle_between_vectors(fV1, fV2)
+	xs_vec_sub(vVictim, vAttacker, vVictim)
+	new Float:fDistance
+	fDistance = xs_vec_len(vVictim)
+	xs_vec_mul_scalar(vVictim, 1 / fDistance, vVictim)
 	
-	if (TargetSize > 0.0)
+	pev(iVic, pev_velocity, vVelocity)
+	xs_vec_mul_scalar(vVictim, iKb, vVictim)
+	xs_vec_mul_scalar(vVictim, 50.0, vVictim)
+	vVictim[2] = xs_vec_len(vVictim) * 0.15
+	
+	if(flags &~ FL_ONGROUND)
 	{
-		new Float:fTan = TargetSize / get_distance_f(fOrigin, fTarget)
-		new fAngleToTargetSize = floatround( floatatan(fTan, degrees) )
-		iResult -= (iResult > 0) ? fAngleToTargetSize : -fAngleToTargetSize
+		xs_vec_mul_scalar(vVictim, 1.2, vVictim)
+		vVictim[2] *= 0.4
+	}
+	if(xs_vec_len(vVictim) > xs_vec_len(vVelocity)) set_pev(iVic, pev_velocity, vVictim)
+}
+stock IsAlive(pEntity)
+{
+	if (pEntity < 1) return 0
+	return (pev(pEntity, pev_deadflag) == DEAD_NO && pev(pEntity, pev_health) > 0)
+}
+stock Stock_Get_Origin(id, Float:origin[3])
+{
+	new Float:maxs[3],Float:mins[3]
+	if (pev(id, pev_solid) == SOLID_BSP)
+	{
+		pev(id,pev_maxs,maxs)
+		pev(id,pev_mins,mins)
+		origin[0] = (maxs[0] - mins[0]) / 2 + mins[0]
+		origin[1] = (maxs[1] - mins[1]) / 2 + mins[1]
+		origin[2] = (maxs[2] - mins[2]) / 2 + mins[2]
+	} else pev(id, pev_origin, origin)
+}
+stock IsHostage(pEntity)
+{
+	new classname[32]; pev(pEntity, pev_classname, classname, charsmax(classname))
+	return equal(classname, "hostage_entity")
+}
+stock Float:Stock_CheckAngle(id,iTarget)
+{
+	new Float:vOricross[2],Float:fRad,Float:vId_ori[3],Float:vTar_ori[3],Float:vId_ang[3],Float:fLength,Float:vForward[3]
+	Stock_Get_Origin(id, vId_ori)
+	Stock_Get_Origin(iTarget, vTar_ori)
+	
+	pev(id,pev_angles,vId_ang)
+	for(new i=0;i<2;i++) vOricross[i] = vTar_ori[i] - vId_ori[i]
+	
+	fLength = floatsqroot(vOricross[0]*vOricross[0] + vOricross[1]*vOricross[1])
+	
+	if (fLength<=0.0)
+	{
+		vOricross[0]=0.0
+		vOricross[1]=0.0
+	} else {
+		vOricross[0]=vOricross[0]*(1.0/fLength)
+		vOricross[1]=vOricross[1]*(1.0/fLength)
 	}
 	
-	return iResult
-}
-
-stock get_angle_between_vectors(const Float:fV1[3], const Float:fV2[3])
-{
-	new Float:fA1[3], Float:fA2[3]
-	engfunc(EngFunc_VecToAngles, fV1, fA1)
-	engfunc(EngFunc_VecToAngles, fV2, fA2)
+	engfunc(EngFunc_MakeVectors,vId_ang)
+	global_get(glb_v_forward,vForward)
 	
-	new iResult = floatround(fA1[1] - fA2[1])
-	iResult = iResult % 360
-	iResult = (iResult > 180) ? (iResult - 360) : iResult
+	fRad = vOricross[0]*vForward[0]+vOricross[1]*vForward[1]
 	
-	return iResult
+	return fRad   //->   RAD 90' = 0.5rad
 }
