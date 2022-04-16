@@ -1,0 +1,29 @@
+{
+    "name"      : "ApplyMultiDamage",
+    "library"   : "mod",
+    "arguments" :
+    [
+        {
+            "type"  : "entvars_s *",
+            "info"  : "pevInflictor"
+        },
+        {
+            "type"  : "entvars_s *",
+            "info"  : "pevAttacker"
+        }
+    ],
+    "identifiers":
+    [
+        {
+            "os"    : "windows",
+            "mod"   : "cstrike",
+            "value" : [0x90,0x8B,0x0D,"*","*","*","*",0x85,0xC9,0x74,"*",0x8B,0x15,"*","*","*","*",0x8B],
+            "displacement" : 1
+        },
+        {
+            "os"    : "linux",
+            "mod"   : "cstrike",
+            "value" : "ApplyMultiDamage__FP9entvars_sT0"
+        }
+    ]
+}

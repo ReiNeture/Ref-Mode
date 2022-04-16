@@ -1,0 +1,34 @@
+{
+	"name" : "spawn_monster",
+	"library" : "monstermod",
+	"arguments" :
+	[
+		{
+			"type" : "int" 
+		},
+		{
+			"type" : "Vector &" 
+		},
+		{
+			"type" : "float" 
+		},
+		{
+			"type" : "int" 
+		}
+	],
+	"return" :
+	{
+		"type" : "CMBaseMonster *"
+	},
+	"identifiers":
+	[
+		{
+			"os" : "windows",
+			"value" : "?spawn_monster@@YAPAVCMBaseMonster@@HAAVVector@@MH@Z"
+		},
+		{
+			"os" : "linux",
+			"value" : "_Z13spawn_monsteriR6Vectorfi"
+		}
+	]
+}
