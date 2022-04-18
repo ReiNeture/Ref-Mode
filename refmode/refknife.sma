@@ -65,17 +65,23 @@ enum
 #define VULCANUS9_PARTICLE "vulcanus9_particle"
 #define MAGIC_CIRCLE_CLASS "magic_circle_ring"
 #define FIREWAVE_CLASS "slash_firewave"
-#define ELEMENT_CLASS "element"
+#define ELEMENT_CLASS "elements"
+#define FIRESTAR_CLASS "firestars"
 
-
+/* MODELS PATH */
 new const vulcanus9[] = "models/vulcanus9.mdl"
-new const vulcanus9_steam[] = "sprites/ref/runeblade_ef02.spr"
 new const firewave_model[] = "models/ref/fireslash.mdl"
 new const magicircle[] = "models/ref/magic_circle.mdl"
 new const element_model[] = "models/ref/element.mdl"
+new const muzzleflash63[] = "sprites/ref/muzzleflash63.spr"
+new const firestar[] = "models/ref/firemagic.mdl"
+new const firestarExplosion[] = "weapons/c4_explode1.wav"
+new const firestarFly[] = "ref/airplane2.wav"
+
 new const circles3[] = "models/circles3.mdl"  // test
 
 new g_had_refknife[33], g_had_element[33]
+new firestar_explode
 
 public plugin_init()
 {
@@ -98,10 +104,13 @@ public plugin_precache()
 	engfunc(EngFunc_PrecacheModel, v_model)
 	engfunc(EngFunc_PrecacheModel, p_model)
 	engfunc(EngFunc_PrecacheModel, vulcanus9)
-	engfunc(EngFunc_PrecacheModel, vulcanus9_steam)
 	engfunc(EngFunc_PrecacheModel, magicircle)
 	engfunc(EngFunc_PrecacheModel, firewave_model)
 	engfunc(EngFunc_PrecacheModel, element_model)
+	engfunc(EngFunc_PrecacheModel, firestar)
+	firestar_explode = engfunc(EngFunc_PrecacheModel, muzzleflash63)
+	precache_sound(firestarExplosion)
+	precache_sound(firestarFly)
 
 	new i;
 	for(i = 0; i < sizeof(weapon_sound); i++)
@@ -177,6 +186,26 @@ adurasMoonlightSword(id)
 
 	engfunc(EngFunc_SetModel, circle, magicircle)
 	set_pev(circle, pev_nextthink, get_gametime() + 1.0) // 幾秒後移除魔法陣
+}
+
+fireStar(id)
+{
+	/* 火流星 */
+	new firestarEnt = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target"))
+	set_pev(firestarEnt, pev_classname, FIRESTAR_CLASS)
+	set_pev(firestarEnt, pev_movetype, MOVETYPE_NONE)
+	set_pev(firestarEnt, pev_solid, SOLID_NOT)
+	set_pev(firestarEnt, pev_owner, id)
+	set_pev(firestarEnt, pev_animtime, get_gametime())
+	set_pev(firestarEnt, pev_framerate, 1.0)
+
+	new Float:aimOrigin[3]
+	fm_get_aim_origin(id, aimOrigin)
+	set_pev(firestarEnt, pev_origin, aimOrigin)
+
+	engfunc(EngFunc_SetModel, firestarEnt, firestar)
+	set_pev(firestarEnt, pev_nextthink, get_gametime() + 9.7) // 幾秒後爆炸(需綁模組動畫)
+	emit_sound(0, CHAN_STATIC, firestarFly, 1.0, ATTN_NORM, 0, PITCH_NORM)
 }
 
 public emitsound_vulcanus9_task(id)
@@ -308,12 +337,43 @@ public fw_Think(ent)
 		set_pev(ent, pev_nextthink, get_gametime() + 1.0)
 	}
 
+	/* 火流星 */
+	if( equal(classname, FIRESTAR_CLASS) ) {
+
+		new Float:fOrigin[3]
+		pev(ent, pev_origin, fOrigin)
+		new id = pev(ent, pev_owner)
+
+		new victim = FM_NULLENT
+		while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 1500.0) ) != 0 ) { // 火流星爆炸範圍
+			if(!is_user_alive(victim) )
+				continue
+			ExecuteHamB(Ham_TakeDamage, victim, ent, id, 5000.0, DMG_BURN)
+		}
+
+		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0)
+		write_byte(TE_EXPLOSION)
+		engfunc(EngFunc_WriteCoord, fOrigin[0])
+		engfunc(EngFunc_WriteCoord, fOrigin[1])
+		engfunc(EngFunc_WriteCoord, fOrigin[2])
+		write_short(firestar_explode)
+		write_byte(210)
+		write_byte(10)
+		write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND)
+		message_end()
+
+		for(new i = 1; i <= 2; ++i)
+			emit_sound(0, CHAN_STATIC, firestarExplosion, 1.0, ATTN_NORM, 0, PITCH_NORM)
+
+		engfunc(EngFunc_RemoveEntity, ent)
+	}
+
 	return FMRES_IGNORED
 }
 
 public fw_Touch(ent, ptd)
 {
-	if(!pev_valid(ent) || !is_user_connected(ptd) ) return FMRES_IGNORED
+	if(!pev_valid(ent) ) return FMRES_IGNORED
 	
 	static classname[32]
 	pev(ent, pev_classname, classname, sizeof(classname))
@@ -327,6 +387,7 @@ public fw_Touch(ent, ptd)
 	return FMRES_IGNORED
 }
 
+
 public fw_CmdStart(id, uc_handle, seed)
 {
 	if (!is_user_alive(id) ) 
@@ -337,19 +398,20 @@ public fw_CmdStart(id, uc_handle, seed)
 	static ent; ent = fm_get_user_weapon_entity(id, CSW_KNIFE)
 	if(!pev_valid(ent) )
 		return FMRES_IGNORED
-
+	
+	new Float:game_time = get_gametime()
 	static CurButton; CurButton = get_uc(uc_handle, UC_Buttons)
 
-	static Float:nextJumpTime[33];
+	static Float:nextJumpTime[33]
 	if( (CurButton & IN_JUMP) && (CurButton & IN_DUCK) ) {
-		if( get_gametime() >= nextJumpTime[id] ) {
+		if( game_time >= nextJumpTime[id] ) {
 				
 			new Float:velocity[3];
 			velocity_by_aim(id, 910, velocity); // 大跳距離
 			velocity[2] = 300.0;
 			set_pev(id, pev_velocity, velocity);
 
-			nextJumpTime[id] = get_gametime() + 0.1;
+			nextJumpTime[id] = game_time + 0.1;
 		}
 	}
 
@@ -367,34 +429,50 @@ public fw_CmdStart(id, uc_handle, seed)
 		adurasMoonlightSword(id)
 	}
 
+	if( (CurButton & IN_USE) && (CurButton & IN_RELOAD) ) {
+		if(get_user_weapon(id) != CSW_KNIFE)
+			return FMRES_IGNORED
+		if(get_pdata_float(id, m_flNextAttack, 5) > 0.0 )
+			return FMRES_IGNORED
+
+		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_USE)
+		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_RELOAD)
+		enChant(id)
+	}
+	
+	static g_firestarCounter[33], Float:g_firestarNexttime[33]
 	if( CurButton & IN_ATTACK ) {
 
 		if(get_user_weapon(id) != CSW_KNIFE)
 			return FMRES_IGNORED
-		if(get_pdata_float(ent, m_flNextPrimaryAttack, 4) > 0.0 || get_pdata_float(ent, m_flNextSecondaryAttack, 4) > 0.0)
+		if(get_pdata_float(id, m_flNextAttack, 5) > 0.0 )
 			return FMRES_IGNORED
-		
+
 		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_ATTACK)
 		ExecuteHamB(Ham_Weapon_PrimaryAttack, ent)
 
 		if( g_had_element[id] ) {
 			slashFireWave(id)
 			RadiusAttack(id)
-			set_next_attacktime(id, ent, 0.25)
+			set_next_attacktime(id, ent, 0.2) // 附魔後攻速
 			set_pdata_float(ent, m_flNextIdle, 1.2, 4)
+
+		} else {
+			set_next_attacktime(id, ent, 0.4) // 刀子預設攻擊速度
 		}
+
+		/* 火流星計數 */
+		if( game_time > g_firestarNexttime[id] )
+			g_firestarCounter[id] = 0
+			
+		g_firestarNexttime[id] = game_time + 1.0
+		g_firestarCounter[id]++
+		client_print(id, print_chat, "%d", g_firestarCounter[id])
 	}
 
-	if( (CurButton & IN_USE) && (CurButton & IN_RELOAD) ) {
-
-		if(get_pdata_float(id, m_flNextAttack, 5) > 0.0 )
-			return FMRES_IGNORED
-		if(get_user_weapon(id) != CSW_KNIFE)
-			return FMRES_IGNORED
-
-		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_USE)
-		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_RELOAD)
-		enChant(id)
+	if( (CurButton & IN_ATTACK2) && g_firestarCounter[id] >= 7 && game_time <= g_firestarNexttime[id] ) {
+		g_firestarCounter[id] = 0
+		fireStar(id)
 	}
 
 	return FMRES_IGNORED
@@ -410,16 +488,21 @@ enChant(id)
 		set_next_attacktime(id, ent, 1.5) // 施放附魔後的硬直時間
 		set_weapon_anim(id, KNIFE_ANIM_DRAW)
 
-		new element = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "env_sprite"))
-		set_pev(element, pev_movetype, MOVETYPE_NONE)
-		set_pev(element, pev_owner, id)
-		set_pev(element, pev_classname, ELEMENT_CLASS)
-		set_pev(element, pev_solid, SOLID_NOT)
-		set_pev(element, pev_aiment, id)
-		set_pev(element, pev_animtime, get_gametime())
-		set_pev(element, pev_framerate, 1.0)
-		engfunc(EngFunc_SetModel, element, element_model)
-		set_pev(element, pev_nextthink, get_gametime() + 1.0)
+		new elements = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target"))
+		set_pev(elements, pev_movetype, MOVETYPE_NONE)
+		set_pev(elements, pev_owner, id)
+		set_pev(elements, pev_classname, ELEMENT_CLASS)
+		set_pev(elements, pev_solid, SOLID_NOT)
+		set_pev(elements, pev_aiment, id)
+		set_pev(elements, pev_animtime, get_gametime())
+		set_pev(elements, pev_framerate, 1.0)
+
+		new Float:origin[3]
+		pev(id, pev_origin, origin)
+		set_pev(elements, pev_origin, origin)
+		
+		engfunc(EngFunc_SetModel, elements, element_model)
+		set_pev(elements, pev_nextthink, get_gametime() + 1.0)
 
 	} else {
 
@@ -564,12 +647,12 @@ stock get_speed_vector(const Float:origin1[3], const Float:origin2[3],Float:spee
 
 RadiusAttack(id)
 {
-	#define ATTACK_RANGE 165.0
+	#define ATTACK_RANGE 185.0
 	#define ATTACK_ANGLE 30.0
 	#define ATTACK_DAMAGE 70.0
 	#define ATTACK_KNOCK 2.0
 
-	new iHitResult = KnifeAttack_Main(id, 0, ATTACK_RANGE, ATTACK_ANGLE, ATTACK_DAMAGE, ATTACK_KNOCK)
+	new iHitResult = KnifeAttack_Main(id, 1, ATTACK_RANGE, ATTACK_ANGLE, ATTACK_DAMAGE, ATTACK_KNOCK)
 	switch (iHitResult)
 	{
 		case RESULT_HIT_PLAYER : emit_sound(id, CHAN_WEAPON, weapon_sound[random_num(SOUND_HIT1, SOUND_HIT4)], 1.0, ATTN_NORM, 0, PITCH_NORM)
