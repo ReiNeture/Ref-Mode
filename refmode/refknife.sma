@@ -47,11 +47,22 @@ enum
 
 new const skills_sound[][] = 
 {
-	"ref/vulcanus9_stab_miss.wav"
+	"ref/vulcanus9_stab_miss.wav",
+	"weapons/c4_explode1.wav",
+	"ref/airplane2.wav",
+	"ref/vulcanus9_draw.wav",
+	"ref/moonbreak_summon.wav",
+	"ref/moonbreak_hit.wav"
 }
 enum
 {
-	VULCANUS9_BLADE = 0
+	VULCANUS9_BLADE = 0,
+	FIRESTAR_EXPLODE_SOUND,
+	FIRESTAR_FLY_SOUND,
+	CHANMOFIRE_ATTACK_SOUND,
+	MOONBREAK_SUMMON,
+	MOONBREAK_HIT
+
 }
 
 #define WEAPON_REF "weapon_knife"
@@ -67,21 +78,32 @@ enum
 #define FIREWAVE_CLASS "slash_firewave"
 #define ELEMENT_CLASS "elements"
 #define FIRESTAR_CLASS "firestars"
+#define CHANMO_CLASS "chanmo_magic"
+#define CHANMOFIRE_CLASS "chanmo_fire"
+#define MOONBREAK_CLASS "moon_breker"
+#define FADEOUT_CLASS "fadeout"
 
 /* MODELS PATH */
-new const vulcanus9[] = "models/vulcanus9.mdl"
+new const vulcanus9[] = "models/ref/vulcanus9.mdl"
 new const firewave_model[] = "models/ref/fireslash.mdl"
 new const magicircle[] = "models/ref/magic_circle.mdl"
 new const element_model[] = "models/ref/element.mdl"
-new const muzzleflash63[] = "sprites/ref/muzzleflash63.spr"
 new const firestar[] = "models/ref/firemagic.mdl"
-new const firestarExplosion[] = "weapons/c4_explode1.wav"
-new const firestarFly[] = "ref/airplane2.wav"
+new const chanmomagic_model[] = "models/ref/mumei.mdl"
+new const icearrow_model[] = "models/ref/ice_arrow.mdl"
+new const moonbreak_model[] = "models/ref/moon_break.mdl"
+
+new const muzzleflash63[] = "sprites/ref/muzzleflash63.spr"
+new const holybombexp_model[] = "sprites/ref/holybomb_exp.spr"
+new const yukiramy_model[] = "sprites/ref/yukiramy.spr"
+new const moonkiller_model[] = "sprites/ref/moonkiller.spr"
+new const moonwave_model[] = "sprites/ref/skills2.spr"
+
 
 new const circles3[] = "models/circles3.mdl"  // test
 
-new g_had_refknife[33], g_had_element[33]
-new firestar_explode
+new g_had_refknife[33], g_had_element[33], g_had_chanmo[33]
+new g_moonBreakLightFlag = 0
 
 public plugin_init()
 {
@@ -92,13 +114,15 @@ public plugin_init()
 	register_forward(FM_Think, "fw_Think")
 	register_forward(FM_Touch, "fw_Touch")
 	register_forward(FM_CmdStart, "fw_CmdStart")
-	// register_forward(FM_TraceLine, "fw_TraceLine")
-	// register_forward(FM_TraceHull, "fw_TraceHull")
-
+	
+	RegisterHam(Ham_Weapon_PrimaryAttack, WEAPON_REF,"fw_Weapon_PrimaryAttack", 1)
+	RegisterHam(Ham_Weapon_SecondaryAttack, WEAPON_REF,"fw_Weapon_SecondaryAttack", 1)
 	RegisterHam(Ham_CS_Weapon_SendWeaponAnim, WEAPON_REF, "fw_Weapon_SendAnim", 1)
+
 	register_clcmd("getrk", "getRefKnife")
 }
 
+new firestar_explode, chanmo_explode, chanmo_follow, moonkiller_explode, moonwave
 public plugin_precache()
 {
 	engfunc(EngFunc_PrecacheModel, v_model)
@@ -108,11 +132,15 @@ public plugin_precache()
 	engfunc(EngFunc_PrecacheModel, firewave_model)
 	engfunc(EngFunc_PrecacheModel, element_model)
 	engfunc(EngFunc_PrecacheModel, firestar)
+	engfunc(EngFunc_PrecacheModel, chanmomagic_model)
+	engfunc(EngFunc_PrecacheModel, icearrow_model)
 	firestar_explode = engfunc(EngFunc_PrecacheModel, muzzleflash63)
-	precache_sound(firestarExplosion)
-	precache_sound(firestarFly)
+	chanmo_explode = engfunc(EngFunc_PrecacheModel, holybombexp_model)
+	chanmo_follow = engfunc(EngFunc_PrecacheModel, yukiramy_model)
+	moonkiller_explode = engfunc(EngFunc_PrecacheModel, moonkiller_model)
+	moonwave = engfunc(EngFunc_PrecacheModel, moonwave_model)
 
-	new i;
+	new i
 	for(i = 0; i < sizeof(weapon_sound); i++)
 		engfunc(EngFunc_PrecacheSound, weapon_sound[i])
 	for(i = 0; i < sizeof(skills_sound); i++)
@@ -205,7 +233,7 @@ fireStar(id)
 
 	engfunc(EngFunc_SetModel, firestarEnt, firestar)
 	set_pev(firestarEnt, pev_nextthink, get_gametime() + 9.7) // 幾秒後爆炸(需綁模組動畫)
-	emit_sound(0, CHAN_STATIC, firestarFly, 1.0, ATTN_NORM, 0, PITCH_NORM)
+	emit_sound(0, CHAN_STATIC, skills_sound[FIRESTAR_FLY_SOUND], 1.0, ATTN_NORM, 0, PITCH_NORM)
 }
 
 public emitsound_vulcanus9_task(id)
@@ -225,48 +253,6 @@ public Event_CurWeapon(id)
 	return PLUGIN_CONTINUE
 }
 
-public fw_TraceLine(Float:vector_start[3], Float:vector_end[3], ignored_monster, id, handle)
-{
-	if (!is_user_alive(id) )
-		return FMRES_IGNORED	
-	if (get_user_weapon(id) != CSW_KNIFE || !g_had_refknife[id] )
-		return FMRES_IGNORED
-
-	static Float:vecStart[3], Float:vecEnd[3], Float:v_angle[3], 
-		Float:v_forward[3], Float:view_ofs[3], Float:fOrigin[3]
-	pev(id, pev_origin, fOrigin)
-	pev(id, pev_view_ofs, view_ofs)
-	xs_vec_add(fOrigin, view_ofs, vecStart)
-	pev(id, pev_v_angle, v_angle)
-	angle_vector(v_angle, ANGLEVECTOR_FORWARD, v_forward)
-	xs_vec_mul_scalar(v_forward, 80.0, v_forward) // 攻擊距離
-	xs_vec_add(vecStart, v_forward, vecEnd)
-	engfunc(EngFunc_TraceLine, vecStart, vecEnd, ignored_monster, id, handle)
-
-	return FMRES_SUPERCEDE
-}
-
-public fw_TraceHull(Float:vector_start[3], Float:vector_end[3], ignored_monster, hull, id, handle)
-{
-	if (!is_user_alive(id) )
-		return FMRES_IGNORED	
-	if (get_user_weapon(id) != CSW_KNIFE || !g_had_refknife[id] )
-		return FMRES_IGNORED
-
-	static Float:vecStart[3], Float:vecEnd[3], Float:v_angle[3], 
-		Float:v_forward[3], Float:view_ofs[3], Float:fOrigin[3]
-	pev(id, pev_origin, fOrigin)
-	pev(id, pev_view_ofs, view_ofs)
-	xs_vec_add(fOrigin, view_ofs, vecStart)
-	pev(id, pev_v_angle, v_angle)
-	angle_vector(v_angle, ANGLEVECTOR_FORWARD, v_forward)
-	xs_vec_mul_scalar(v_forward, 80.0, v_forward) // 攻擊距離
-	xs_vec_add(vecStart, v_forward, vecEnd)
-	engfunc(EngFunc_TraceLine, vecStart, vecEnd, ignored_monster, id, handle)
-
-	return FMRES_SUPERCEDE
-}
-
 public fw_Think(ent)
 {
 	if(!pev_valid(ent) ) return FMRES_IGNORED
@@ -275,6 +261,23 @@ public fw_Think(ent)
 	pev(ent, pev_classname, classname, sizeof(classname))
 	id = pev(ent, pev_owner)
 	
+	/* Fade out */
+	if( equal(classname, FADEOUT_CLASS) )
+	{
+		static Float:fadeSpeed, Float:renderamt
+		pev(ent, pev_fuser1, fadeSpeed) // 此欄位紀錄淡出的速度
+		pev(ent, pev_renderamt, renderamt)
+
+		if( renderamt > 0.0 ) {
+			if( fadeSpeed > renderamt )  
+				set_pev(ent, pev_renderamt, 0.0)
+			else
+				set_pev(ent, pev_renderamt, renderamt - fadeSpeed) // 漸層淡出的速度
+			set_pev(ent, pev_nextthink, get_gametime() + 0.01)
+
+		} else engfunc(EngFunc_RemoveEntity, ent)
+	}
+
 	/* 月光劍 */
 	if( equal(classname, VULCANUS9) )
 	{
@@ -289,7 +292,7 @@ public fw_Think(ent)
 			set_pev(ent, pev_nextthink, get_gametime() + 0.01)
 
 		} else {
-			fadeOutEntity(ent)
+			toFadeOutEntity(ent)
 		}
 	}
 
@@ -321,14 +324,7 @@ public fw_Think(ent)
 
 	/* 附魔後揮刀的劍氣 */
 	if( equal(classname, FIREWAVE_CLASS) ) {
-
-		static Float:fTimeRemove
-		pev(ent, pev_fuser1, fTimeRemove)
-		if (get_gametime() >= fTimeRemove)
-			fadeOutEntity(ent, 3.0)
-		else
-			set_pev(ent, pev_nextthink, get_gametime() + 0.1)
-
+		toFadeOutEntity(ent, 4.0)
 	}
 
 	/* 附魔後元素球特效 */
@@ -342,7 +338,6 @@ public fw_Think(ent)
 
 		new Float:fOrigin[3]
 		pev(ent, pev_origin, fOrigin)
-		new id = pev(ent, pev_owner)
 
 		new victim = FM_NULLENT
 		while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 1500.0) ) != 0 ) { // 火流星爆炸範圍
@@ -363,12 +358,82 @@ public fw_Think(ent)
 		message_end()
 
 		for(new i = 1; i <= 2; ++i)
-			emit_sound(0, CHAN_STATIC, firestarExplosion, 1.0, ATTN_NORM, 0, PITCH_NORM)
+			emit_sound(0, CHAN_STATIC, skills_sound[FIRESTAR_EXPLODE_SOUND], 1.0, ATTN_NORM, 0, PITCH_NORM)
 
 		engfunc(EngFunc_RemoveEntity, ent)
 	}
 
+	// 破月者
+	if( equal(classname, MOONBREAK_CLASS) ) {
+
+		new Float:fOrigin[3]
+		pev(ent, pev_origin, fOrigin)
+
+		engfunc(EngFunc_MessageBegin, MSG_PVS, SVC_TEMPENTITY, fOrigin, 0)
+		write_byte(TE_BEAMCYLINDER)
+		engfunc(EngFunc_WriteCoord, fOrigin[0])
+		engfunc(EngFunc_WriteCoord, fOrigin[1])
+		engfunc(EngFunc_WriteCoord, fOrigin[2])
+		engfunc(EngFunc_WriteCoord, fOrigin[0])
+		engfunc(EngFunc_WriteCoord, fOrigin[1])
+		engfunc(EngFunc_WriteCoord, fOrigin[2] + 1200.0)
+		write_short(moonwave) // sprite
+		write_byte(0) // startframe
+		write_byte(0) // framerate
+		write_byte(10) // life (時間長度)
+		write_byte(30) // width
+		write_byte(0) // noise
+		write_byte(255) // red (顏色 R)
+		write_byte(255) // green (顏色 G)
+		write_byte(255) // blue (顏色 B)
+		write_byte(180) // brightness
+		write_byte(0) // speed
+		message_end()
+
+		emit_sound(0, CHAN_STATIC, skills_sound[MOONBREAK_HIT], 1.0, ATTN_NORM, 0, PITCH_NORM)
+
+		new Float:timers = 0.0, taskparm[2]
+		taskparm[0] = id
+
+		new victim = FM_NULLENT
+		while( (victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 1200.0) ) != 0 ) { // 月亮破壞抓取範圍
+			if(!is_user_alive(victim) || id == victim )
+				continue
+
+			timers += 0.1
+			set_task(timers, "moonbreakAttackTask", victim, taskparm, sizeof taskparm)
+		}
+
+		// 代表目前總發動次數
+		if( --g_moonBreakLightFlag <= 0 )
+			set_task(timers + 0.1, "moonbreakSetDefaultLighTask")
+
+		toFadeOutEntity(ent, 3.0)
+	}
+
+	/* 常魔紋連射魔法陣(棄用) */
+	if( equal(classname, CHANMO_CLASS) ) {
+
+		if( g_had_chanmo[id] ) {
+			static Float:v_angles[3], Float:oriugi[3]
+			pev(id, pev_v_angle, v_angles)
+			get_position(id, 70.0, 0.0, 0.0, oriugi)
+			v_angles[0] *= -1.0
+
+			set_pev(ent, pev_angles, v_angles)
+			set_pev(ent, pev_origin, oriugi)
+			set_pev(ent, pev_nextthink, get_gametime() + 0.01)
+
+		} else {
+			engfunc(EngFunc_RemoveEntity, ent)
+		}
+	}
+
 	return FMRES_IGNORED
+}
+
+public moonbreakSetDefaultLighTask() {
+	engfunc(EngFunc_LightStyle, 0, "") // Default value
 }
 
 public fw_Touch(ent, ptd)
@@ -382,6 +447,34 @@ public fw_Touch(ent, ptd)
 		static owner; owner = pev(ent, pev_owner)
 		if( owner == ptd ) return FMRES_IGNORED
 		ExecuteHamB(Ham_TakeDamage, ptd, ent, owner, 3000.0, DMG_SLASH);
+	}
+
+	if( equal(classname, CHANMOFIRE_CLASS) ) {
+
+		new Float:fOrigin[3], id, victim = FM_NULLENT
+		pev(ent, pev_origin, fOrigin)
+		id = pev(ent, pev_owner)
+
+		if( id == ptd ) return FMRES_IGNORED
+
+		while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 100.0) ) != 0 ) {
+			if(!is_user_alive(victim) || id == victim )
+				continue
+			ExecuteHamB(Ham_TakeDamage, victim, ent, id, 80.0, DMG_FREEZE)
+		}
+
+		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0)
+		write_byte(TE_EXPLOSION)
+		engfunc(EngFunc_WriteCoord, fOrigin[0])
+		engfunc(EngFunc_WriteCoord, fOrigin[1])
+		engfunc(EngFunc_WriteCoord, fOrigin[2])
+		write_short(chanmo_explode)
+		write_byte(15)
+		write_byte(40)
+		write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND)
+		message_end()
+
+		engfunc(EngFunc_RemoveEntity, ent)
 	}
 
 	return FMRES_IGNORED
@@ -400,7 +493,9 @@ public fw_CmdStart(id, uc_handle, seed)
 		return FMRES_IGNORED
 	
 	new Float:game_time = get_gametime()
-	static CurButton; CurButton = get_uc(uc_handle, UC_Buttons)
+	static CurButton, OldButton
+	CurButton = get_uc(uc_handle, UC_Buttons)
+	OldButton = pev(id, pev_oldbuttons)
 
 	static Float:nextJumpTime[33]
 	if( (CurButton & IN_JUMP) && (CurButton & IN_DUCK) ) {
@@ -415,7 +510,18 @@ public fw_CmdStart(id, uc_handle, seed)
 		}
 	}
 
-	if( (CurButton & IN_ATTACK) && (CurButton & IN_ATTACK2) ) {
+	if( (CurButton & IN_USE) && (CurButton & IN_RELOAD) ) {
+		if(get_user_weapon(id) != CSW_KNIFE)
+			return FMRES_IGNORED
+		if(get_pdata_float(id, m_flNextAttack, 5) > 0.0 )
+			return FMRES_IGNORED
+
+		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_USE)
+		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_RELOAD)
+		enChant(id)
+	}
+
+	if( CurButton & IN_ATTACK && CurButton & IN_ATTACK2 ) {
 
 		if(get_user_weapon(id) != CSW_KNIFE)
 			return FMRES_IGNORED
@@ -429,53 +535,169 @@ public fw_CmdStart(id, uc_handle, seed)
 		adurasMoonlightSword(id)
 	}
 
-	if( (CurButton & IN_USE) && (CurButton & IN_RELOAD) ) {
-		if(get_user_weapon(id) != CSW_KNIFE)
-			return FMRES_IGNORED
-		if(get_pdata_float(id, m_flNextAttack, 5) > 0.0 )
-			return FMRES_IGNORED
-
-		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_USE)
-		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_RELOAD)
-		enChant(id)
-	}
-	
-	static g_firestarCounter[33], Float:g_firestarNexttime[33]
-	if( CurButton & IN_ATTACK ) {
+	if( CurButton & IN_ATTACK && g_had_element[id] ) {
 
 		if(get_user_weapon(id) != CSW_KNIFE)
 			return FMRES_IGNORED
-		if(get_pdata_float(id, m_flNextAttack, 5) > 0.0 )
+		if(get_pdata_float(id, m_flNextAttack, 5) > 0.0 ||  
+		get_pdata_float(ent, m_flNextPrimaryAttack, 4) > 0.0 || get_pdata_float(ent, m_flNextSecondaryAttack, 4) > 0.0 )
 			return FMRES_IGNORED
 
 		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_ATTACK)
 		ExecuteHamB(Ham_Weapon_PrimaryAttack, ent)
 
-		if( g_had_element[id] ) {
-			slashFireWave(id)
-			RadiusAttack(id)
-			set_next_attacktime(id, ent, 0.2) // 附魔後攻速
-			set_pdata_float(ent, m_flNextIdle, 1.2, 4)
-
-		} else {
-			set_next_attacktime(id, ent, 0.4) // 刀子預設攻擊速度
-		}
-
-		/* 火流星計數 */
-		if( game_time > g_firestarNexttime[id] )
-			g_firestarCounter[id] = 0
-			
-		g_firestarNexttime[id] = game_time + 1.0
-		g_firestarCounter[id]++
-		client_print(id, print_chat, "%d", g_firestarCounter[id])
+		slashFireWave(id)
+		RadiusAttack(id)
+		set_next_attacktime(id, ent, 0.2) // 附魔後攻速
+		set_pdata_float(ent, m_flNextIdle, 1.2, 4)
 	}
 
-	if( (CurButton & IN_ATTACK2) && g_firestarCounter[id] >= 7 && game_time <= g_firestarNexttime[id] ) {
-		g_firestarCounter[id] = 0
-		fireStar(id)
+	if( CurButton & IN_ATTACK2 ) {
+		
+		if( get_user_weapon(id) != CSW_KNIFE ) {
+			if( g_had_chanmo[id] ) {
+				g_had_chanmo[id] = 0
+				set_next_attacktime(id, ent, 0.5)
+			}
+			return FMRES_IGNORED
+		}
+
+		static Float:nextChanmoMagicAttackTime[33]
+		if( g_had_chanmo[id] ) {
+			
+			if( game_time >= nextChanmoMagicAttackTime[id] ) {
+				ChanmoMagicAttack(id)
+				nextChanmoMagicAttackTime[id] = game_time + 0.1
+			}
+
+		} else {
+			g_had_chanmo[id] = 1
+		}
+
+	} else {
+		if( g_had_chanmo[id] )
+			g_had_chanmo[id] = 0
 	}
 
 	return FMRES_IGNORED
+}
+
+ChanmoMagicAttack(id)
+{
+	static Float:fStart[3], Float:velocity[3], Float:angles[3], Float:viewofs[3]
+
+	new chanmoFire = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target"))
+	set_pev(chanmoFire, pev_movetype, MOVETYPE_FLY)
+	set_pev(chanmoFire, pev_owner, id)
+	set_pev(chanmoFire, pev_classname, CHANMOFIRE_CLASS)
+	set_pev(chanmoFire, pev_solid, SOLID_TRIGGER)
+	engfunc(EngFunc_SetModel, chanmoFire, icearrow_model)
+	engfunc(EngFunc_SetSize, chanmoFire, Float:{-3.0, -3.0, -3.0}, Float:{3.0, 3.0, 3.0} )
+
+	pev(id, pev_v_angle, angles)
+
+	pev(id, pev_origin, fStart)
+	pev(id, pev_view_ofs, viewofs)
+	xs_vec_add(fStart, viewofs, fStart)
+	set_pev(chanmoFire, pev_origin, fStart)
+
+	angles[0] += random_float(-3.0, 3.0)
+	angles[1] += random_float(-3.0, 3.0)
+	angles[2] += random_float(-3.0, 3.0)
+
+	new Float:dest[3]
+	engfunc(EngFunc_MakeVectors, angles)
+	global_get(glb_v_forward, dest)
+	xs_vec_mul_scalar(dest, 9999.0, dest)
+	xs_vec_add(fStart, dest, dest)
+
+	engfunc(EngFunc_TraceLine, fStart, dest, 0, id, 0)
+	get_tr2(0, TR_vecEndPos, dest)
+
+	get_speed_vector(fStart, dest, 2500.0, velocity)
+	set_pev(chanmoFire, pev_velocity, velocity)
+
+	angles[0] *= -1.0
+	set_pev(chanmoFire, pev_angles, angles)
+	
+	emit_sound(id, CHAN_ITEM, skills_sound[CHANMOFIRE_ATTACK_SOUND], 0.6, ATTN_NORM, 0, PITCH_NORM)
+
+	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0);
+	write_byte(TE_BEAMFOLLOW);
+	write_short(chanmoFire);
+	write_short(chanmo_follow);
+	write_byte(5); // life
+	write_byte(10); // width
+	write_byte(255);
+	write_byte(255);
+	write_byte(255);
+	write_byte(215); // brightness
+	message_end();
+}
+
+prepareMoonBreak(id)
+{
+	new moon = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target") )
+	set_pev(moon, pev_movetype, MOVETYPE_NONE)
+	set_pev(moon, pev_owner, id)
+	set_pev(moon, pev_classname, MOONBREAK_CLASS)
+	set_pev(moon, pev_solid, SOLID_NOT)
+	set_pev(moon, pev_animtime, get_gametime() )
+	set_pev(moon, pev_framerate, 1.0)
+	set_pev(moon, pev_rendermode, kRenderTransAlpha);
+	set_pev(moon, pev_renderamt, 255.0)
+
+	new Float:origin[3], Float:angles[3]
+	pev(id, pev_origin, origin)
+	set_pev(moon, pev_origin, origin)
+
+	pev(id, pev_v_angle, angles)
+	angles[2] = 0.0
+	set_pev(moon, pev_angles, angles)
+
+	engfunc(EngFunc_SetModel, moon, moonbreak_model)
+	set_pev(moon, pev_nextthink, get_gametime() + 2.0)
+
+	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, origin, 0);
+	write_byte(TE_DLIGHT)
+	engfunc(EngFunc_WriteCoord, origin[0])
+	engfunc(EngFunc_WriteCoord, origin[1])
+	engfunc(EngFunc_WriteCoord, origin[2])
+	write_byte(150) // radius in 10's
+	write_byte(215) // rgb
+	write_byte(139)
+	write_byte(200)
+	write_byte(60) // life in 10's
+	write_byte(30) // decay rate in 10's
+	message_end()
+
+	emit_sound(0, CHAN_STATIC, skills_sound[MOONBREAK_SUMMON], 1.0, ATTN_NORM, 0, PITCH_NORM)
+	engfunc(EngFunc_LightStyle, 0, "a")
+	g_moonBreakLightFlag++
+}
+
+public moonbreakAttackTask(const param_menu[], id)
+{
+	if( !is_user_alive(id) )
+		return PLUGIN_CONTINUE
+
+	static Float:fOrigin[3]
+	pev(id, pev_origin, fOrigin)
+
+	engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0)
+	write_byte(TE_EXPLOSION)
+	engfunc(EngFunc_WriteCoord, fOrigin[0])
+	engfunc(EngFunc_WriteCoord, fOrigin[1])
+	engfunc(EngFunc_WriteCoord, fOrigin[2])
+	write_short(moonkiller_explode)
+	write_byte(10)
+	write_byte(15)
+	write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND)
+	message_end()
+
+	ExecuteHamB(Ham_TakeDamage, id, param_menu[0], param_menu[0], 1000.0, DMG_SLASH)
+
+	return PLUGIN_CONTINUE
 }
 
 enChant(id)
@@ -489,7 +711,7 @@ enChant(id)
 		set_weapon_anim(id, KNIFE_ANIM_DRAW)
 
 		new elements = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target"))
-		set_pev(elements, pev_movetype, MOVETYPE_NONE)
+		set_pev(elements, pev_movetype, MOVETYPE_FOLLOW)
 		set_pev(elements, pev_owner, id)
 		set_pev(elements, pev_classname, ELEMENT_CLASS)
 		set_pev(elements, pev_solid, SOLID_NOT)
@@ -515,6 +737,56 @@ enChant(id)
 		engfunc(EngFunc_RemoveEntity, element)
 	}
 
+}
+
+#define pDataKey_iOwner 41
+#define pData_Item 4
+new g_firestarCounter[33], Float:g_firestarNexttime[33]
+public fw_Weapon_PrimaryAttack(ent)
+{
+	static Float:game_time, id
+	game_time = get_gametime()
+	id = get_pdata_cbase(ent, pDataKey_iOwner, pData_Item)
+
+	if( !is_user_alive(id) )
+		return HAM_IGNORED
+	if(!g_had_refknife[id] )
+		return HAM_IGNORED
+
+	if( game_time > g_firestarNexttime[id] )
+		g_firestarCounter[id] = 0
+			
+	g_firestarNexttime[id] = game_time + 1.0
+	g_firestarCounter[id]++
+
+	client_print(id, print_center, "攻擊計數器: %d", g_firestarCounter[id])
+
+	return HAM_IGNORED
+}
+
+public fw_Weapon_SecondaryAttack(ent)
+{
+	new Float:game_time = get_gametime()
+	new id = get_pdata_cbase(ent, pDataKey_iOwner, pData_Item)
+
+	if( !is_user_alive(id) )
+		return HAM_IGNORED
+	if( !g_had_refknife[id] )
+		return HAM_IGNORED
+
+	new const firestatCount = 2, moonbreakCount = 5
+
+	if( g_firestarCounter[id] >= firestatCount && game_time <= g_firestarNexttime[id] ) {
+
+		if( g_firestarCounter[id] >= moonbreakCount )
+			prepareMoonBreak(id)
+		else if( g_firestarCounter[id] >= firestatCount )
+			fireStar(id)
+
+		g_firestarCounter[id] = 0
+	}
+
+	return HAM_IGNORED
 }
 
 public fw_EmitSound(id, channel, const sample[], Float:volume, Float:attn, flags, pitch)
@@ -571,7 +843,6 @@ slashFireWave(id)
 {
 	new ent = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target"))
 	set_pev(ent, pev_movetype, MOVETYPE_FLY)
-	set_pev(ent, pev_fuser1, get_gametime() + 0.2) // remove time
 	set_pev(ent, pev_nextthink, get_gametime() + 0.2)
 	set_pev(ent, pev_classname, FIREWAVE_CLASS)
 	engfunc(EngFunc_SetModel, ent, firewave_model)
@@ -594,19 +865,11 @@ slashFireWave(id)
 	set_pev(ent, pev_velocity, velocity)
 }
 
-stock fadeOutEntity(ent, Float:fadeSpeed=5.0)
+stock toFadeOutEntity(ent, Float:fadeSpeed=5.0)
 {
-	static Float:renderamt
-	pev(ent, pev_renderamt, renderamt)
-
- 	if( renderamt > 0.0 ) {
-		if( fadeSpeed > renderamt )  
-			set_pev(ent, pev_renderamt, 0.0)
-		else
-			set_pev(ent, pev_renderamt, renderamt - fadeSpeed) // 漸層淡出的速度
-		set_pev(ent, pev_nextthink, get_gametime() + 0.01)
-
-	} else engfunc(EngFunc_RemoveEntity, ent)
+	set_pev(ent, pev_classname, FADEOUT_CLASS)
+	set_pev(ent, pev_fuser1, fadeSpeed)
+	set_pev(ent, pev_nextthink, get_gametime() + 0.01)
 }
 
 stock set_next_attacktime(id, weaponEnt, Float:time)
@@ -626,7 +889,7 @@ stock set_weapon_anim(id, anim)
 	message_end()	
 }
 
-stock get_speed_vector(const Float:origin1[3], const Float:origin2[3],Float:speed, Float:new_velocity[3])
+stock get_speed_vector(const Float:origin1[3], const Float:origin2[3], Float:speed, Float:new_velocity[3])
 {
 	new_velocity[0] = origin2[0] - origin1[0]
 	new_velocity[1] = origin2[1] - origin1[1]
@@ -638,7 +901,25 @@ stock get_speed_vector(const Float:origin1[3], const Float:origin2[3],Float:spee
 	return 1
 }
 
-/* ----------------------------------------- 範圍攻擊天才區域 -------------------------------------------------- */
+stock get_position(ent, Float:forw, Float:right, Float:up, Float:vStart[])
+{
+	static Float:vOrigin[3], Float:vAngle[3], Float:vForward[3], Float:vRight[3], Float:vUp[3]
+	
+	pev(ent, pev_origin, vOrigin)
+	pev(ent, pev_view_ofs,vUp) //for player
+	xs_vec_add(vOrigin,vUp,vOrigin)
+	pev(ent, pev_v_angle, vAngle) // if normal entity ,use pev_angles
+	
+	angle_vector(vAngle,ANGLEVECTOR_FORWARD,vForward) //or use EngFunc_AngleVectors
+	angle_vector(vAngle,ANGLEVECTOR_RIGHT,vRight)
+	angle_vector(vAngle,ANGLEVECTOR_UP,vUp)
+	
+	vStart[0] = vOrigin[0] + vForward[0] * forw + vRight[0] * right + vUp[0] * up
+	vStart[1] = vOrigin[1] + vForward[1] * forw + vRight[1] * right + vUp[1] * up
+	vStart[2] = vOrigin[2] + vForward[2] * forw + vRight[2] * right + vUp[2] * up
+}
+
+/* ----------------------------------------- 範圍攻擊區域 -------------------------------------------------- */
 
 #define	RESULT_HIT_NONE 			0
 #define	RESULT_HIT_PLAYER			1
