@@ -52,7 +52,8 @@ new const skills_sound[][] =
 	"ref/airplane2.wav",
 	"ref/vulcanus9_draw.wav",
 	"ref/moonbreak_summon.wav",
-	"ref/moonbreak_hit.wav"
+	"ref/moonbreak_hit.wav",
+	"ref/freeze_hit.wav"
 }
 enum
 {
@@ -61,8 +62,8 @@ enum
 	FIRESTAR_FLY_SOUND,
 	CHANMOFIRE_ATTACK_SOUND,
 	MOONBREAK_SUMMON,
-	MOONBREAK_HIT
-
+	MOONBREAK_HIT,
+	ICEWING_HIT
 }
 
 #define WEAPON_REF "weapon_knife"
@@ -82,25 +83,28 @@ enum
 #define CHANMOFIRE_CLASS "chanmo_fire"
 #define MOONBREAK_CLASS "moon_breker"
 #define FADEOUT_CLASS "fadeout"
+#define DELETE_CLASS "think_delete"
+#define ICEWING_CLASS "icewing"
+#define FLYKNIFE_CLASS "flyknife"
 
 /* MODELS PATH */
 new const vulcanus9[] = "models/ref/vulcanus9.mdl"
 new const firewave_model[] = "models/ref/fireslash.mdl"
-new const magicircle[] = "models/ref/mumei.mdl"
 new const element_model[] = "models/ref/element.mdl"
-new const firestar[] = "models/ref/firemagic.mdl"
-new const chanmomagic_model[] = "models/ref/mumei.mdl"
-new const icearrow_model[] = "models/ref/ice_arrow.mdl"
+new const firestar_model[] = "models/ref/firemagic.mdl"
 new const moonbreak_model[] = "models/ref/moon_break.mdl"
+new const icearrow_model[] = "models/ref/ice_arrow.mdl"
+new const chanmomagic_model[] = "models/ref/mumei.mdl"
+new const icewing_model[] = "models/ref/icewing.mdl"
+new const flyknifedragon_model[] = "models/ref/flyknifedragon.mdl"
+
+new const circles3[] = "models/circles3.mdl"  // test
 
 new const muzzleflash63[] = "sprites/ref/muzzleflash63.spr"
 new const holybombexp_model[] = "sprites/ref/holybomb_exp.spr"
 new const yukiramy_model[] = "sprites/ref/yukiramy.spr"
 new const moonkiller_model[] = "sprites/ref/moonkiller.spr"
 new const moonwave_model[] = "sprites/ref/skills2.spr"
-
-
-new const circles3[] = "models/circles3.mdl"  // test
 
 new g_had_refknife[33], g_had_element[33]
 new g_moonBreakLightFlag = 0
@@ -115,11 +119,15 @@ public plugin_init()
 	register_forward(FM_Touch, "fw_Touch")
 	register_forward(FM_CmdStart, "fw_CmdStart")
 	
-	RegisterHam(Ham_Weapon_PrimaryAttack, WEAPON_REF,"fw_Weapon_PrimaryAttack", 1)
-	RegisterHam(Ham_Weapon_SecondaryAttack, WEAPON_REF,"fw_Weapon_SecondaryAttack", 1)
+	RegisterHam(Ham_Weapon_PrimaryAttack, WEAPON_REF, "fw_Weapon_PrimaryAttack", 1)
+	RegisterHam(Ham_Weapon_SecondaryAttack, WEAPON_REF, "fw_Weapon_SecondaryAttack", 1)
 	RegisterHam(Ham_CS_Weapon_SendWeaponAnim, WEAPON_REF, "fw_Weapon_SendAnim", 1)
 
 	register_clcmd("getrk", "getRefKnife")
+	register_clcmd("nskill", "new_skills")
+}
+public new_skills(id) { 
+	flyknifeDragonAttack(id)
 }
 
 new firestar_explode, chanmo_explode, chanmo_follow, moonkiller_explode, moonwave
@@ -128,13 +136,15 @@ public plugin_precache()
 	engfunc(EngFunc_PrecacheModel, v_model)
 	engfunc(EngFunc_PrecacheModel, p_model)
 	engfunc(EngFunc_PrecacheModel, vulcanus9)
-	engfunc(EngFunc_PrecacheModel, magicircle)
 	engfunc(EngFunc_PrecacheModel, firewave_model)
 	engfunc(EngFunc_PrecacheModel, element_model)
-	engfunc(EngFunc_PrecacheModel, firestar)
+	engfunc(EngFunc_PrecacheModel, firestar_model)
 	engfunc(EngFunc_PrecacheModel, chanmomagic_model)
 	engfunc(EngFunc_PrecacheModel, icearrow_model)
 	engfunc(EngFunc_PrecacheModel, moonbreak_model)
+	engfunc(EngFunc_PrecacheModel, icewing_model)
+	engfunc(EngFunc_PrecacheModel, flyknifedragon_model)
+
 	firestar_explode = engfunc(EngFunc_PrecacheModel, muzzleflash63)
 	chanmo_explode = engfunc(EngFunc_PrecacheModel, holybombexp_model)
 	chanmo_follow = engfunc(EngFunc_PrecacheModel, yukiramy_model)
@@ -157,7 +167,10 @@ public plugin_natives()
 	register_native("use_moonsword", "adurasMoonlightSword", 1)
 	register_native("use_enchant", "enChant", 1)
 	register_native("use_moonbreak", "prepareMoonBreak", 1)
-	register_native("use_chanmo", "ChanmoMagicAttack", 1)
+	register_native("use_chanmo", "ChanmoMagicImplement", 1)
+	register_native("get_element_status", "get_element_status", 1)
+	register_native("use_icewing", "iceWingAttack", 1)
+	register_native("use_flyknife", "flyknifeDragonAttack", 1)
 }
 
 public getRefKnife(id)
@@ -188,15 +201,15 @@ public adurasMoonlightSword(id)
 	set_pev(moonlightSword, pev_solid, SOLID_NOT)
 	set_pev(moonlightSword, pev_origin, origin)
 	set_pev(moonlightSword, pev_impacttime, get_gametime() + 0.8) // 停止攻擊開始消失的時間
-	set_pev(moonlightSword, pev_rendermode, kRenderTransAlpha);
-	set_pev(moonlightSword, pev_renderamt, 255.0);
+	set_pev(moonlightSword, pev_rendermode, kRenderTransAlpha)
+	set_pev(moonlightSword, pev_renderamt, 255.0)
 
 	engfunc(EngFunc_SetModel, moonlightSword, vulcanus9)
 	angles[0] = 0.0
 	angles[1] += 115.0 // 起始角度劍端指向左後方
 	set_pev(moonlightSword, pev_angles, angles)
 	set_pev(moonlightSword, pev_nextthink, get_gametime() + AFTER_ATTACKTIME) // 停留幾秒後開始揮刀
-	set_task(0.4, "emitsound_vulcanus9_task", moonlightSword);
+	set_task(0.4, "emitsound_vulcanus9_task", moonlightSword)
 
 	/* 月光劍粒子 */
 	for(new i = 2; i <= 7; i++) {
@@ -228,7 +241,7 @@ public fireStar(id)
 	fm_get_aim_origin(id, aimOrigin)
 	set_pev(firestarEnt, pev_origin, aimOrigin)
 
-	engfunc(EngFunc_SetModel, firestarEnt, firestar)
+	engfunc(EngFunc_SetModel, firestarEnt, firestar_model)
 	set_pev(firestarEnt, pev_nextthink, get_gametime() + 9.7) // 幾秒後爆炸(需綁模組動畫)
 	client_cmd(0, "spk ^"sound/%s^"", skills_sound[FIRESTAR_FLY_SOUND])
 }
@@ -273,6 +286,11 @@ public fw_Think(ent)
 			set_pev(ent, pev_nextthink, get_gametime() + 0.01)
 
 		} else engfunc(EngFunc_RemoveEntity, ent)
+	}
+
+	/* 思考移除 */
+	if( equal(classname, DELETE_CLASS) ) {
+		engfunc(EngFunc_RemoveEntity, ent)
 	}
 
 	static Float:impacttime // 給擁有有效期限物件的計時器
@@ -339,7 +357,7 @@ public fw_Think(ent)
 		while((victim = engfunc(EngFunc_FindEntityInSphere, victim, fOrigin, 1500.0) ) != 0 ) { // 火流星爆炸範圍
 			if(!is_user_alive(victim) )
 				continue
-			ExecuteHamB(Ham_TakeDamage, victim, ent, id, 500.0, DMG_BURN)
+			ExecuteHamB(Ham_TakeDamage, victim, ent, id, 10000.0, DMG_BURN)
 		}
 
 		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0)
@@ -360,7 +378,7 @@ public fw_Think(ent)
 		engfunc(EngFunc_RemoveEntity, ent)
 	}
 
-	// 破月者
+	/* 破月者 */
 	if( equal(classname, MOONBREAK_CLASS) ) {
 
 		new Float:fOrigin[3]
@@ -411,7 +429,49 @@ public fw_Think(ent)
 
 		if( get_gametime() < impacttime ) {
 			ChanmoMagicAttack(ent)
-			set_pev(ent, pev_nextthink, get_gametime() + 0.1)
+			set_pev(ent, pev_nextthink, get_gametime() + 0.15)
+
+		} else
+			engfunc(EngFunc_RemoveEntity, ent)
+	}
+
+	/* 冰風暴 */
+	if( equal(classname, ICEWING_CLASS) ) {
+
+		#define ICEWING_DAMAGE 475.0
+		WeaponDamage_Config(id, ent, 0, 0, 350.0, 0.0, ICEWING_DAMAGE, 50.0)
+
+		new Float:fOrigin[3]
+		pev(ent, pev_origin, fOrigin)
+
+		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0)
+		write_byte(TE_EXPLOSION)
+		engfunc(EngFunc_WriteCoord, fOrigin[0])
+		engfunc(EngFunc_WriteCoord, fOrigin[1])
+		engfunc(EngFunc_WriteCoord, fOrigin[2])
+		write_short(chanmo_explode)
+		write_byte(45)
+		write_byte(30)
+		write_byte(TE_EXPLFLAG_NOPARTICLES | TE_EXPLFLAG_NOSOUND)
+		message_end()
+
+		emit_sound(ent, CHAN_WEAPON, skills_sound[ICEWING_HIT], 1.0, ATTN_NORM, 0, PITCH_NORM)
+		engfunc(EngFunc_RemoveEntity, ent)
+	}
+
+	/* 龍牙刃 */
+	if( equal(classname, FLYKNIFE_CLASS) ) {
+
+		pev(ent, pev_fuser1, impacttime)
+
+		if( get_gametime() < impacttime ) {
+
+			static Float:velocity[3]
+
+			pev(ent, pev_velocity, velocity)
+			xs_vec_neg(velocity, velocity)
+			set_pev(ent, pev_velocity, velocity)
+			set_pev(ent, pev_nextthink, get_gametime() + 0.5)
 
 		} else
 			engfunc(EngFunc_RemoveEntity, ent)
@@ -431,23 +491,33 @@ public fw_Touch(ent, ptd)
 {
 	if(!pev_valid(ent) ) return FMRES_IGNORED
 	
-	static classname[32]
+	static classname[32], id
 	pev(ent, pev_classname, classname, sizeof(classname))
+	id = pev(ent, pev_owner)
 
 	if( equal(classname, VULCANUS9_PARTICLE) ) {
-		static owner; owner = pev(ent, pev_owner)
-		if( owner == ptd ) return FMRES_IGNORED
-		ExecuteHamB(Ham_TakeDamage, ptd, ent, owner, 200.0, DMG_SLASH);
+
+		if( id == ptd )
+			return FMRES_IGNORED
+
+		static Float:nextValidAttackTime[33]
+		new Float:gameTime = get_gametime()
+
+		if( gameTime >= nextValidAttackTime[ptd] ) {
+			nextValidAttackTime[ptd] = gameTime + 0.1
+			#define VULCANUS9_DAMAGE 700.0
+			fake_traceattack(ent, ptd, VULCANUS9_DAMAGE, DMG_SLASH)
+		}
 	}
 
 	if( equal(classname, CHANMOFIRE_CLASS) ) {
 
-		new Float:fOrigin[3], id
+		new Float:fOrigin[3]
 		pev(ent, pev_origin, fOrigin)
-		id = pev(ent, pev_owner)
 
 		if( id == ptd ) return FMRES_IGNORED
-		WeaponDamage_Config(id, ent, 0, 0, 100.0, 0.0, 100.0, 0.01)
+		#define CHANMOFIRE_DAMAGE 275.0
+		WeaponDamage_Config(id, ent, 0, 0, 150.0, 0.0, CHANMOFIRE_DAMAGE, 0.01)
 
 		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, fOrigin, 0)
 		write_byte(TE_EXPLOSION)
@@ -461,6 +531,12 @@ public fw_Touch(ent, ptd)
 		message_end()
 
 		engfunc(EngFunc_RemoveEntity, ent)
+	}
+
+	if( equal(classname, FLYKNIFE_CLASS) ) {
+
+		if( id == ptd ) return FMRES_IGNORED
+		fake_traceattack(ent, ptd, 175.0, DMG_SONIC)
 	}
 
 	return FMRES_IGNORED
@@ -507,22 +583,6 @@ public fw_CmdStart(id, uc_handle, seed)
 		enChant(id)
 	}
 
-	/*
-	if( CurButton & IN_ATTACK && CurButton & IN_ATTACK2 ) {
-
-		if(get_user_weapon(id) != CSW_KNIFE)
-			return FMRES_IGNORED
-		if(get_pdata_float(id, m_flNextAttack, 5) > 0.0 )
-			return FMRES_IGNORED
-
-		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_ATTACK)
-		set_uc(uc_handle, UC_Buttons, CurButton & ~IN_ATTACK2)
-		set_next_attacktime(id, ent, 1.0) // 施放月光劍後的硬直時間
-		set_weapon_anim(id, KNIFE_ANIM_DRAW)
-		adurasMoonlightSword(id)
-	}
-	*/
-
 	if( CurButton & IN_ATTACK && g_had_element[id] ) {
 
 		if(get_user_weapon(id) != CSW_KNIFE)
@@ -541,6 +601,55 @@ public fw_CmdStart(id, uc_handle, seed)
 	}
 
 	return FMRES_IGNORED
+}
+
+public flyknifeDragonAttack(id)
+{
+	new const Float:angles_offset[] = {-18.0, -12.0, -6.0, 0.0, 6.0, 12.0, 18.0};
+	new Float:angels[3], Flaot:origin[3]
+	pev(id, pev_v_angle, angels)
+	pev(id, pev_origin, origin)
+
+	new Float:offset_angle[3], Float:velocity[3]
+
+	for(new i = 0; i < sizeof angles_offset; i++) {
+
+		new flyknife = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target") )
+		set_pev(flyknife, pev_classname, FLYKNIFE_CLASS)
+		set_pev(flyknife, pev_movetype, MOVETYPE_NOCLIP)
+		set_pev(flyknife, pev_solid, SOLID_TRIGGER)
+		set_pev(flyknife, pev_owner, id)
+		set_pev(flyknife, pev_origin, origin)
+		set_pev(flyknife, pev_fuser1, get_gametime() + 10.0) // 消失時間
+
+		engfunc(EngFunc_SetModel, flyknife, flyknifedragon_model)
+		engfunc(EngFunc_SetSize, flyknife, Float:{-10.0, -20.0, -5.0}, Float:{10.0, 20.0, 5.0});
+		fm_set_rendering(flyknife, kRenderFxGlowShell, 224, 102, 255, kRenderNormal, 16)
+
+		offset_angle[0] = 0.0
+		offset_angle[1] = angels[1] + angles_offset[i]
+		offset_angle[2] = angels[2]
+		set_pev(flyknife, pev_angles, offset_angle)
+
+		angle_vector(offset_angle, ANGLEVECTOR_FORWARD, velocity)
+		xs_vec_mul_scalar(velocity, 2000.0, velocity)
+
+		set_pev(flyknife, pev_velocity, velocity)
+		set_pev(flyknife, pev_nextthink, get_gametime() + 0.5)
+
+		engfunc(EngFunc_MessageBegin, MSG_BROADCAST, SVC_TEMPENTITY, 0, 0)
+		write_byte(TE_BEAMFOLLOW)
+		write_short(flyknife)
+		write_short(chanmo_follow)
+		write_byte(5); // life
+		write_byte(2); // widtd
+		write_byte(255); // r
+		write_byte(231); // g
+		write_byte(139); // b
+		write_byte(225); // brightness
+		message_end()
+	}
+
 }
 
 public ChanmoMagicAttack(ent)
@@ -600,7 +709,7 @@ public ChanmoMagicImplement(id)
 	set_pev(chanmoBody, pev_owner, id)
 	set_pev(chanmoBody, pev_classname, CHANMO_CLASS)
 	set_pev(chanmoBody, pev_solid, SOLID_NOT)
-	engfunc(EngFunc_SetModel, chanmoBody, magicircle)
+	engfunc(EngFunc_SetModel, chanmoBody, chanmomagic_model)
 
 	new Float:angles[3]
 	pev(id, pev_v_angle, angles)
@@ -676,10 +785,39 @@ public moonbreakAttackTask(const param_menu[], id)
 	message_end()
 
 	#define PARMS_ID 0
-	#define MOON_DAMAG 450.0
+	#define MOON_DAMAG 1450.0
 	ExecuteHamB(Ham_TakeDamage, id, param_menu[PARMS_ID], param_menu[PARMS_ID], MOON_DAMAG, DMG_SLASH)
 
 	return PLUGIN_CONTINUE
+}
+
+public iceWingAttack(id)
+{
+	new icewing, Float:fOrigin[3], Float:radOrigin[3], Float:angles[3]
+	pev(id, pev_origin, fOrigin)
+
+	for(new i = 1; i <= 10; i++) {	
+
+		icewing = engfunc(EngFunc_CreateNamedEntity, engfunc(EngFunc_AllocString, "info_target") )
+		set_pev(icewing, pev_movetype, MOVETYPE_FLY)
+		set_pev(icewing, pev_owner, id)
+		set_pev(icewing, pev_classname, ICEWING_CLASS)
+		set_pev(icewing, pev_solid, SOLID_NOT)
+		set_pev(icewing, pev_animtime, get_gametime())
+		set_pev(icewing, pev_framerate, 1.0)
+
+		radOrigin[0] = fOrigin[0] + random_float(-500.0, 500.0)
+		radOrigin[1] = fOrigin[1] + random_float(-500.0, 500.0)
+		radOrigin[2] = fOrigin[2] - 18.0
+		set_pev(icewing, pev_origin, radOrigin)
+
+		pev(id, pev_v_angle, angles)
+		angles[1] = 0.0
+		set_pev(icewing, pev_angles, angles)
+
+		engfunc(EngFunc_SetModel, icewing, icewing_model)
+		set_pev(icewing, pev_nextthink, get_gametime() + 1.95)
+	}
 }
 
 public enChant(id)
@@ -741,7 +879,18 @@ public fw_Weapon_PrimaryAttack(ent)
 	g_skillsNexttime[id] = game_time + 1.0
 	g_firestarCounter[id]++
 
-	client_print(id, print_center, "攻擊計數器: %d", g_firestarCounter[id])
+	new skill_name[16], t_count = g_firestarCounter[id] / 2
+	switch( t_count ) {
+		case 1: skill_name = "月光劍"
+		case 2: skill_name = "常魔紋"
+		case 3: skill_name = "破月"
+		case 4: skill_name = "冰風暴"
+		case 5: skill_name = "穿透匕首"
+		case 10..9999: skill_name = "火流星"
+		default: skill_name = "無"
+	}
+
+	client_print(id, print_center, "攻擊計數器: %d [%s]", g_firestarCounter[id], skill_name)
 
 	return HAM_IGNORED
 }
@@ -756,22 +905,16 @@ public fw_Weapon_SecondaryAttack(ent)
 	if( !g_had_refknife[id] )
 		return HAM_IGNORED
 
-	#define COUNT_MOONSWORD 2
-	#define COUNT_CHANO 4
-	#define COUNT_MOONBREAK 6
-	#define COUNT_FIRESTAR 8
-
 	if( g_firestarCounter[id] >= 2 && game_time <= g_skillsNexttime[id] ) {
 
-		if( g_firestarCounter[id] >= COUNT_MOONBREAK )
-			prepareMoonBreak(id)
-		else if ( g_firestarCounter[id] >= COUNT_CHANO )
-			ChanmoMagicImplement(id)
-		else if( g_firestarCounter[id] >= COUNT_FIRESTAR )
-			fireStar(id)
-		else if ( g_firestarCounter[id] >= COUNT_MOONSWORD )
-			adurasMoonlightSword(id)
-
+		switch( g_firestarCounter[id]/2 ) {
+			case 1: adurasMoonlightSword(id)
+			case 2: ChanmoMagicImplement(id)
+			case 3: prepareMoonBreak(id)
+			case 4: iceWingAttack(id)
+			case 5: flyknifeDragonAttack(id)
+			case 10: fireStar(id)
+		}
 		g_firestarCounter[id] = 0
 	}
 
@@ -852,6 +995,11 @@ slashFireWave(id)
 
 	velocity_by_aim(id, 5, velocity)
 	set_pev(ent, pev_velocity, velocity)
+}
+
+public get_element_status(id)
+{
+	return g_had_element[id]
 }
 
 stock toFadeOutEntity(ent, Float:fadeSpeed=5.0)
@@ -1099,6 +1247,22 @@ stock KnifeAttack2(id, bStab, Float:flRange, Float:fAngle, Float:flDamage, Float
 		free_tr2(tr);
 	}
 	return iHitResult;
+}
+
+stock fake_traceattack(ent, victim, Float:damages, dmgBit)
+{
+	new Float:vecSrc[3], Float:vecEnd[3], Float:v_angle[3], Float:vecForward[3]
+	new id = pev(ent, pev_owner)
+	pev(ent, pev_origin, vecSrc)
+	pev(victim, pev_origin, vecEnd)
+	xs_vec_sub(vecEnd, vecSrc, v_angle)
+	angle_vector(v_angle, ANGLEVECTOR_FORWARD, v_angle)
+	new tr = create_tr2()
+	engfunc(EngFunc_TraceLine, vecSrc, vecEnd, 0, id, tr);
+	ClearMultiDamage()
+	ExecuteHamB(Ham_TraceAttack, victim, id, damages, vecForward, tr, dmgBit)
+	ApplyMultiDamage(id, id)
+	free_tr2(tr)
 }
 
 stock WeaponDamage_Config(id, iEnt, isKnife, bStab, Float:flRadius, Float:fAngle, Float:flDamage, Float:flKnockBack, iHitgroup = -1, bNoTraceCheck = 0, bitsDamageType = DMG_NEVERGIB | DMG_CLUB, bool:bSkipAttacker=true, bool:bCheckTeam=false)
