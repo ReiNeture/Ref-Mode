@@ -3,7 +3,6 @@
 #include <vector>
 
 new const wings_model[] = "models/ref/krilo2.mdl"
-new const yukiramy_model[] = "sprites/ref/yukiramy.spr"
 new const WING_CLASS[] = "ref_wing"
 
 new wing_status[33], had_wing[33]
@@ -20,7 +19,6 @@ public plugin_init()
 public plugin_precache()
 {
 	engfunc(EngFunc_PrecacheModel, wings_model)
-	yukiramy = engfunc(EngFunc_PrecacheModel, yukiramy_model)
 }
 
 public client_connect(id) {
