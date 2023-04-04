@@ -497,7 +497,7 @@ public fw_Touch(ent, ptd)
 
 	if( equal(classname, VULCANUS9_PARTICLE) ) {
 
-		if( id == ptd )
+		if( id == ptd || !is_user_alive(ptd) )
 			return FMRES_IGNORED
 
 		static Float:nextValidAttackTime[33]

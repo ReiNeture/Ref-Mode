@@ -30,7 +30,7 @@ public plugin_init(){
 
     sync = CreateHudSyncObj();
     vault = nvault_open("reflevel");
-    set_task(30.0, "AutoSave", _, _, _, "b");
+    // set_task(300.0, "AutoSave", _, _, _, "b");
 }
 
 public plugin_natives()
